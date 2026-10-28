@@ -48,9 +48,8 @@
 #vso-shell .authenticated-email-operations .authenticated-operation-station li > .pdc-sublet-po-inline { grid-column: 4 !important; grid-row: 1; justify-self: end; max-width: 100%; margin: 0 !important; }
 #vso-shell .authenticated-email-operations [data-operation-station="SUBLET"] .pdc-sublet-po-nopo { margin-right: 0 !important; }
 #vso-shell .authenticated-email-operations .authenticated-operation-station li > small { grid-column: 2 / -1; }
-#vso-shell .authenticated-email-operations li[data-vso-full]:hover::after,
-#vso-shell .authenticated-email-operations li[data-vso-full]:focus::after,
-#vso-shell .authenticated-email-operations li[data-vso-full]:focus-within::after {
+/* r681 (F291): the full description shows only while the mouse is over the description, never while typing hours. */
+#vso-shell .authenticated-email-operations li[data-vso-full]:has(> span:hover)::after {
   content: attr(data-vso-full); position: absolute; left: 4.9rem; right: 6px; top: calc(100% - 4px); z-index: 8; white-space: normal;
   background: #142334; color: #fff; font: 11px/1.4 Arial, Helvetica, sans-serif; padding: 6px 9px; border-radius: 8px; box-shadow: 0 8px 20px #14233444; pointer-events: none; }
 #vso-shell .authenticated-email-operations li[data-vso-full]:focus { outline: 2px solid #246fad; outline-offset: -2px; }
@@ -147,3 +146,14 @@
 #vso-shell li.vso-done.is-complete .vso-tick input { accent-color: #146c3b; }
 #vso-shell .authenticated-email-operations .authenticated-operation-station li > .vso-tick { grid-column: 5; grid-row: 1; justify-self: end; }
 #vso-shell .authenticated-email-operations .authenticated-operation-station li > .vso-done-meta { grid-column: 1 / -1; grid-row: 2; }
+
+/* r681 (F291): tidy Edit hours. Small hours boxes in one straight column; the tick never runs off the edge. */
+#vso-shell .authenticated-email-operations .authenticated-operation-station li > em { justify-self: end; width: 4.6rem; font-style: normal; }
+#vso-shell .authenticated-email-operations li > em input[data-vehicle-workshop-hours-batch-input] {
+  box-sizing: border-box; width: 4.6rem; height: 26px; min-height: 0; margin: 0; padding: 0 6px; border: 1px solid #94a3b8; border-radius: 6px;
+  background: #fff; font: 12px/1 Arial, Helvetica, sans-serif; color: #142334; text-align: right; box-shadow: none; }
+#vso-shell .authenticated-email-operations li > em input[data-vehicle-workshop-hours-batch-input]:focus { outline: 2px solid #1d4ed8; outline-offset: 0; border-color: #1d4ed8; }
+#vso-shell .authenticated-email-operations li > em input.vso-changed { background: #dbeafe; border-color: #1d4ed8; outline: none; }
+#vso-shell .authenticated-email-operations .authenticated-operation-station li { padding-top: 3px; padding-bottom: 3px; min-height: 0; }
+#vso-shell .authenticated-email-operations .authenticated-operation-station li > .vso-tick { padding-right: 6px; }
+#vso-shell .vso-bays { margin: 4px 8px 6px; }
