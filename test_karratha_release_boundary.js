@@ -301,7 +301,7 @@ const approvedRootImportPatch = Object.freeze({
   // r590: the QC sign-off button stays visible and names what is still outstanding (F204). Department 135 keeps its frozen app.js.
   // r593: a recent key is listed in New to PMB and stays in the PMB bucket. No department tick (F207). Department 135 keeps its frozen app.js.
   // r591: Admin > Revolution uploads is administrators only (F205). Department 135 is not tagged.
-  "app.js": "bfbc3759e73f2449a44493166a6abce91a6c98c445659f8f7fea58611175afbf",
+  "app.js": "be67f5cfa038bf7a95f7ce75be075e6188b4e4012306c395ced417479dc76080",
   // r464: a booking that runs past the day divider is one bar (joined per-day pieces, display only; F77). The Karratha copy stays frozen.
   // r465: overview bar labels show Key · JC and the customer only (Stock and the vehicle description stay in the hover title); the customer span is classed for the Running layout (F78).
   // r467: Day / Week / Month zoom on the overview timeline (display only; F80).
@@ -449,7 +449,7 @@ const approvedRootImportPatch = Object.freeze({
   // r602: index.html cache-busts pdc-revolution-upload.js so the dry run compares the current board (F216). Department 135 is not tagged.
   // r601: index.html adds r601=2026.10.28.r601 on app.js (cascade text, cross-bay guard off, F212 to F215). Department 135 is not tagged.
   // r604: index.html adds r604=2026.10.28.r604 on canonical-entry.js (pit bookings, F218). Department 135 is not tagged.
-  "index.html": "f10a2fdf0fb790bea311ddd684fce493fb05e8468bc972f1494933d15953d38a",
+  "index.html": "90e1a602299b796f7e2db54d26478733b161d515e9c009ef74323d04f497755d",
   "pdc-conversions.js": "0a99e7a5306f15e434b293a3ca9a318ffad4b78eb814c27144d75ff98821d810",
   // r401: Pit tick and read RPCs (set_pdc_pit_line_tick_401, get_pdc_pit_line_ticks_401).
   // r414: readQcPhotoReceipt (get_pdc_qc_photo_receipt_414) for the QC page (F30).
@@ -459,7 +459,7 @@ const approvedRootImportPatch = Object.freeze({
   // r573: a description-check rejection from the hours batch is returned as hours_description_rejected (F187). Department 135 keeps its frozen copy.
   // r575: the vehicle-detail save keeps the server's key sentence (F189). Department 135 is not tagged.
   // r590: sign-off failures keep the server sentence, and QC can ask what is still outstanding (F204). Department 135 keeps its frozen copy.
-  "pdc-email-vehicle-location-service.js": "7edccae1af6052609dc3f439b57bc9cd61449fb9ddd97f41c4e86a726e2d1613",
+  "pdc-email-vehicle-location-service.js": "25a14f9175e0c60097be08e7a82b9fdce8b4ebc46f407006bfaff61d68558943",
   // r590: the phone sign-off names what is still outstanding. Both copies move together. Department 135 is not tagged.
   "pdc-qc-mobile.js": "ef70a4f25b81d51c514d3bc74d3efa15e1e1cb1069fc05d41e6c9b2816ad1dc5",
   // r482: Prioritise vehicle asks before applying a plan that books before the parts ETA (F95).

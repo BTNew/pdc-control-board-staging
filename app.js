@@ -5328,6 +5328,33 @@ function getPdcSupabaseAccessToken() {
   return window.PDC_AUTH_CONTEXT ? (window.__pdcCachedAccessToken || null) : null;
 }
 
+// r616 (F231): during an import, a burst of realtime events refetches the board at most every 20 s.
+// Quiet time: one refetch 250 ms after an event, as before. Burst = more than 3 events in 60 s.
+const PDC_BURST_QUIET_MS = 250;
+const PDC_BURST_GAP_MS = 20000;
+const PDC_BURST_WINDOW_MS = 60000;
+const PDC_BURST_EVENTS = 3;
+function pdcBurstDelay(state, now) {
+  state.events = (state.events || []).filter(at => now - at < PDC_BURST_WINDOW_MS);
+  state.events.push(now);
+  const burst = state.events.length > PDC_BURST_EVENTS;
+  const sinceLast = now - (state.lastRun || 0);
+  return burst ? Math.max(PDC_BURST_QUIET_MS, PDC_BURST_GAP_MS - sinceLast) : PDC_BURST_QUIET_MS;
+}
+function pdcBurstGate(fn, clock = () => Date.now(), schedule = (cb, ms) => setTimeout(cb, ms)) {
+  const state = { events: [], lastRun: 0, timer: null, args: null };
+  return function gated(...args) {
+    state.args = args;
+    const delay = pdcBurstDelay(state, clock());
+    if (state.timer !== null) return;
+    state.timer = schedule(() => {
+      state.timer = null;
+      state.lastRun = clock();
+      fn(...state.args);
+    }, delay);
+  };
+}
+
 function createPdcSupabaseRealtimeSubscription(config, handlers, scope = null) {
   const client = window.PDC_SUPABASE;
   if (!client || typeof client.channel !== 'function') {
@@ -5343,9 +5370,9 @@ function createPdcSupabaseRealtimeSubscription(config, handlers, scope = null) {
   const changeSpec = { event: '*', schema: 'public', table, ...(filter ? { filter } : {}) };
   const channel = client
     .channel(stageCode ? `workshop-station-revision-${stageCode.toLowerCase()}` : allStations ? (scope?.overview ? 'workshop-overview-station-revisions' : 'workshop-all-station-revisions') : 'workshop-revision')
-    .on('postgres_changes', changeSpec, payload => {
+    .on('postgres_changes', changeSpec, (typeof pdcBurstGate === 'function' ? pdcBurstGate : f => f)(payload => { // r616 (F231)
       if (typeof handlers?.onChange === 'function') handlers.onChange(payload);
-    })
+    }))
     .subscribe(status => {
       if (typeof handlers?.onStatus === 'function') handlers.onStatus(status);
       if (status === 'SUBSCRIBED') {
@@ -20144,14 +20171,14 @@ function subscribeSharedNavisionVisibility() {
   app.sharedNavisionVisibleRealtimeState = 'connecting';
   const channel = client
     .channel('pdc_navision_visible_revision')
-    .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'navision_backend_revision' }, payload => {
+    .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'navision_backend_revision' }, (typeof pdcBurstGate === 'function' ? pdcBurstGate : f => f)(payload => { // r616 (F231)
       if (generation !== app.sharedNavisionVisibleRealtimeGeneration || app.sharedNavisionVisibleRealtime !== channel) return;
       const revision = Number(payload?.new?.revision);
       if (!Number.isFinite(revision) || revision !== Number(app.sharedNavisionVisibleRevision)) {
         if (app.vehicleLocationsRefreshCoordinator) void refreshVehicleLocations({ supersede: true, deferSupersede: true });
         else loadSharedNavisionVisibleRows({ force: true });
       }
-    });
+    }));
   app.sharedNavisionVisibleRealtime = channel;
   channel.subscribe(status => {
     if (generation !== app.sharedNavisionVisibleRealtimeGeneration || app.sharedNavisionVisibleRealtime !== channel) return;
