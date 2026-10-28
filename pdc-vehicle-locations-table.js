@@ -321,6 +321,8 @@
     if (pick !== null && pick !== undefined) {
       return { searching: true, bucket: pick === STOPPAGES ? '' : String(pick), stoppages: pick === STOPPAGES, found, picked: true, held };
     }
+    // r616 (F231): searching from the PIT tile searches the pit list on that tile, so PIT stays the tile shown.
+    if (held === 'pit') return { searching: true, bucket: 'pit', stoppages: false, found, picked: false, held };
     return { searching: true, bucket: found.length === 1 ? found[0] : '', stoppages: false, found, picked: false, held };
   }
   // r481 (F94): search matches outside the selected department, grouped by department code ('' = no department).
@@ -736,7 +738,7 @@
       ? ` · ${esc(tileName(scope.held))} tile comes back when you clear the search` : '';
     const filterNote = scope.searching
       ? (scope.found.length
-        ? `<span class="vlt-found-note">Found in ${esc(scope.found.map(tileName).join(', '))}</span>${scope.picked && (scope.bucket || scope.stoppages) ? ` · ${esc(tileName(scope.stoppages ? STOPPAGES : scope.bucket))} only · click All vehicles to see every match` : ' · showing every tile while you search'}${heldNote}`
+        ? `<span class="vlt-found-note">Found in ${esc(scope.found.map(tileName).join(', '))}</span>${scope.picked && (scope.bucket || scope.stoppages) ? ` · ${esc(tileName(scope.stoppages ? STOPPAGES : scope.bucket))} only · click All vehicles to see every match` : scope.bucket === 'pit' ? ' · PIT only · the pit list above is searched too · click a tile to see the match there' : ' · showing every tile while you search'}${heldNote}`
         : `No match in any tile${filters.department ? ` in ${esc(departmentName(filters.department))}` : ''}${heldNote}`)
       : state.bucket ? `${esc(TILE[state.bucket]?.[0] || state.bucket)} only · click All vehicles to clear`
         : state.stoppages ? 'STOPPAGES only · click All vehicles to clear' : 'Click a tile to filter · click a vehicle to open it';
@@ -768,7 +770,8 @@
     bindBoardHandlers(body);
     bindTableEvents(host, sort);
     bindElsewhere(host.querySelector('.vlt-search-elsewhere'));
-    try { root.PDC_PIT_BOOKINGS?.afterRender?.(host, { bucket: state.bucket }); } catch (_) { /* r604: the table still renders */ }
+    // r616 (F231): the pit list and calendar only on the PIT tile shown, searched by the same key and text boxes.
+    try { root.PDC_PIT_BOOKINGS?.afterRender?.(host, { bucket: !scope.stoppages && scope.bucket === 'pit' ? 'pit' : '', search: scope.searching ? searchCriteria : null }); } catch (_) { /* r604: the table still renders */ }
     navStatus();
     const wrap = host.querySelector('.vlt-table-wrap');
     if (wrap) wrap.scrollTop = ui.tableScroll;
