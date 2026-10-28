@@ -53,17 +53,23 @@ CREATE TABLE pdc_mmt_private.builds (
   built boolean NOT NULL DEFAULT false,
   built_at timestamptz,
   built_by_email text,
+  -- Invoiced: MMT has invoiced the job. Needs Complete first; the line then leaves the page.
+  invoiced boolean NOT NULL DEFAULT false,
+  invoiced_at timestamptz,
+  invoiced_by_email text,
   version integer NOT NULL DEFAULT 1 CHECK (version > 0),
   updated_at timestamptz NOT NULL DEFAULT now(),
   PRIMARY KEY (vehicle_id, line_key),
-  CHECK ((built AND built_at IS NOT NULL AND built_by_email IS NOT NULL) OR (NOT built AND built_at IS NULL AND built_by_email IS NULL))
+  CHECK ((built AND built_at IS NOT NULL AND built_by_email IS NOT NULL) OR (NOT built AND built_at IS NULL AND built_by_email IS NULL)),
+  CHECK ((invoiced AND invoiced_at IS NOT NULL AND invoiced_by_email IS NOT NULL) OR (NOT invoiced AND invoiced_at IS NULL AND invoiced_by_email IS NULL)),
+  CHECK (NOT invoiced OR built)
 );
 
 CREATE TABLE pdc_mmt_private.history (
   id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
   vehicle_id uuid NOT NULL,
   line_key text NOT NULL,
-  kind text NOT NULL CHECK (kind IN ('built', 'complete')),
+  kind text NOT NULL CHECK (kind IN ('built', 'complete', 'invoiced')),
   ticked boolean NOT NULL,
   actor_id uuid NOT NULL,
   actor_email text NOT NULL,
@@ -136,7 +142,8 @@ BEGIN
         'built', coalesce(b.built, false), 'built_at', b.built_at, 'built_by_email', b.built_by_email,
         'built_version', coalesce(b.version, 0),
         'complete', coalesce(t.ticked, false), 'complete_at', t.ticked_at, 'complete_by_email', t.ticked_by_email,
-        'complete_version', coalesce(t.version, 0))
+        'complete_version', coalesce(t.version, 0),
+        'location', coalesce(nullif(v.location_override, ''), v.current_location))
         ORDER BY coalesce(t.ticked, false), coalesce(b.built, false), v.key_number NULLS LAST, v.stock_number)
       FROM public.pdc_service_line_po_refs_439 r
       JOIN public.vehicles v ON v.id = r.vehicle_id
@@ -144,9 +151,12 @@ BEGIN
       LEFT JOIN public.pdc_vehicle_key_assigned_562 ka ON ka.vehicle_id = v.id
       LEFT JOIN public.pdc_vehicle_pmb_arrival_age_563 aa ON aa.vehicle_id = v.id
       LEFT JOIN public.pdc_sublet_line_ticks_439 t ON t.vehicle_id = r.vehicle_id AND t.line_key = r.line_key
+      -- At PMB, or ticked Complete and not yet invoiced (wherever the vehicle has gone since). Invoiced lines leave the page.
       WHERE r.active AND r.description ~* '\m(mmt|malaga)'
-        AND v.deleted_at IS NULL AND v.visible_on_board
-        AND coalesce(nullif(v.location_override, ''), v.current_location) = 'PMB'), '[]'::jsonb));
+        AND v.deleted_at IS NULL
+        AND NOT coalesce(b.invoiced, false)
+        AND ((v.visible_on_board AND coalesce(nullif(v.location_override, ''), v.current_location) = 'PMB')
+             OR coalesce(t.ticked, false))), '[]'::jsonb));
 END
 $fn$;
 
@@ -174,7 +184,7 @@ BEGIN
   IF v_role IS NULL OR v_role NOT IN ('operator', 'administrator', 'fitter', 'sublet_provider') THEN
     RETURN jsonb_build_object('ok', false, 'error', 'not_authorized');
   END IF;
-  IF p_vehicle_id IS NULL OR v_key = '' OR p_kind NOT IN ('built', 'complete') OR p_ticked IS NULL
+  IF p_vehicle_id IS NULL OR v_key = '' OR p_kind NOT IN ('built', 'complete', 'invoiced') OR p_ticked IS NULL
      OR p_expected_version IS NULL OR p_expected_version < 0 THEN
     RETURN jsonb_build_object('ok', false, 'error', 'invalid_input');
   END IF;
@@ -187,6 +197,24 @@ BEGIN
   PERFORM pg_advisory_xact_lock(hashtextextended('pdc-sublet-439-line:' || p_vehicle_id::text || ':' || v_key, 0));
   SELECT * INTO v_build FROM pdc_mmt_private.builds WHERE vehicle_id = p_vehicle_id AND line_key = v_key FOR UPDATE;
   SELECT * INTO v_tick FROM public.pdc_sublet_line_ticks_439 WHERE vehicle_id = p_vehicle_id AND line_key = v_key FOR UPDATE;
+
+  IF p_kind = 'invoiced' THEN
+    IF coalesce(v_build.version, 0) <> p_expected_version THEN
+      RETURN jsonb_build_object('ok', false, 'error', 'stale');
+    END IF;
+    IF p_ticked AND NOT coalesce(v_tick.ticked, false) THEN
+      RETURN jsonb_build_object('ok', false, 'error', 'complete_first_invoice');
+    END IF;
+    UPDATE pdc_mmt_private.builds b SET invoiced = p_ticked,
+      invoiced_at = CASE WHEN p_ticked THEN now() END, invoiced_by_email = CASE WHEN p_ticked THEN v_email END,
+      version = b.version + 1, updated_at = now()
+    WHERE b.vehicle_id = p_vehicle_id AND b.line_key = v_key
+    RETURNING * INTO v_build;
+    IF NOT FOUND THEN RETURN jsonb_build_object('ok', false, 'error', 'build_first'); END IF;
+    INSERT INTO pdc_mmt_private.history (vehicle_id, line_key, kind, ticked, actor_id, actor_email, actor_role)
+    VALUES (p_vehicle_id, v_key, 'invoiced', p_ticked, v_actor, v_email, v_role);
+    RETURN jsonb_build_object('ok', true, 'kind', 'invoiced', 'ticked', v_build.invoiced, 'version', v_build.version);
+  END IF;
 
   IF p_kind = 'built' THEN
     IF coalesce(v_build.version, 0) <> p_expected_version THEN
@@ -214,6 +242,9 @@ BEGIN
   END IF;
   IF p_ticked AND NOT coalesce(v_build.built, false) THEN
     RETURN jsonb_build_object('ok', false, 'error', 'build_first');
+  END IF;
+  IF NOT p_ticked AND coalesce(v_build.invoiced, false) THEN
+    RETURN jsonb_build_object('ok', false, 'error', 'already_invoiced');
   END IF;
   SELECT l->>'line_identity' INTO v_identity
   FROM jsonb_array_elements(public.pdc_qc_operation_lines_379(p_vehicle_id)) l

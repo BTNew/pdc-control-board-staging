@@ -16,6 +16,11 @@
 .mmt-days { display: inline-block; padding: 4px 8px; border-radius: 8px; background: #edf3fb; color: #45688f; font-size: 15px; font-weight: 800; }
 .mmt-days.is-mid { background: #fff3dc; color: #8a5a00; }
 .mmt-days.is-old { background: #fde8e8; color: #a61b1b; }
+.qc-phone-pill.is-invoice { background: #fde8e8; color: #a61b1b; }
+.mmt-invoice { padding: 8px 14px; border: 0; border-radius: 10px; background: #a61b1b; color: #fff; font: inherit; font-weight: 750; cursor: pointer; }
+.mmt-invoice:disabled { opacity: .5; cursor: not-allowed; }
+.mmt-invoice-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 10px; padding: 10px 12px; border-radius: 12px; background: #fdf1f1; color: #a61b1b; font-size: 14px; font-weight: 650; }
+.mmt-ticks .mmt-invoice { padding: 6px 12px; }
 .qc-phone-pill.is-built { background: #fff3dc; color: #8a5a00; }
 .mmt-card-po { display: flex; align-items: baseline; gap: 8px; margin-top: 10px; padding-top: 12px; border-top: 1px solid #e8edf3; }
 .mmt-card-po span { color: #5c718b; font-size: 12px; font-weight: 700; letter-spacing: .5px; }
@@ -28,6 +33,24 @@
 .mmt-tick:has(input:disabled) { opacity: .5; cursor: not-allowed; }
 .mmt-error { display: block; color: var(--toyota-red, #c00); margin-top: 6px; }
 .mmt-empty, .mmt-note { color: #5c718b; }
+/* Website view: table. Phone view (760px and under): cards. */
+.mmt-cards { display: none; }
+.mmt-table { width: 100%; table-layout: auto !important; }
+.mmt-table td { vertical-align: middle; }
+.mmt-table th:nth-child(-n+5), .mmt-table td:nth-child(-n+5) { width: 1%; white-space: nowrap; }
+.mmt-keycell { display: table-cell; }
+.mmt-keycell .mmt-days { margin-left: 6px; font-size: 13px; }
+.mmt-key-badge.is-small { font-size: 15px; padding: 2px 7px; }
+.mmt-desc { color: #5c718b; font-size: 13px; }
+.mmt-ticks { white-space: nowrap; width: 1%; }
+.mmt-ticks .mmt-tick { display: inline-flex; min-height: 0; padding: 6px 10px; margin-right: 6px; border-radius: 9px; }
+.mmt-row.is-complete td { background: #f4fbf6; }
+.mmt-search { max-width: 420px; }
+@media (max-width: 760px) {
+  .mmt-desktop { display: none; }
+  .mmt-cards { display: grid; }
+  .mmt-search { max-width: none; }
+}
 @media (max-width: 520px) {
   .mmt-cards { grid-template-columns: 1fr; }
   .mmt-card { padding: 16px; }

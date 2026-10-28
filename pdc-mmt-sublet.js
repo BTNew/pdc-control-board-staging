@@ -10,11 +10,13 @@
   'use strict';
   const VERSION = '2026.10.28.r642';
   const PROJECT = 'cdsmnqxtyyoeoznmbidd';
-  const FILTERS = Object.freeze({ todo: 'To build', built: 'Built', complete: 'Complete', all: 'All' });
+  const FILTERS = Object.freeze({ todo: 'To build', built: 'Built', complete: 'Complete · to invoice', all: 'All' });
   const ERRORS = Object.freeze({
     not_authorized: 'Your login cannot tick MMT sublets.',
     build_first: 'Tick Built first.',
     complete_first: 'Untick Complete first.',
+    complete_first_invoice: 'Tick Complete first.',
+    already_invoiced: 'Already invoiced.',
     stale: 'Changed by someone else. Reloaded.',
     not_an_mmt_line: 'That line is no longer an MMT sublet.',
   });
@@ -47,6 +49,11 @@
     return out;
   }
 
+  /** Complete bucket: a reminder to invoice. Ticking Invoiced removes the line from the page. */
+  function invoiceHtml(line, canTick, pending) {
+    if (!line?.complete) return '';
+    return `<button type="button" class="mmt-invoice" data-mmt-invoice="${esc(lineId(line))}"${!canTick || pending ? ' disabled' : ''} title="Tick once MMT has invoiced this job. It then leaves this page.">Invoiced</button>`;
+  }
   function tickHtml(line, kind, canTick, pending) {
     const on = kind === 'built' ? line.built === true : line.complete === true;
     const blocked = kind === 'complete' ? !line.built : line.complete === true;
@@ -70,7 +77,7 @@
     const pending = pendingSet?.has(id);
     const err = errors?.get(id);
     const key = String(line.key_number ?? '').trim();
-    const pill = line.complete ? '<span class="qc-phone-pill is-ready">Complete</span>' : line.built ? '<span class="qc-phone-pill is-built">Built</span>' : '<span class="qc-phone-pill">To build</span>';
+    const pill = line.complete ? '<span class="qc-phone-pill is-invoice">To invoice</span>' : line.built ? '<span class="qc-phone-pill is-built">Built</span>' : '<span class="qc-phone-pill">To build</span>';
     return `<article class="mmt-card is-${stage(line)}">`
       + `<div class="mmt-card-top">${key ? `<span class="mmt-key-badge">K${esc(key)}</span>` : ''}${daysHtml(line)}<strong>${esc(line.stock_number || '—')}</strong>${pill}</div>`
       + `<div class="qc-phone-model">${esc(line.vehicle || 'Vehicle')}</div>`
@@ -78,8 +85,26 @@
       + `<div class="mmt-card-po"><span>PO</span><strong>${esc(line.po_number || '—')}</strong></div>`
       + `<div class="mmt-card-line">${esc(line.description || '')}</div>`
       + `<div class="mmt-card-ticks">${tickHtml(line, 'built', canTick, pending)}${tickHtml(line, 'complete', canTick, pending)}</div>`
+      + (line.complete ? `<div class="mmt-invoice-row"><span>Invoice when back in the office</span>${invoiceHtml(line, canTick, pending)}</div>` : '')
       + (err ? `<small class="mmt-error">${esc(err)}</small>` : '')
       + `</article>`;
+  }
+
+  /** Desktop table row (website view). Phones get the cards. */
+  function tableRowHtml(line, canTick, pendingSet, errors) {
+    const id = lineId(line);
+    const pending = pendingSet?.has(id);
+    const err = errors?.get(id);
+    const key = String(line.key_number ?? '').trim();
+    return `<tr class="mmt-row is-${stage(line)}">`
+      + `<td class="mmt-po"><strong>${esc(line.po_number || '—')}</strong></td>`
+      + `<td class="mmt-keycell">${key ? `<span class="mmt-key-badge is-small">K${esc(key)}</span>` : '—'}${daysHtml(line)}</td>`
+      + `<td>${esc(line.stock_number || '—')}</td>`
+      + `<td>${esc(line.customer || '—')}</td>`
+      + `<td>${esc(line.vehicle || '—')}</td>`
+      + `<td class="mmt-desc">${esc(line.description || '')}${err ? `<small class="mmt-error">${esc(err)}</small>` : ''}</td>`
+      + `<td class="mmt-ticks">${tickHtml(line, 'built', canTick, pending)}${tickHtml(line, 'complete', canTick, pending)}${invoiceHtml(line, canTick, pending)}</td>`
+      + `</tr>`;
   }
 
   function panelHtml(payload, view) {
@@ -89,9 +114,10 @@
     const chips = Object.entries(FILTERS).map(([key, label]) =>
       `<button type="button" class="mmt-filter${view.filter === key ? ' is-active' : ''}" data-mmt-filter="${key}">${esc(label)} <span>${c[key]}</span></button>`).join('');
     const body = shown.length
-      ? `<div class="mmt-cards">${shown.map(line => rowHtml(line, payload.can_tick === true, view.pending, view.errors)).join('')}</div>`
+      ? `<div class="mmt-desktop table-wrap"><table class="data-table mmt-table"><thead><tr><th>PO</th><th>Key · days at PMG</th><th>Stock</th><th>Customer</th><th>Vehicle</th><th>Job line</th><th>Ticks</th></tr></thead><tbody>${shown.map(line => tableRowHtml(line, payload.can_tick === true, view.pending, view.errors)).join('')}</tbody></table></div>`
+        + `<div class="mmt-cards">${shown.map(line => rowHtml(line, payload.can_tick === true, view.pending, view.errors)).join('')}</div>`
       : `<p class="mmt-empty">${lines.length ? 'Nothing matches.' : 'No MMT sublets at PMB right now.'}</p>`;
-    return `<div class="mmt-summary">${c.todo} to build · ${c.built} built · ${c.complete} complete</div>`
+    return `<div class="mmt-summary">${c.todo} to build · ${c.built} built · ${c.complete} to invoice</div>`
       + `<input type="search" inputmode="search" class="mmt-search" data-mmt-search placeholder="Search PO, key or stock number" value="${esc(view.search || '')}" aria-label="Search PO, key or stock number">`
       + `<div class="mmt-toolbar">${chips}</div>`
       + (payload.can_tick ? '' : '<p class="mmt-note">Read only. Only the MMT login, controllers, administrators and fitters can tick.</p>')
@@ -143,7 +169,7 @@
     try {
       const result = await rpc('set_pdc_mmt_sublet_tick_642', {
         p_vehicle_id: line.vehicle_id, p_line_key: line.line_key, p_kind: kind, p_ticked: ticked,
-        p_expected_version: kind === 'built' ? line.built_version : line.complete_version,
+        p_expected_version: kind === 'complete' ? line.complete_version : line.built_version,
       });
       if (result?.ok !== true) state.view.errors.set(id, ERRORS[result?.error] || 'Not saved. Try again.');
     } catch (error) {
@@ -162,6 +188,8 @@
       if (box) void tick(box.dataset.mmtLine, box.dataset.mmtTick, box.checked);
     });
     el.addEventListener('click', event => {
+      const invoice = event.target.closest?.('[data-mmt-invoice]');
+      if (invoice) { void tick(invoice.dataset.mmtInvoice, 'invoiced', true); return; }
       const chip = event.target.closest?.('[data-mmt-filter]');
       if (chip) { state.view.filter = chip.dataset.mmtFilter; render(); }
     });
@@ -170,7 +198,7 @@
     });
   }
 
-  const api = { VERSION, FILTERS, daysHtml, stage, filterLines, counts, tickHtml, rowHtml, panelHtml, lineId };
+  const api = { VERSION, FILTERS, daysHtml, tableRowHtml, invoiceHtml, stage, filterLines, counts, tickHtml, rowHtml, panelHtml, lineId };
   if (typeof module === 'object' && module.exports) { module.exports = api; return; }
   root.PdcMmtSublet = Object.assign(api, {
     open() { wire(host()); render(); void load(); },

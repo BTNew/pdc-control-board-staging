@@ -61,3 +61,23 @@ test('days at PMG badge sits beside the key, from the key number date', () => {
   assert.match(mmt.daysHtml({ days_at_pmg: 20 }), /is-old/);
   assert.match(fs.readFileSync('supabase/migrations/20261028233000_r642_mmt_sublet.sql', 'utf8'), /pdc_vehicle_key_assigned_562/);
 });
+
+test('website gets the table, phones get the cards, and pmgpdc.au/mmt opens the page', () => {
+  const panel = mmt.panelHtml({ can_tick: true, lines }, { filter: 'all', search: '' });
+  assert.match(panel, /class="mmt-desktop table-wrap"><table class="data-table mmt-table">/);
+  assert.match(panel, /class="mmt-cards"/);
+  const css = fs.readFileSync('pdc-mmt-sublet.css', 'utf8');
+  assert.match(css, /@media \(max-width: 760px\) \{\s*\.mmt-desktop \{ display: none; \}\s*\.mmt-cards \{ display: grid; \}/);
+  assert.match(fs.readFileSync('mmt/index.html', 'utf8'), /\.\.\/#\/mmt-sublet/);
+  assert.match(fs.readFileSync('scripts/build_pages_runtime.js', 'utf8'), /'mmt\/index\.html'/);
+});
+
+test('Complete shows an Invoiced reminder; invoiced lines leave the page (server side)', () => {
+  assert.equal(mmt.invoiceHtml(lines[1], true), '');
+  assert.match(mmt.invoiceHtml(lines[2], true), /data-mmt-invoice="c\|jc:J3:2"[^>]*>Invoiced</);
+  assert.match(mmt.rowHtml(lines[2], true, new Set(), new Map()), /Invoice when back in the office/);
+  const sql = fs.readFileSync('supabase/migrations/20261028233000_r642_mmt_sublet.sql', 'utf8');
+  assert.match(sql, /AND NOT coalesce\(b\.invoiced, false\)/);
+  assert.match(sql, /'complete_first_invoice'/);
+  assert.match(sql, /OR coalesce\(t\.ticked, false\)/, 'complete lines stay until invoiced even after leaving PMB');
+});
