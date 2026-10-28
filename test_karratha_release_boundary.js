@@ -442,7 +442,7 @@ const approvedRootImportPatch = Object.freeze({
   // r573: a description-check rejection from the hours batch is returned as hours_description_rejected (F187). Department 135 keeps its frozen copy.
   // r575: the vehicle-detail save keeps the server's key sentence (F189). Department 135 is not tagged.
   // r590: sign-off failures keep the server sentence, and QC can ask what is still outstanding (F204). Department 135 keeps its frozen copy.
-  "pdc-email-vehicle-location-service.js": "c000f71e29baa41537f168c28931bba7f81c0c696dff5e1f8b54b0974a33b849",
+  "pdc-email-vehicle-location-service.js": "7edccae1af6052609dc3f439b57bc9cd61449fb9ddd97f41c4e86a726e2d1613",
   // r590: the phone sign-off names what is still outstanding. Both copies move together. Department 135 is not tagged.
   "pdc-qc-mobile.js": "ef70a4f25b81d51c514d3bc74d3efa15e1e1cb1069fc05d41e6c9b2816ad1dc5",
   // r482: Prioritise vehicle asks before applying a plan that books before the parts ETA (F95).
