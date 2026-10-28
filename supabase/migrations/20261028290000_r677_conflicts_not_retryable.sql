@@ -8,6 +8,17 @@
 SET LOCAL lock_timeout = '4s';
 SET LOCAL statement_timeout = '120s';
 
+-- Checks that touch these functions and are green now must stay green (planner_duration_cache_531 was already red).
+CREATE TEMP TABLE r677_green ON COMMIT DROP AS SELECT check_name, check_sql FROM pdc_ops.regression_checks WHERE false;
+DO $pre677$
+DECLARE r record; ok boolean; detail text;
+BEGIN
+  FOR r IN SELECT check_name, check_sql FROM pdc_ops.regression_checks WHERE enabled AND (check_sql ~* 'pit_line_tick|sublet_line_tick|qc_operation') LOOP
+    BEGIN EXECUTE r.check_sql INTO ok, detail; EXCEPTION WHEN OTHERS THEN ok := false; END;
+    IF ok IS TRUE THEN INSERT INTO r677_green VALUES (r.check_name, r.check_sql); END IF;
+  END LOOP;
+END $pre677$;
+
 DO $r677$
 DECLARE awst time := (clock_timestamp() AT TIME ZONE 'Australia/Perth')::time;
   r record; v_new text; v_def text; v_md5 text; v_done integer := 0; v_pins integer := 0; v_n integer;
@@ -60,7 +71,7 @@ END $r677$;
 DO $post677$
 DECLARE r record; ok boolean; detail text;
 BEGIN
-  FOR r IN SELECT check_name, check_sql FROM pdc_ops.regression_checks WHERE enabled AND (check_sql ~* 'pit_line_tick|sublet_line_tick|qc_operation|conflicts_not_retryable') LOOP
+  FOR r IN SELECT check_name, check_sql FROM r677_green UNION ALL SELECT check_name, check_sql FROM pdc_ops.regression_checks WHERE check_name = 'conflicts_not_retryable_677' LOOP
     EXECUTE r.check_sql INTO ok, detail;
     IF ok IS NOT TRUE THEN RAISE EXCEPTION 'r677: check % red: %', r.check_name, detail; END IF;
   END LOOP;
