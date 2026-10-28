@@ -1,5 +1,13 @@
 # Reported faults
 
+## Key 460's Hoist card still says 12.00 hours
+
+Craig, 28 Oct 2026 08:02 AWST. The search card for Key 460 (stock 13071838) said "Unallocated · 12.00 hours retained", and he was still seeing the running-job conflict toast. On the Hoist / GVM panel everything is ticked except one GVM upgrade. That open line is 5.00 hours. The long-range tank (2.00 h) and the other GVM line (5.00 h) are ticked.
+
+The 12.00 h is the unallocated booking's saved duration. The station estimate added every Hoist line and did not look at the panel ticks. A drag of that card then sent 12.00 h, which is the whole station, not the work still to do.
+
+r593 / F207 / sort 363. The station estimate now skips a line whose panel tick is complete. An unallocated drag uses that estimate, so Hoist books 5.00 h. The same rule applies to every station on this planner. The card says how many hours are still to do. Key 460 is not booked by this release. Department 135's own hours function is not changed.
+
 ## Key 460 would not go into Jason Ranoco's Hoist bay
 
 Craig, 28 Oct 2026 06:28 AWST, then "fix it" at 06:31 AWST. Staging `cdsmnqxtyyoeoznmbidd` only. Production `vjdtsswhroyguxyfjdkt` was not touched. Key 460 (stock 13071838, job card J139125587, 12.00 h, unallocated) was dropped onto Hoist bay Jason Ranoco as the next job after Key 328. The toast said: "This change conflicts with a job already running or on stoppage. No changes were saved."
