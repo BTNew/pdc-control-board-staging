@@ -13571,6 +13571,7 @@ button.vehicle-workshop-line-number:focus-visible { position: relative; z-index:
   background: #fbfcfe;
 }
 .qc-signoff-note { min-width: 0; color: var(--muted, #657181); font-size: 0.88rem; }
+.qc-signoff-bar button:disabled { background: #c5ced8; color: #5c6b7a; cursor: not-allowed; }
 .qc-signoff-button { min-height: 48px; white-space: nowrap; }
 .qc-empty-state { display: grid; gap: 5px; padding: 28px 18px; color: var(--muted, #657181); text-align: center; }
 .qc-empty-state strong { color: inherit; font-size: 1rem; }

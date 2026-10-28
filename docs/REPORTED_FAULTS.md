@@ -1,5 +1,26 @@
 # Reported faults
 
+## QC sign-off refused on stock 13047122
+
+Craig, 28 Oct 2026 07:00 AWST. He opened QC stock 13047122, ticked every item, and the screen would not sign off QC / RFT. His rule: once the vehicle has been through the workshop, every item is ticked, and every station icon is green, QC must be able to sign off. That includes a line or a station a workshop controller or an admin overrode to complete (#564). Craig, 28 Oct 2026 08:05 AWST: ignore the cut-off "and once" in his QC message. Sign-off is the end. No extra step follows it. The vehicle moves to RFT and stays there. Craig approved go-live 28 Oct 2026 08:08 AWST ("Go live #577").
+
+Staging `cdsmnqxtyyoeoznmbidd` only. Production `vjdtsswhroyguxyfjdkt` was not touched. This release does not sign 13047122 off. Craig does that.
+
+Stock 13047122 (VIN MR0PEBHV300404116, key 322) is in QC, version 40, with no QC completion time. All 10 checkable QC lines are ticked and have hours. The completion photo is stored. There is no open booking, no running clock on an open booking, no parts stoppage, and no sublet booking. The Sublet station icon is green, 4 of 4, because the QC ticks and Craig's side-panel ticks (including Pit and weigh) count. There is no station-override row. The Sublet work-item box is still required and not completed. `pdc_qc_gate_issues` returns only `outstanding_required_work:SUBLET`. The before-update trigger raises `QC gate failed: outstanding_required_work:SUBLET` (SQLSTATE 22023). The screen keeps that code, or on the phone says sign-off was not confirmed, and does not say Sublet.
+
+The #564 icon turns green from a QC tick, a side-panel tick, the latest fitter Done, or a controller override. It does not mark the work-item box complete. The QC gate was still reading only that box.
+
+### Fix
+
+r590 / F204 / sort 361. r588 / F202 is the live side-panel tick grid (frontend only). r589 / F203 stays with the open PRs #570 and #571. r592 / F206 / sort 360 is the hoist place-after check already on the ledger. A station the icon calls complete is not outstanding work. A line counts as ticked for sign-off when the QC flag, a panel tick, the latest fitter Done, or a completed station override says so. The sign-off button stays on the screen. While something is still open it is grey and the note names it, for example "Sublet is still required. The station icon is not green." The sign-off function returns that sentence instead of raising 22023. The r405 gate pin moves in place. No pin is inserted. Pin count stays 241. Department 135 stays `fd05b9eef69498002ac06dd68e01cdff`. Kajel rows stay `9be0883b1a555f48f3c1ba9fa111c891` and apply stays `b62fb7c29ffd2a1629f214f696e5cb14`. The clock tick stays `3b2398e33a2ea35fc137deeedeca4af5`.
+
+Up `supabase/migrations/20261028080000_r590_qc_signoff_override.sql` file md5 `6cfc288ff55922d9f4d1e803080b802b`. Down `supabase/rollbacks/20261028080000_r590_qc_signoff_override.down.sql` file md5 `9b61c048454366ee9d40fd6377a4fd6e`.
+
+The dry-run was one rolled-back transaction as Craig. Outstanding was ready and the message was empty. Finalize returned `qc_signed_off_moved_to_rft`. Inside the transaction the location was RFT and the version moved from 40 to 42. The exception aborted the transaction. Afterwards the vehicle was still QC, version 40, with no sign-off receipt.
+
+### Check
+
+`qc_signoff_override_590` (F204, sort 361). It goes red if a green station icon is still listed as outstanding work, if a panel tick or a station override does not count as a ticked line, if stock 13047122 is still in QC unsigned and the gate still names Sublet, if the sign-off wording is missing, or if the pin count, department 135, Kajel, the clock, or the QC line reader moves.
 ## Key 460's Hoist card still says 12.00 hours
 
 Craig, 28 Oct 2026 08:02 AWST. The search card for Key 460 (stock 13071838) said "Unallocated · 12.00 hours retained", and he was still seeing the running-job conflict toast. On the Hoist / GVM panel everything is ticked except one GVM upgrade. That open line is 5.00 hours. The long-range tank (2.00 h) and the other GVM line (5.00 h) are ticked.

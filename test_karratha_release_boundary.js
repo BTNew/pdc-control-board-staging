@@ -152,7 +152,8 @@ const approvedRootImportPatch = Object.freeze({
   // r575: a duplicate key sentence on the vehicle card is blue (F189). Department 135 keeps the previous paint.
   // r573: Place as STOPPAGE on the Parts tile is blue (#dbeafe / #1d4ed8) (F187). Department 135 is not tagged.
   // r582: Delivered to body builder is blue (#dbeafe / #1d4ed8). Department 135 is not tagged.
-  "styles.css": "009338e27cdbe4020a2bd62a81da261342608cf5504a60c002e52b1b4be21748",
+  // r590: a QC sign-off button that is still blocked is grey (F204). Department 135 keeps the previous paint.
+  "styles.css": "b06bcda43777d1a256d4aee3782adc4825c3766ec92e4950b0c283801ba9b791",
   // r495: allowlist adds site-switcher-branches.js, sales/sales-branch.js, sales/karratha-sales-import.js and the Karratha Toyota logo (F108).
   // r565: the runtime list adds pdc-bus-component-split.js before the fitter scripts (F179). Department 135 is not tagged.
   // r566: the runtime list adds pdc-workshop-vehicle-search.js before the Vehicle Locations table (F180). Department 135 is not tagged.
@@ -290,7 +291,8 @@ const approvedRootImportPatch = Object.freeze({
   // r582: a body-builder delivery stays on New to PMB until To PMB (F195). Department 135 keeps its frozen app.js.
   // r592: r592=2026.10.28.r592 on both workshop-planner.js loads, both workshop-shared-actions.js loads, and the workshop-data-service.js loads (F206). Department 135 is not tagged.
   // r594: r594=2026.10.28.r594 on both workshop-planner.js loads and on app.js (unticked station hours, F208). Department 135 is not tagged.
-  "app.js": "41ea322a0708f6ba1e6e11153089a3e48d88b9c966bd256ff810d782b1d3d956",
+  // r590: the QC sign-off button stays visible and names what is still outstanding (F204). Department 135 keeps its frozen app.js.
+  "app.js": "2562c72cbb1a915e8d50121beefb041c01d62747a1ef002df32837ce34f50145",
   // r464: a booking that runs past the day divider is one bar (joined per-day pieces, display only; F77). The Karratha copy stays frozen.
   // r465: overview bar labels show Key · JC and the customer only (Stock and the vehicle description stay in the hover title); the customer span is classed for the Running layout (F78).
   // r467: Day / Week / Month zoom on the overview timeline (display only; F80).
@@ -429,7 +431,8 @@ const approvedRootImportPatch = Object.freeze({
   // r582: index.html adds r582=2026.10.27.r582 on app.js, styles.css and vehicle-location-lifecycle.js (body-builder hold, F195). Department 135 is not tagged.
   // r583: index.html adds r583=2026.10.27.r583 on pdc-fitters.js and pdc-fitters.css (send a line to another department, F197). Department 135 is not tagged.
   // r592: index.html adds r592=2026.10.28.r592 on app.js and workshop-data-service.js (F206). Department 135 is not tagged.
-  "index.html": "4353999e311c9189f00ce6a324a7ab008eb42d17d866ee34192c810816cc7226",
+  // r590: index.html adds r590=2026.10.28.r590 on app.js and pdc-email-vehicle-location-service.js (QC sign-off wording, F204). Department 135 is not tagged.
+  "index.html": "2770e91ee35b1e7000303ef405e7767a6fa501859730acc97e58f1c35784b030",
   "pdc-conversions.js": "0a99e7a5306f15e434b293a3ca9a318ffad4b78eb814c27144d75ff98821d810",
   // r401: Pit tick and read RPCs (set_pdc_pit_line_tick_401, get_pdc_pit_line_ticks_401).
   // r414: readQcPhotoReceipt (get_pdc_qc_photo_receipt_414) for the QC page (F30).
@@ -438,7 +441,10 @@ const approvedRootImportPatch = Object.freeze({
   // r502: subletRpc returns message + safe json(); createSubletBooking normalises identity / truncates notes (F115).
   // r573: a description-check rejection from the hours batch is returned as hours_description_rejected (F187). Department 135 keeps its frozen copy.
   // r575: the vehicle-detail save keeps the server's key sentence (F189). Department 135 is not tagged.
-  "pdc-email-vehicle-location-service.js": "1bdcb98ad610dc607df6717ab927642297cc21d35259e6943bd2b91bb2b25692",
+  // r590: sign-off failures keep the server sentence, and QC can ask what is still outstanding (F204). Department 135 keeps its frozen copy.
+  "pdc-email-vehicle-location-service.js": "c000f71e29baa41537f168c28931bba7f81c0c696dff5e1f8b54b0974a33b849",
+  // r590: the phone sign-off names what is still outstanding. Both copies move together. Department 135 is not tagged.
+  "pdc-qc-mobile.js": "ef70a4f25b81d51c514d3bc74d3efa15e1e1cb1069fc05d41e6c9b2816ad1dc5",
   // r482: Prioritise vehicle asks before applying a plan that books before the parts ETA (F95).
   "pdc-emergency-priority.js": "f32dfc9d81bafb4dcfb8e6e6805f4932ba5e5219149093d9bc45f1e1ae34d7db",
   // r532: other-station items stay full strength when this bay can tick them (F146).
