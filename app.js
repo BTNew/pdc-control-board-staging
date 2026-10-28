@@ -9661,7 +9661,9 @@ function authenticatedOperationSummaryLines(vehicle = {}) {
             ? 'job_card'
             : adjustment.correction_origin === 'craig_standard_pd_1_5'
               ? 'craig_standard_pd_1_5'
-              : 'protected_adjustment')
+              : adjustment.correction_origin === 'zero_hour_estimate_683'
+                ? 'zero_hour_estimate'
+                : 'protected_adjustment')
         : operation?.estimatedHoursSource,
       workshopLineKey: lineKey,
     }];
@@ -15487,6 +15489,7 @@ function vehicleWorkshopHoursProjection(line = {}) {
 
 function vehicleWorkshopHoursEvidenceLabel(projection = {}, line = {}) {
   if (line.correctionOrigin === 'craig_standard_pd_1_5') return 'Craig standard override · scheduling authority';
+  if (line.correctionOrigin === 'zero_hour_estimate_683') return 'Estimate · no hours on the job card (same job elsewhere, else station default)';
   return ({ manual_unknown: 'Manual override · hours unknown', manual_override: 'Manual override · scheduling authority', protected: 'Protected estimate · scheduling authority', source: 'Source evidence · scheduling authority', ai_fallback: 'AI fallback · no source estimate', unavailable: 'No hours evidence' })[projection.rule] || 'No hours evidence';
 }
 
@@ -15539,6 +15542,8 @@ function vehicleWorkshopDisplayLineHours(projection = {}, totalHours = null, lin
 function vehicleWorkshopHoursClass(line = {}, estimate = null) {
   const provenance = cleanNavisionText(line.provenance || line.estimateProvenance || line.estimate_provenance || line.estimatedHoursSource || line.estimated_hours_source || line.hoursProvenance || line.hours_provenance || line.source_kind || line.source_type || line.source || '').toLowerCase();
   if (line.correctionOrigin === 'craig_standard_pd_1_5' && Number.isFinite(Number(estimate))) return { label: 'Craig standard hours', value: Number(estimate) };
+  // r683 (F293): a 0-hour line given an estimate (same job elsewhere, else the station default).
+  if ((line.correctionOrigin === 'zero_hour_estimate_683' || line.estimatedHoursSource === 'zero_hour_estimate') && Number.isFinite(Number(estimate))) return { label: 'Estimate', value: Number(estimate) };
   const confirmedRaw = [line.confirmedHours, line.confirmed_hours]
     .find(value => value !== null && value !== undefined && String(value).trim() !== '');
   const confirmed = Number(confirmedRaw);
