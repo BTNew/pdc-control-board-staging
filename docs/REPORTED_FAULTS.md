@@ -1,5 +1,11 @@
 # Reported faults
 
+## A drop onto a running job must place itself after that job
+
+Craig, 28 Oct 2026 09:34 AWST. Dragging Key 460 (stock 13071838) into Jason Ranoco's Hoist bay, where Key 328 is running, still said: "A job is already running in this bay. No change was made. Drag it again and choose OK to place this job right after it. Later jobs in the bay move back."
+
+The place-after helper already knew the running job's real end, including an overrun, and it already knew which later jobs to push. It stopped and asked before it would do either. r598 / F212 / sort 368. The drop places the job at the next working minute at or after that real end and pushes the later jobs in the same step. There is no OK dialog. Key 460 is not booked by the release. Pin count stays 241. Department 135 is not edited.
+
 ## Key 460 still showed 12 hours and then refused its own Hoist row
 
 Craig, 28 Oct 2026 08:40 AWST. After r594 the Hoist card for Key 460 (stock 13071838) still said 12.00 hours. Dropping it into Jason Ranoco's bay asked him to confirm every later job, then the board said the move conflicts with stock 13071838, Hoist, scheduled Thu 29 Oct 8:52 am to Fri 30 Oct 10:22 am. That window is the 12-hour block stored on the same unallocated Hoist booking. The Control Board search showed 0 bays and 3 unallocated bookings (Tint, Hoist, Fabrication). It was not booked into a bay.

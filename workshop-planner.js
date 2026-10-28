@@ -1308,8 +1308,8 @@ const WORKSHOP_PLAIN_ERROR_MESSAGES = Object.freeze({
   // r424 (F38): push-back warning, bay re-order and its undo.
   later_bookings_warning: "This job would run into the same vehicle's next booking. No change was made. Drag it again and choose OK to push the later booking back.",
   later_bookings_not_confirmed: 'No change was made. The later bookings were not pushed back.',
-  // r592 (F206): a drop onto a running job or a stoppage asks to place this job after it.
-  place_after_running: 'A job is already running in this bay. No change was made. Drag it again and choose OK to place this job right after it. Later jobs in the bay move back.',
+  // r598 (F212): a drop onto a running job places itself after that job. There is no question.
+  place_after_running: 'The job is placed after the one already running in this bay. Later jobs in the bay move back.',
   place_after_not_confirmed: 'No change was made. The job was not placed after the one already running.',
   resequence_rejected: 'This re-order could not be saved because it would overlap another booking or break a booking rule. No change was made.',
   plan_changed: 'The bay changed while you were looking at the preview. No change was made. Drag the job again to see the new preview.',
