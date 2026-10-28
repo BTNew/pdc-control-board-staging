@@ -21,7 +21,7 @@ test('conditional board reuses exact payload without changing hours, QC, parts o
   const full=fixture(); const r=runtime([reply(full),unchanged(full.snapshot_token)]);
   const first=await r.service.snapshot();
   assert.match(r.calls[0].url,/get_pdc_email_vehicle_board_snapshot_conditional$/);
-  assert.deepEqual(r.calls[0].body,{p_snapshot_token:null});
+  assert.deepEqual(r.calls[0].body,{p_snapshot_token:null,p_accept_delta:true});
   first.data.vehicles[0].operation_lines[0].estimated_hours=999;
   const second=await r.service.snapshot();
   assert.equal(r.calls[1].body.p_snapshot_token,'1:first');
