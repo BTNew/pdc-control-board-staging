@@ -1889,6 +1889,13 @@ function workshopBayAllocatedBaseMinutes(stage = '', bay = 0, baseMinutes = 0) {
 
 function workshopBookingDestinationHours(entry = null, stage = '', bay = 0, baseHours = 0) {
   if (entry && ['started', 'stoppage', 'completed'].includes(entry.status)) return Number(entry.hours) > 0 ? Number(entry.hours) : null;
+  // r594 (F208): an unallocated card keeps the old full-station total on the
+  // booking. The drag books only the station lines that are still unticked.
+  const outstandingHours = Number(entry?.operationEstimateHours);
+  const storedBay = Number(entry?.bay);
+  if (entry && (!Number.isInteger(storedBay) || storedBay < 1) && outstandingHours > 0) {
+    return workshopBayAllocatedHours(stage, bay, outstandingHours);
+  }
   if (entry && normalizePmbStage(entry.stage) === normalizePmbStage(stage)) {
     if (Number(entry.bay) === Number(bay)) return Number(entry.hours) > 0 ? Number(entry.hours) : null;
     const durableBase = Number(entry.capacityBaseMinutes);
@@ -4079,7 +4086,7 @@ function workshopSearchResultsHtml(query = '', plans = workshopLoadPlans()) {
     const archived = match.archived ? '<span class="workshop-search-alert">Archived vehicle</span>' : '';
     if (!match.archived && match.returnedBookings?.length) return match.returnedBookings.map(entry => `<button type="button" class="workshop-search-result is-unbooked" data-workshop-select-returned-plan="${escapeHtml(entry.id)}" draggable="true" data-workshop-search-drag-plan="${escapeHtml(entry.id)}">
       <span class="workshop-search-result-vehicle"><strong>Key ${escapeHtml(identity.key)} · Stock ${escapeHtml(identity.stock)} · JC ${escapeHtml(identity.jobcard)}</strong><span>${escapeHtml(identity.customer)} · ${escapeHtml(identity.description)}</span></span>
-      <span class="workshop-search-result-state"><strong>Drag to a bay</strong><span>Unallocated · ${escapeHtml(Number(entry.hours).toFixed(2))} hours retained. Or select to open this booking.</span></span>
+      <span class="workshop-search-result-state"><strong>Drag to a bay</strong><span>Unallocated · ${escapeHtml((Number(entry.operationEstimateHours) > 0 ? Number(entry.operationEstimateHours) : Number(entry.hours)).toFixed(2))} hours still to do. Or select to open this booking.</span></span>
     </button>`).join('');
     if (match.bookingLookupError) return `<article class="workshop-search-result" aria-disabled="true" data-workshop-search-error="${escapeHtml(match.bookingLookupError)}" data-workshop-search-identity-kind="${String(match.vehicleIdentity || '').startsWith('shared:') ? 'canonical' : 'legacy'}"><span class="workshop-search-result-vehicle"><strong>Stock ${escapeHtml(identity.stock)} · ${escapeHtml(identity.customer)}</strong></span><span class="workshop-search-result-state"><strong>Bookings could not be checked</strong><span>${match.bookingLookupError === 'booking_search_upgrade_required' ? 'Refine the search to a specific vehicle, or refresh the planner.' : 'Refresh the search to try again.'}</span></span></article>`;
     if (!match.bookings.length) {
