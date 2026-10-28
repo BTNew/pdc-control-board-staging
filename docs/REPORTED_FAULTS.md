@@ -25,6 +25,10 @@ Craig, 28 Oct 2026 09:20 AWST, on the live Admin > Revolution uploads page. The 
 The page copied the report file name into the `x-filename` header. A name such as `PMG PD Service as a Whole w/Sublet – 28‑10‑2026 · copy.xlsx` is not Latin-1, so the browser refused to send the request. The file never left the browser. No SQL change. Staging only. Production was not touched. Kajel's imports are unchanged.
 
 The file name now travels in the form body only. The request headers are the sign-in token, and only when that token is Latin-1. The server still reads the name from the uploaded file.
+## Cross-bay overlap is switched off
+
+Craig, 28 Oct 2026 09:46 AWST. Dropping Key 460 still said the change would overlap a booking in another bay or station, including a booking pushed back, and to keep a 1-hour gap. He asked for that rule to be switched off for now and put back later. r599 / F213 / sort 369. `pdc_ops.workshop_guard_599.cross_bay_vehicle_guard` is false. Drop, resume, cascade push-back and the clock tick do not stop for a same-vehicle overlap in another bay, and they do not add the 1-hour gap. Jobs in the same bay still cannot overlap, and a drop onto a running job still places after it. Turn the column back to true to restore the rule. Staging only. Department 135 is not edited. Pin count stays 241.
+
 ## A drop onto a running job must place itself after that job
 
 Craig, 28 Oct 2026 09:34 AWST. Dragging Key 460 (stock 13071838) into Jason Ranoco's Hoist bay, where Key 328 is running, still said: "A job is already running in this bay. No change was made. Drag it again and choose OK to place this job right after it. Later jobs in the bay move back."
