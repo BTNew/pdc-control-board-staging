@@ -1,0 +1,81 @@
+#revolution-upload {
+  --ru-blue: #1d4ed8;
+  --ru-blue-deep: #1e3a8a;
+  --ru-blue-soft: #dbeafe;
+  --ru-ink: #0f172a;
+  --ru-line: #bfdbfe;
+  padding: 16px 20px 32px;
+  color: var(--ru-ink);
+}
+#revolution-upload .ru-banner {
+  background: var(--ru-blue-soft);
+  border: 1px solid var(--ru-line);
+  border-radius: 12px;
+  padding: 12px 14px;
+  margin-bottom: 16px;
+}
+#revolution-upload .ru-banner strong { color: var(--ru-blue-deep); }
+#revolution-upload .ru-grid {
+  display: grid;
+  grid-template-columns: minmax(280px, 360px) 1fr;
+  gap: 16px;
+}
+#revolution-upload .ru-card {
+  background: #fff;
+  border: 1px solid var(--ru-line);
+  border-radius: 12px;
+  padding: 16px;
+}
+#revolution-upload h2 { margin: 0 0 8px; font-size: 1.15rem; }
+#revolution-upload p { margin: 0 0 12px; }
+#revolution-upload .ru-file {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  border: 1px dashed var(--ru-blue);
+  border-radius: 12px;
+  padding: 16px;
+  background: #f8fbff;
+}
+#revolution-upload .ru-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
+#revolution-upload button.ru-primary,
+#revolution-upload button.ru-apply {
+  background: var(--ru-blue);
+  color: #fff;
+  border: 0;
+  border-radius: 8px;
+  padding: 8px 14px;
+  font: inherit;
+  cursor: pointer;
+}
+#revolution-upload button.ru-primary:hover { background: #2563eb; }
+#revolution-upload button.ru-apply:disabled {
+  background: var(--ru-blue-soft);
+  color: var(--ru-blue-deep);
+  cursor: not-allowed;
+}
+#revolution-upload .ru-counts {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(90px, 1fr));
+  gap: 8px;
+  margin: 12px 0;
+}
+#revolution-upload .ru-count {
+  background: var(--ru-blue-soft);
+  border-radius: 10px;
+  padding: 10px;
+}
+#revolution-upload .ru-count span { display: block; color: #334155; font-size: 0.85rem; }
+#revolution-upload .ru-count strong { font-size: 1.4rem; color: var(--ru-blue-deep); }
+#revolution-upload .ru-errors { margin: 0; padding-left: 18px; }
+#revolution-upload table { width: 100%; border-collapse: collapse; font-size: 0.92rem; }
+#revolution-upload th, #revolution-upload td {
+  text-align: left;
+  border-bottom: 1px solid var(--ru-line);
+  padding: 6px 4px;
+  vertical-align: top;
+}
+#revolution-upload .ru-note { color: #334155; font-size: 0.9rem; }
+@media (max-width: 800px) {
+  #revolution-upload .ru-grid, #revolution-upload .ru-counts { grid-template-columns: 1fr; }
+}

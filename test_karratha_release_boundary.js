@@ -160,7 +160,8 @@ const approvedRootImportPatch = Object.freeze({
   // r565: the runtime list adds pdc-bus-component-split.js before the fitter scripts (F179). Department 135 is not tagged.
   // r566: the runtime list adds pdc-workshop-vehicle-search.js before the Vehicle Locations table (F180). Department 135 is not tagged.
   // r570: the runtime list adds pdc-bay-manager.css and pdc-bay-manager.js (F184). Department 135 is not tagged.
-  "scripts/build_pages_runtime.js": "e4ae64bcbfb33d9955c689491eaa282ea47a1ffb88b125d7173f0a8edf210feb",
+  // r591: the runtime list adds pdc-revolution-upload.css and pdc-revolution-upload.js (F205). Department 135 is not tagged.
+  "scripts/build_pages_runtime.js": "201582c959e13dbaa39601a0c322a5a1ec67ddf4f0e12aad31f62b52cd3701ad",
   "pdc-operation-review-slim.css": "67196ee7dd4415c31c1eb2237fbcdb6c49fa5852fa7d0020aedf6198db0b167a",
   // Quick approval ignores unable-to-estimate, AI and conflicting hours tags
   // on Sublet lines. Department 135 keeps its frozen copy.
@@ -212,7 +213,8 @@ const approvedRootImportPatch = Object.freeze({
   // r593: the table loader also carries r593=2026.10.28.r593 (New to PMB view, F207). Department 135 is not tagged.
   // r575: pdc-key-number.js cache bust r575=2026.10.27.r575 (F189). Department 135 is not tagged.
   // r573: the same loader adds r573=2026.10.27.r573 (Place as STOPPAGE, F187). Department 135 is not tagged.
-  "canonical-entry.js": "92940fa0f16fa9b2e719f896c70c9571df8f3a017136e3a960f4d26f0c41e050",
+  // r595: the loader adds r595=2026.10.28.r595 on pdc-parts-stoppage.js. The slide-out keeps vehicle-slideout=2026.10.28.r588 and adds r595=2026.10.28.r595 (Parts ETA is set in the side panel; F209). Department 135 is not tagged.
+  "canonical-entry.js": "de86417534b745b77da82e6b3fa65e7f6876eaa90f5fc468aa2a62b1255492c1",
   "pdc-workshop-vehicle-search.js": "d0be4a60c5ca2213ba71d4cd31cb7019736db3d7e0470d22b3fa88243e56eb4c",
   // Owner-authorised PMG fitter read recovery, 13 October 2026.
   // Coaster and HiAce conversions: one Start / Done tick per section in a
@@ -296,7 +298,8 @@ const approvedRootImportPatch = Object.freeze({
   // r594: r594=2026.10.28.r594 on both workshop-planner.js loads and on app.js (unticked station hours, F208). Department 135 is not tagged.
   // r590: the QC sign-off button stays visible and names what is still outstanding (F204). Department 135 keeps its frozen app.js.
   // r593: a recent key is listed in New to PMB and stays in the PMB bucket. No department tick (F207). Department 135 keeps its frozen app.js.
-  "app.js": "2b4f4af080a008fa31cb9597c63fbc6900293a46f1f4cb5d3a857058fa500b6d",
+  // r591: Admin > Revolution uploads is administrators only (F205). Department 135 is not tagged.
+  "app.js": "14901c213e771dad46dd5032e4ca61ee8ff481623c2fe8d55e1cf5d2ebdd3472",
   // r464: a booking that runs past the day divider is one bar (joined per-day pieces, display only; F77). The Karratha copy stays frozen.
   // r465: overview bar labels show Key · JC and the customer only (Stock and the vehicle description stay in the hover title); the customer span is classed for the Running layout (F78).
   // r467: Day / Week / Month zoom on the overview timeline (display only; F80).
@@ -437,8 +440,9 @@ const approvedRootImportPatch = Object.freeze({
   // r583: index.html adds r583=2026.10.27.r583 on pdc-fitters.js and pdc-fitters.css (send a line to another department, F197). Department 135 is not tagged.
   // r592: index.html adds r592=2026.10.28.r592 on app.js and workshop-data-service.js (F206). Department 135 is not tagged.
   // r590: index.html adds r590=2026.10.28.r590 on app.js and pdc-email-vehicle-location-service.js (QC sign-off wording, F204). Department 135 is not tagged.
-  // r593: index.html adds r593=2026.10.28.r593 on app.js and styles.css (New to PMB view, F207). Department 135 is not tagged.
-  "index.html": "8bd9fc0bca02da4b74d7e97a320497f59536b6e77ce2d7d9ed5394f07ff84448",
+  // r595: index.html adds r595=2026.10.28.r595 on canonical-entry.js (Parts ETA is set in the side panel, F209). Department 135 is not tagged.
+  // r591: Revolution uploads nav, view, stylesheet and script (F205). Department 135 is not tagged.
+  "index.html": "94d5be4c62608394f2c44d9177f6032c287ac0c66e3808e0e2b8c8e5e1e900b9",
   "pdc-conversions.js": "0a99e7a5306f15e434b293a3ca9a318ffad4b78eb814c27144d75ff98821d810",
   // r401: Pit tick and read RPCs (set_pdc_pit_line_tick_401, get_pdc_pit_line_ticks_401).
   // r414: readQcPhotoReceipt (get_pdc_qc_photo_receipt_414) for the QC page (F30).
@@ -464,7 +468,8 @@ const approvedRootImportPatch = Object.freeze({
   // r489: 'fitting-stats' counts under the Update History bucket (F102).
   // r525: Period option Last 24 hours (p_days 1) on Website activity (F139). The Karratha copy stays frozen.
   // r570: bay-manager counts under the Update History bucket (F184). The Karratha copy stays frozen.
-  "pdc-staff-usage.js": "5d5d43caff01b8a74c28b0f02f0996df3541c182d65ef4d0c4edb8ed297390e7",
+  // r591: revolution-upload counts under the Update History bucket (F205). The Karratha copy stays frozen.
+  "pdc-staff-usage.js": "944b3e3f4849ea8632e9c98992f18bf7e0c4beac04d3cb22b20e8949fa14151f",
   "site-switcher.css": "84882066f9ff13057de368d8af1418788e82b2723ec68683166e2f8ded6c8348",
   // r403: the own-role monitor reconnects instead of locking on a realtime blip
   // (F11); index.html and app.js/canonical-entry.js add r403=2026.10.21.01 for

@@ -45,7 +45,7 @@
  */
 (function vehicleSlideoutModule(root) {
   'use strict';
-  const VERSION = '2026.10.28.r588'; // r588 (F202): operation-line grid — hours, PO chip and tick in separate columns. r578 (F192): green complete tick and station override.
+  const VERSION = '2026.10.28.r588'; // r588 (F202): CSS cache-bust for the five-column operation-line grid. r595 (F209) is a script query only: the panel opens once.
   // r496: the panel's slim copy of the Work & bookings rows. Kept so the full editor's markup can still be reduced.
   // r565 does not use it for Edit: Edit stays on the chip list.
   function slimWorkPage(html) {
@@ -95,6 +95,7 @@
   const doc = root.document;
   const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const state = { key: '', bucket: '' };
+  let drawnStamp = '';
   const vehicleFor = key => root.vehicleLocationsScreenRows().find(row => root.vehicleKey(row) === key);
 
   // ---- r485 (F98): the drop-down's STOPPAGES / Fix First rows for this vehicle, with their own action buttons ----
@@ -713,7 +714,9 @@
         || JSON.stringify(nextStations) !== JSON.stringify(edit.stationRows || []);
       edit.completionRows = nextLines;
       edit.stationRows = nextStations;
-      if (changed) redraw(state.key);
+      if (!changed) return;
+      if (edit.key === state.key) redraw(state.key);
+      else rearmOperations();
     }).catch(() => {});
   }
   // The operations heading's "Edit jobs & hours" becomes "Edit" + "Open full editor" for the same roles as the window.
@@ -821,11 +824,31 @@
     if (typeof root.PdcLineHandoff?.mount === 'function') root.PdcLineHandoff.mount(panel, vehicle); // r583: handed-off lines for the controller
     ensureCompletions(vehicle);
     watchOperations(panel);
+    drawnStamp = panelStamp(vehicle);
     return true;
   }
 
   // Craig 22 Oct 08:07: long operation descriptions are cut with an ellipsis; the full text shows on hover and on focus.
   let opsObserver = null;
+  function panelStamp(vehicle) {
+    const id = canonicalIdFor(vehicle);
+    const cached = root.app?.vehicleWorkshopDetailCache?.get?.(id);
+    const cachedLines = cached?.detail?.job_card_lines?.length || 0;
+    const cachedVer = cached?.detail?.vehicle_version ?? '';
+    const emailLines = vehicle?.pdcEmailOperationLines?.length || 0;
+    const emailVer = vehicle?.__emailVehicleVersion ?? vehicle?.version ?? '';
+    return [id, state.bucket, cachedVer, cachedLines, emailVer, emailLines].join('|');
+  }
+  function rearmOperations() {
+    const panel = doc.querySelector('#vso-shell .vso-panel');
+    if (!panel || !state.key || edit.key === state.key) return;
+    opsObserver?.disconnect();
+    try { decorateOperations(panel, state.key); markTruncated(panel); }
+    finally {
+      const host = panel.querySelector('.vso-body');
+      if (host && opsObserver) opsObserver.observe(host, { childList: true, subtree: true });
+    }
+  }
   function markTruncated(panel) {
     panel.querySelectorAll('.authenticated-email-operations li > span').forEach(span => {
       const full = span.textContent.replace(/\s+/g, ' ').trim();
@@ -840,13 +863,24 @@
   function watchOperations(panel) {
     opsObserver?.disconnect();
     // r496: a block another script draws again gets its Edit / Open full editor (and the open editor) back.
-    const run = () => (root.requestAnimationFrame || setTimeout)(() => { if (state.key) decorateOperations(panel, state.key); markTruncated(panel); });
+    // r595: one frame for a burst of chip inserts, and the observer is off while this paint writes.
+    let scheduled = false;
+    const run = () => {
+      if (scheduled) return;
+      scheduled = true;
+      (root.requestAnimationFrame || setTimeout)(() => {
+        scheduled = false;
+        if (!state.key) return;
+        opsObserver?.disconnect();
+        try { decorateOperations(panel, state.key); markTruncated(panel); }
+        finally {
+          const host = panel.querySelector('.vso-body');
+          if (host && opsObserver) opsObserver.observe(host, { childList: true, subtree: true });
+        }
+      });
+    };
+    if (typeof root.MutationObserver === 'function') opsObserver = new root.MutationObserver(run);
     run();
-    if (typeof root.MutationObserver === 'function') {
-      opsObserver = new root.MutationObserver(run);
-      const host = panel.querySelector('.vso-body');
-      if (host) opsObserver.observe(host, { childList: true, subtree: true });
-    }
   }
 
   function open(key, bucket) {
@@ -865,6 +899,12 @@
   function refresh(key, bucket) {
     if (key !== state.key) return;
     state.bucket = bucket;
+    const vehicle = vehicleFor(key);
+    const next = vehicle ? panelStamp(vehicle) : '';
+    if (next && next === drawnStamp && edit.key !== key && !edit.loading) {
+      doc.querySelector(`#vlt-table-host tr[data-vlt-key="${CSS.escape(key)}"]`)?.classList.add('is-open');
+      return;
+    }
     render(key, bucket, { keepScroll: true });
     doc.querySelector(`#vlt-table-host tr[data-vlt-key="${CSS.escape(key)}"]`)?.classList.add('is-open');
   }
@@ -876,7 +916,7 @@
     edit.completionRows = [];
     edit.stationRows = [];
     edit.completionGen += 1;
-    state.key = ''; opsObserver?.disconnect();
+    state.key = ''; drawnStamp = ''; opsObserver?.disconnect();
     const shell = doc.getElementById('vso-shell');
     shell?.classList.remove('is-open');
     doc.body.classList.remove('vso-open');

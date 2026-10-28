@@ -24,6 +24,53 @@ Up `supabase/migrations/20261028084500_r596_pilbara_apply_lock_timeout.sql`. Dow
 
 `pilbara_apply_lock_timeout_596` (F210, sort 366). It goes red if the 120 second limit is missing from the public Apply, if either bump takes a revision row before the shared lock, or if the pin count, department 135, Kajel's two checksums, or the clock tick move.
 
+## Parts ETA in the table no longer sets a date
+
+Craig, 28 Oct 2026 06:05 AWST. On Vehicle Locations the Parts ETA cell (`Set`) does nothing when you click it. The date should be read in that column. It is set or changed only in the vehicle side panel, in the PARTS ETA section that opens when you click the vehicle. That section must also offer Place as STOPPAGE, the same choice from #561 (r581), so the vehicle can go into the planner's Stoppage section. The side panel is slow to open and slow when a date is set.
+
+### Cause
+
+The cell and the panel both asked a function named `refreshAllViews` to repaint. That function is not defined anywhere, so the click stored "editing" and then drew nothing. Opening the panel built the vehicle card, then built it again when the completion list came back, and every Vehicle Locations refresh built it again. Each of those builds also asked for the email notes and the line handoffs. A burst of operation chips queued a layout read for every chip.
+
+### Fix
+
+r595 / F209 / sort 365. Craig approved go-live of #571 at 06:59 AWST on 28 Oct 2026. Re-checked at 08:35 AWST. Staging `cdsmnqxtyyoeoznmbidd`. Production `vjdtsswhroyguxyfjdkt` was not touched. The ledger tip before this apply is `outstanding_station_hours_594` (r594 / F208 / sort 364). r592 / F206 / sort 360, r590 / F204 / sort 361 and r593 / F207 / sort 363 are live. Sort 362 stays with the Revolution preview (#575, r591 / F205). r588 / F202 is the live tick grid and inserted no check. Pin count stays 241. No pin is inserted. Department 135 stays `fd05b9eef69498002ac06dd68e01cdff`. Kajel's rows validator stays `9be0883b1a555f48f3c1ba9fa111c891` and the apply stays `b62fb7c29ffd2a1629f214f696e5cb14`. The manual save stays `fa275b45be296e9021f9f4dc570f5751`. The stoppage board stays `c22076cba374291befa2ea23fc59f276`. No function body is replaced, so those functions still return the same bytes. Up md5 `0607df33cbbfd15d27ab5cfca3c78b40`. Down md5 `fe31fe1960c370a336853e5653044c1e`.
+
+The Parts ETA column shows the date and nothing you can click to set one. Set date, Change, and the blue Place as STOPPAGE checkbox are in the side panel. Saving a date calls the existing save. Ticking Place as STOPPAGE calls the existing r581 place. It does not download the stoppage list again. The planner Stoppage section updates from that reply. A tick with no date opens the date form and does not write.
+
+The panel is drawn once per open. When the completion list arrives it puts the ticks back on the chips instead of building the card again. A Vehicle Locations refresh that still shows the same vehicle does not build the card again. Chip inserts share one layout pass.
+
+The five-column operation grid from r588 stays. Its cache-bust stays `vehicle-slideout=2026.10.28.r588` on the script and the stylesheet (`VERSION` is still `2026.10.28.r588`). The script URL also carries `r595=2026.10.28.r595`, and `index.html` keeps `r588=2026.10.28.r588`. The Parts ETA block is a direct child of the detail grid (`grid-column: 1 / -1` only there). It is not on an operation line, so it does not share the PO-chip or tick tracks.
+
+### Timings
+
+The SQL is applied and no function body changes, so the server times stay the times of the live functions. On staging, stock 13018398 (`be6b9a21-99cd-4779-85a0-8b770d43b832`), `get_panel_line_completions_565` was 1.891 ms (368 buffer hits). The same read earlier in this pass: email notes 4.6 ms, one vehicle's station icon 7.8 ms, the cached QC lines 1 ms, and the station-icon list for 200 vehicles 131 ms and about 150 KB.
+
+Before, a click on Set stored "editing" and painted nothing, because `refreshAllViews` is not a function. Opening the panel built the card, then built it again when the completion list came back, and every table refresh built it again. Each extra build asked for the email notes and the line handoffs a second time. In the slide-out fixture, 40 opens that each receive a completion row now draw 40 cards (80 including the 40 board rows drawn first) and a refresh of that same vehicle draws none. The old path would have drawn the card again for each of those 40 completion replies and again on the refresh. Setting a date and ticking Place as STOPPAGE is two calls, `set_pdc_parts_stoppage_564` then `place_parts_eta_stoppage_573`. The stoppage list is not downloaded again. A local run of that script, with the network stubbed, showed those two calls and then the planner Stoppage section for 13018398. The live board was not signed in, and nothing was written to staging.
+
+### Check
+
+`parts_eta_panel_only_595` (F209, sort 365). It goes red if the manual save, the stoppage board, the email ETA, Kajel's two import functions or department 135 change, if Place as STOPPAGE is missing, if the pin count leaves 241, or if r595 inserts a pin.
+## Revolution report upload
+
+Craig approved the build on 28 Oct 2026 at 07:10 AWST and go-live on 28 Oct 2026 at 08:05 AWST. Staff upload a Revolution report on Admin > Revolution uploads. The server reads the file and shows what would change. No model is in the loop. Apply does not write the import tables. Kajel's imports keep running. Switching over needs a separate go-live. Production `vjdtsswhroyguxyfjdkt` was not touched. Staging `cdsmnqxtyyoeoznmbidd` only.
+
+Kajel's rows function stays `9be0883b1a555f48f3c1ba9fa111c891` and the apply function stays `b62fb7c29ffd2a1629f214f696e5cb14`.
+
+### Fix
+
+r591 / F205 / sort 362. The ledger already has r592 / F206 / sort 360, r590 / F204 / sort 361, r593 / F207 / sort 363 and r594 / F208 / sort 364. Sort 362 was the free hole. r589 / F203 stays with #571. r584 / F198 / sort 356 stays with #498. Pin count stays 241. No new pin. Department 135 stays `fd05b9eef69498002ac06dd68e01cdff`. The upload page uses blue (`#1d4ed8`, `#dbeafe`, `#2563eb`).
+
+The edge function names the report from its title and headers, refuses the wrong report, and parses the rows. A dry run counts new, updated, archived and skipped, plus one hold list. Each held line has one reason: closed-vehicle conflict, identity changed, identity restore, staff-lock, status 99, duplicate line, or carried-over not-sent. The SQL apply raises until the switch-over. More than 15 new vehicles or archives needs an administrator confirm. Service keeps departments 138 and 139 only. A status 99 line with no live board vehicle is held. Broome Sales `37047` and Karratha Sales `14450` are not changed by the PMB archive rule. A vehicle with an open job card is not archived.
+
+Up `supabase/migrations/20261028080000_r591_revolution_upload.sql` file md5 `ce3c83acf2c296c9594661dc828f14e6`. Down `supabase/rollbacks/20261028080000_r591_revolution_upload.down.sql` file md5 `5d7ae37ce1165e4bf2a6dfc43986e896`. Applied on staging as ledger `20261028004802` `r591_revolution_upload`. The new check is green. Pins stay 241. The seen table is empty. Kajel's two functions and department 135 are unchanged. The two clock checks were already red before this apply (lock timeouts at 07:24, 07:35 and 08:37). Ticks from 08:43 through 08:48 succeeded. No new red, so nothing was rolled back. The comparison is in `docs/revolution-upload-591.md`. 6,533 sent lines match with 0 field diffs. The 333 holds match Kajel's three hold files with 0 diffs.
+
+Later: a status 80 vehicle moving to QC with every item ticked green, and pulling the same reports from the pdc@ inbox.
+
+### Check
+
+`revolution_upload_591` (F205, sort 362). It goes red if apply is enabled, if the Kajel pins move, if department 135 moves, if a new pin is added for this upload, or if the sanity confirm stops being raised above 15.
+
 ## New to PMB is a view, not an acknowledgement
 
 Craig, 28 Oct 2026, 06:01 AWST, clarified 06:03 AWST. Craig approved go-live at 08:05 AWST. This is for vehicles at Yard Hold and for non-division vehicles. When one arrives off a truck, staff tick To PMB and enter a key number, and it goes straight onto the board in the PMB bucket. Nobody approves or acknowledges it. New to PMB is a view only: it lists vehicles whose key number is under 4 days old, so people who log in can see what has arrived recently and make arrangements. Those vehicles appear in both places, the PMB bucket and the New to PMB list. The counter is display only.
@@ -94,7 +141,7 @@ Two `administrator_move_workshop_booking` calls at 06:27 AWST returned HTTP 200.
 
 ### Fix
 
-r592 / F206 / sort 360. r588 / F202 is the side-panel tick grid and has no check. r589 / F203 / sort 361 is the open Parts ETA release (#571). r590 / F204 is the QC sign-off label named by the Revolution preview, and r591 / F205 / sort 362 is that preview (#575). A drop that overlaps a running job or a stoppage in the bay asks, in plain English, to place this job at the next working minute at or after that job's real end. Later planned jobs in the bay move back. Cancel leaves the bay as it is. The running job is not moved. Key 460 is not booked by this release; Craig drops it.
+r592 / F206 / sort 360. r588 / F202 is the side-panel tick grid and has no check. The Parts ETA release is r595 / F209 / sort 365 (#571). r590 / F204 is the QC sign-off label named by the Revolution preview, and r591 / F205 / sort 362 is that preview (#575). A drop that overlaps a running job or a stoppage in the bay asks, in plain English, to place this job at the next working minute at or after that job's real end. Later planned jobs in the bay move back. Cancel leaves the bay as it is. The running job is not moved. Key 460 is not booked by this release; Craig drops it.
 
 The question is `place_after_running`. The confirm sends `place_after_confirm.plan_hash` once. `administrator_move_workshop_booking` stays the r571 pin `6a02115d30578e8eb3807a283b1d60ea`. The pin catalogue stores that signature with `timestamp with time zone`, and the release looks the pin up in that spelling. Pin count stays 241. No pin is inserted. Department 135 stays `fd05b9eef69498002ac06dd68e01cdff`. Kajel rows stay `9be0883b1a555f48f3c1ba9fa111c891` and apply stays `b62fb7c29ffd2a1629f214f696e5cb14`. The clock tick stays `3b2398e33a2ea35fc137deeedeca4af5`.
 
@@ -123,6 +170,7 @@ Cache bust `vehicle-slideout=2026.10.28.r588` on `pdc-vehicle-slideout.js` / `.c
 ### Check
 
 `test_vehicle_slideout_tick_grid_588.js` (no new `fault_regression_check` row). Before publish, `pdc_ops.fault_regression_check()` was 129 checks with one existing red (`clock_tick_latency_trend`, not introduced by this release).
+
 ## Control board QC lines and nested work items
 
 Craig, 28 Oct 2026 05:18 AWST, release 2 of go live and optimise the board. Staging `cdsmnqxtyyoeoznmbidd` only. Production `vjdtsswhroyguxyfjdkt` was not touched. The vehicle-board lock convoy is r586. This release is the eligibility snapshot the control board reads.
