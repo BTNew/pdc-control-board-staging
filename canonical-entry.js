@@ -135,7 +135,7 @@
       // each Pit cell at render time and the module redraws once its data is in, so the order does not matter.
       if (!document.querySelector('script[data-pdc-pit-bookings]')) {
         const pit = document.createElement('script');
-        pit.src = 'pdc-pit-bookings.js?r604=2026.10.28.r604&r611=2026.10.28.r611&r612=2026.10.28.r612&r616=2026.10.28.r616';
+        pit.src = 'pdc-pit-bookings.js?r604=2026.10.28.r604&r611=2026.10.28.r611&r612=2026.10.28.r612&r616=2026.10.28.r616&r618=2026.10.28.r618';
         pit.dataset.pdcPitBookings = '1';
         document.head.appendChild(pit);
       }
@@ -148,7 +148,7 @@
         document.head.appendChild(history);
       }
       const table = document.createElement('script');
-      table.src = 'pdc-vehicle-locations-table.js?vehicle-locations-table=2026.10.22.r461&r462=2026.10.22.r462&r463=2026.10.22.r463&r476=2026.10.22.r476&r475=2026.10.22.r475&r481=2026.10.22.r481&r485=2026.10.22.r485&r557=2026.10.27.r557&r562=2026.10.27.r562&r563=2026.10.27.r563&r567=2026.10.27.r567&r566=2026.10.27.r566&r593=2026.10.28.r593&r604=2026.10.28.r604&r613=2026.10.28.r613'; // r613 (F228): key search waits for typing to stop; r604 (F218): Pit column; r476 (F89): bunched-up columns; r475 (F88): Parts ETA column; r481 (F94): search shows matches from every tile; r485 (F98): Table view only; r557 (F171): New to PMB tile; r562 (F176): key-number gate; r563 (F177): arrival age; r567 (F181): typed Parts ETA; r566: planner search boxes; r593 (F207): New to PMB view
+      table.src = 'pdc-vehicle-locations-table.js?vehicle-locations-table=2026.10.22.r461&r462=2026.10.22.r462&r463=2026.10.22.r463&r476=2026.10.22.r476&r475=2026.10.22.r475&r481=2026.10.22.r481&r485=2026.10.22.r485&r557=2026.10.27.r557&r562=2026.10.27.r562&r563=2026.10.27.r563&r567=2026.10.27.r567&r566=2026.10.27.r566&r593=2026.10.28.r593&r604=2026.10.28.r604&r613=2026.10.28.r613&r618=2026.10.28.r618'; // r613 (F228): key search waits for typing to stop; r604 (F218): Pit column; r476 (F89): bunched-up columns; r475 (F88): Parts ETA column; r481 (F94): search shows matches from every tile; r485 (F98): Table view only; r557 (F171): New to PMB tile; r562 (F176): key-number gate; r563 (F177): arrival age; r567 (F181): typed Parts ETA; r566: planner search boxes; r593 (F207): New to PMB view
       table.dataset.pdcVehicleLocationsTable = '1';
       table.onload = loadVehicleSlideout;
       document.head.appendChild(table);

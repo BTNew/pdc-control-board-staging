@@ -11,7 +11,7 @@
  */
 (function (root) {
   'use strict';
-  const VERSION = '2026.10.28.r611';
+  const VERSION = '2026.10.28.r618';
   const PROJECT = 'cdsmnqxtyyoeoznmbidd';
   const PLACES = Object.freeze(['PMB', 'Wangara', 'Wades']);
   const DAY_MS = 86400000;
@@ -95,9 +95,27 @@
   const FILTERS = Object.freeze({ open: 'Not booked', booked: 'Booked', back: 'Done', all: 'All' });
   // r611 (F225): only vehicles with a key number are listed (no key means not physically here yet).
   const hasKey = v => String(v?.key_number ?? '').trim() !== '' && String(v.key_number).trim() !== '0';
-  function filterVehicles(vehicles, filter) {
+  // r618 (F233): the Vehicle Locations search boxes also search the pit list. Key number is exact (leading zeros and
+  // spaces ignored, as on the table); the other box matches stock, job card, customer, vehicle, location or pit line.
+  const keyToken = value => { const c = String(value ?? '').replace(/\s+/g, '').toLowerCase(); return c.replace(/^0+/, '') || (c ? '0' : ''); };
+  function searchActive(search) {
+    return Boolean(search) && (keyToken(search.key).length >= 1 || String(search.text || '').trim().length >= 2);
+  }
+  function searchMatches(v, search) {
+    if (!searchActive(search)) return true;
+    const key = keyToken(search.key);
+    if (key && keyToken(v?.key_number) !== key) return false;
+    const text = String(search.text || '').trim().toLowerCase();
+    if (text.length >= 2) {
+      const hay = [v.key_number, v.stock_number, v.job_card_number, v.customer, v.customer_name, v.vehicle, v.location, ...(v.pit_lines || [])]
+        .filter(x => x !== null && x !== undefined).join(' ').toLowerCase();
+      if (!hay.includes(text)) return false;
+    }
+    return true;
+  }
+  function filterVehicles(vehicles, filter, search = null) {
     return vehicles.filter(v => {
-      if (!hasKey(v)) return false;
+      if (!hasKey(v) || !searchMatches(v, search)) return false;
       const booked = Boolean(isoDate(v.pit_date));
       if (filter === 'open') return v.needs_pit && !booked;
       if (filter === 'booked') return booked && !v.back;
@@ -107,12 +125,13 @@
   }
 
   /** The panel above the table on the PIT tile: the list, then the calendar. */
-  function panelHtml(board, { filter = 'open', month = '', place = 'PMB', message = '' } = {}) {
+  function panelHtml(board, { filter = 'open', month = '', place = 'PMB', message = '', search = null } = {}) {
     const today = board.today;
     const canEdit = board.canEdit;
     const shownMonth = monthStart(month || today);
-    const counts = Object.fromEntries(Object.keys(FILTERS).map(key => [key, filterVehicles(board.vehicles, key).length]));
-    const rows = filterVehicles(board.vehicles, filter);
+    const searching = searchActive(search);
+    const counts = Object.fromEntries(Object.keys(FILTERS).map(key => [key, filterVehicles(board.vehicles, key, search).length]));
+    const rows = filterVehicles(board.vehicles, filter, search);
     const listRows = rows.map(v => {
       const booked = Boolean(isoDate(v.pit_date));
       const id = esc(v.vehicle_id);
@@ -130,10 +149,10 @@
         <td class="pdc-pit-lines" title="${esc((v.pit_lines || []).join('\n'))}">${esc((v.pit_lines || [])[0] || '')}${(v.pit_lines || []).length > 1 ? ` <small>+${v.pit_lines.length - 1}</small>` : ''}</td>
         <td>${booked ? cellHtml(v, today) : '<span class="pdc-pit-chip is-needed">Not booked</span>'}</td>
         <td>${booked ? placeSelect : ''}</td><td>${backBox}</td><td>${clear}</td></tr>`;
-    }).join('') || `<tr><td colspan="11" class="pdc-pit-empty">No vehicles under ${esc(FILTERS[filter] || 'this filter')}.</td></tr>`;
+    }).join('') || `<tr><td colspan="11" class="pdc-pit-empty">${searching ? `No pit vehicle matches your search under ${esc(FILTERS[filter] || 'this filter')}${counts.all ? `. Try ${esc(FILTERS.all)}` : ''}.` : `No vehicles under ${esc(FILTERS[filter] || 'this filter')}.`}</td></tr>`;
 
     const byDay = new Map();
-    board.vehicles.filter(hasKey).forEach(v => { const d = isoDate(v.pit_date); if (d) byDay.set(d, [...(byDay.get(d) || []), v]); });
+    board.vehicles.filter(v => hasKey(v) && searchMatches(v, search)).forEach(v => { const d = isoDate(v.pit_date); if (d) byDay.set(d, [...(byDay.get(d) || []), v]); });
     const cells = monthGrid(shownMonth).map(day => {
       const chips = (byDay.get(day.iso) || []).map(v => `<span class="pdc-pit-cal-chip pdc-pit-at-${esc(String(v.pit_location || '').toLowerCase())}${v.back ? ' is-back' : ''}"${canEdit ? ` draggable="true" data-pit-drag="${esc(v.vehicle_id)}"` : ''} title="${esc(`${v.stock_number} · ${v.vehicle || ''} · ${v.pit_location}${v.back ? ' · back' : ''}`)}">${v.back ? '✓ ' : ''}${esc(v.key_number ? `K${v.key_number}` : v.stock_number)} · ${esc(v.pit_location || '')}</span>`).join('');
       const cls = ['pdc-pit-day', day.inMonth ? '' : 'is-out', day.iso === today ? 'is-today' : '', day.iso < today ? 'is-past' : ''].filter(Boolean).join(' ');
@@ -147,6 +166,7 @@
     return `<section class="pdc-pit-panel" data-pdc-pit-panel aria-label="Pit bookings">
       <div class="pdc-pit-head"><h2>Vehicles that need pitting</h2>
         <div class="pdc-pit-filters" role="toolbar">${Object.entries(FILTERS).map(([key, label]) => `<button type="button" class="${key === filter ? 'active' : ''}" data-pit-filter="${key}">${label} <b>${counts[key]}</b></button>`).join('')}</div>
+        ${searching ? `<p class="pdc-pit-search" role="status">Search: ${esc([search.key && `key ${String(search.key).trim()}`, String(search.text || '').trim()].filter(Boolean).join(' · '))} · ${counts.all} match${counts.all === 1 ? '' : 'es'}</p>` : ''}
         ${message ? `<p class="pdc-pit-msg" role="status">${esc(message)}</p>` : ''}</div>
       <div class="pdc-pit-list-wrap"><table class="pdc-pit-list"><thead><tr><th></th><th>Key</th><th>Stock</th><th>Job Card</th><th>Vehicle</th><th>Location</th><th>Pit line</th><th>Pit</th><th>Place</th><th>Done</th><th></th></tr></thead><tbody>${listRows}</tbody></table></div>
       <div class="pdc-pit-cal-head"><button type="button" class="small-button" data-pit-month="-1" aria-label="Previous month">‹</button><h3>${LONG_MONTHS[Number(shownMonth.slice(5, 7)) - 1]} ${shownMonth.slice(0, 4)}</h3><button type="button" class="small-button" data-pit-month="1" aria-label="Next month">›</button><button type="button" class="small-button" data-pit-month="0">Today</button>${placePick}</div>
@@ -173,6 +193,7 @@
 .pdc-pit-filters button.active, .pdc-pit-place button.active { background: #1e293b; border-color: #1e293b; color: #fff; }
 .pdc-pit-place span { font-size: 12px; color: #475569; margin-right: 2px; }
 .pdc-pit-msg { margin: 0; font-size: 12px; color: #9a3412; }
+.pdc-pit-search { margin: 0; font-size: 12px; font-weight: 600; color: #1d4ed8; }
 .pdc-pit-list-wrap { max-height: 300px; overflow: auto; border: 1px solid #e2e8f0; border-radius: 6px; }
 .pdc-pit-list { width: 100%; border-collapse: collapse; font-size: 12px; }
 .pdc-pit-list th { position: sticky; top: 0; background: #f8fafc; text-align: left; font-weight: 600; padding: 4px 6px; border-bottom: 1px solid #e2e8f0; }
@@ -204,7 +225,7 @@
 @media (max-width: 720px) { .pdc-pit-day { min-height: 46px; } .pdc-pit-cal-chip { font-size: 9.5px; } }
 `;
 
-  const api = { VERSION, PLACES, daysUntil, counterText, shortDate, indexBoard, cellHtml, monthGrid, shiftMonth, filterVehicles, panelHtml, CSS };
+  const api = { VERSION, PLACES, searchActive, searchMatches, daysUntil, counterText, shortDate, indexBoard, cellHtml, monthGrid, shiftMonth, filterVehicles, panelHtml, CSS };
   if (typeof module !== 'undefined') module.exports = api;
   if (typeof window === 'undefined' || window.PDC_SUPABASE_CONFIG?.projectRef !== PROJECT || window.PDC_PIT_BOOKINGS) return;
 
@@ -221,7 +242,7 @@
   let board = indexBoard(null);
   let loaded = false;
   let loading = null;
-  const ui = { filter: 'open', month: '', place: 'PMB', message: '', host: null };
+  const ui = { filter: 'open', month: '', place: 'PMB', message: '', search: null, host: null };
 
   function rerender() { try { if (typeof refreshAllViews === 'function') refreshAllViews(); } catch (_) { /* next render */ } }
   function load() {
@@ -291,11 +312,12 @@
   }
 
   /** Called by the Vehicle Locations table after each render. */
-  function afterRender(host, { bucket } = {}) {
+  function afterRender(host, { bucket, search = null } = {}) {
     if (!host) return;
     host.querySelector('[data-pdc-pit-panel]')?.remove();
-    if (bucket !== 'pit') return;
+    if (bucket !== 'pit') return; // r618 (F233): the list and calendar belong to the PIT tile only
     ui.host = host;
+    ui.search = searchActive(search) ? { key: String(search.key || ''), text: String(search.text || '') } : null;
     const anchor = host.querySelector('.vlt-panel');
     if (!anchor) return;
     anchor.insertAdjacentHTML('beforebegin', loaded ? panelHtml(board, ui) : '<section class="pdc-pit-panel" data-pdc-pit-panel><p class="pdc-pit-hint">Loading pit bookings…</p></section>');

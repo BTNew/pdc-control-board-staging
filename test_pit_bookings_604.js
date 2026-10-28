@@ -92,7 +92,7 @@ test('wiring: loader, cache bust, Pages ships the file, migration is staging-onl
   assert.match(fs.readFileSync('scripts/build_pages_runtime.js', 'utf8'), /'pdc-pit-bookings\.js'/);
   const table = fs.readFileSync('pdc-vehicle-locations-table.js', 'utf8');
   assert.match(table, /td\('c-pit', pitCell\),\n\s+td\('c-eta', etaCell\)/, 'Pit sits left of Parts ETA');
-  assert.match(table, /PDC_PIT_BOOKINGS\?\.afterRender\?\.\(host, \{ bucket: state\.bucket \}\)/);
+  assert.match(table, /PDC_PIT_BOOKINGS\?\.afterRender\?\.\(host, \{ bucket: !scope\.stoppages && scope\.bucket === 'pit' \? 'pit' : ''/);
   const sql = fs.readFileSync('supabase/migrations/20261028130000_r604_pit_bookings.sql', 'utf8');
   assert.match(sql, /project_ref = 'cdsmnqxtyyoeoznmbidd'/);
   assert.match(sql, /expected_function_md5\) <> 241/);
