@@ -58,7 +58,12 @@ SELECT pdc_import_620.add_hold('<stock>', 'held_from_kajel:<reason>');          
 SELECT pdc_import_620.add_hold('<stock>', 'held_from_kajel:<reason>', '<R/O>', <line>);  -- one line
 ```
 
-## First run (side by side)
+## Go-live (Craig, 28 Oct 2026 19:58 AWST)
+Preview attempt 5 (job 58c1556e) passed 40/40. From the next file use `mode='apply'` only; stop the part-NN steps.
+No line holds or staff-lock holds are needed beforehand: refused stocks (preview) and refused or staff-locked parts (apply)
+are held for that run and the job carries on (r670). Send the receipt after each apply.
+
+## First run (side by side, done)
 1. Next import: run your normal steps as today, then submit the same file with `mode='preview'` and read the receipt.
    Previews write nothing to the board. Send the receipt (counts and holds only) to Claude to compare.
 2. When it matches and Craig gives the go-live, use `mode='apply'` instead of the part-NN steps.
