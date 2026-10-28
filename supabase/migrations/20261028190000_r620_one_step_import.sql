@@ -33,7 +33,7 @@ BEGIN
   END IF;
   IF (SELECT count(*) FROM pdc_ops.expected_function_md5) <> 241 THEN RAISE EXCEPTION 'r620: pin count'; END IF;
   IF EXISTS (SELECT 1 FROM pdc_ops.regression_checks WHERE sort_order = 379 OR fault_id = 'F235' OR added_in = 'r620' OR check_name = 'one_step_import_620') THEN
-    RAISE EXCEPTION 'r620: sort 379 or F232 is taken';
+    RAISE EXCEPTION 'r620: sort 379 or F235 is taken';
   END IF;
   IF to_regnamespace('pdc_import_620') IS NOT NULL THEN RAISE EXCEPTION 'r620: schema exists'; END IF;
 END $guard620$;
@@ -165,7 +165,7 @@ BEGIN
   v_result := public.pdc_pilbara_service_preview_v1(p_rows, v_hash, 'codex-owner-email-preview-' || v_hash);
   UPDATE auth.users SET banned_until = v_ban WHERE id = pdc_import_620.importer_id();
   IF (SELECT banned_until FROM auth.users WHERE id = pdc_import_620.importer_id()) IS DISTINCT FROM v_ban THEN RAISE EXCEPTION 'importer_restore_failed'; END IF;
-  RETURN v_result || jsonb_build_object('source_hash_617', v_hash);
+  RETURN v_result || jsonb_build_object('source_hash_620', v_hash);
 END $fn$;
 
 -- Drop whole stocks from a partition and record the holds (holdstock.py).
@@ -203,7 +203,7 @@ BEGIN
     IF jsonb_array_length(v_rows) = 0 THEN RETURN jsonb_build_object('part', p_part + 1, 'rows', 0, 'skipped', 'all_rows_held'); END IF;
     v_result := pdc_import_620.preview_rows(v_job, p_part + 1, v_rows);
     IF v_result->>'ok' = 'true' AND v_result->>'apply_allowed' = 'true' AND coalesce((v_result->'operations'->>'conflict')::integer, 0) = 0 THEN
-      RETURN jsonb_build_object('part', p_part + 1, 'rows', jsonb_array_length(v_rows), 'source_hash', v_result->>'source_hash_617',
+      RETURN jsonb_build_object('part', p_part + 1, 'rows', jsonb_array_length(v_rows), 'source_hash', v_result->>'source_hash_620',
         'preview_batch_id', v_result->>'preview_batch_id', 'operations', v_result->'operations', 'tries', v_try);
     END IF;
     SELECT array_agg(DISTINCT r.stock_number) INTO v_stocks FROM public.pdc_pilbara_service_import_rows r
@@ -308,7 +308,7 @@ BEGIN
       IF v_result->>'ok' IS DISTINCT FROM 'true' OR v_result->>'apply_allowed' IS DISTINCT FROM 'true' OR coalesce((v_result->'operations'->>'conflict')::integer, 0) <> 0 THEN
         RAISE EXCEPTION 'repreview_not_allowed part % %', p_part + 1, left(v_result::text, 1500);
       END IF;
-      v_prev := jsonb_build_object('part', p_part + 1, 'rows', jsonb_array_length(v_job.partitions->p_part), 'source_hash', v_result->>'source_hash_617',
+      v_prev := jsonb_build_object('part', p_part + 1, 'rows', jsonb_array_length(v_job.partitions->p_part), 'source_hash', v_result->>'source_hash_620',
         'preview_batch_id', v_result->>'preview_batch_id', 'operations', v_result->'operations', 'repreviewed_after_staff_hold', true);
     END IF;
     UPDATE pdc_import_620.jobs SET parts = jsonb_set(parts, ARRAY[p_part::text], v_prev) WHERE job_id = p_job;
