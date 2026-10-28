@@ -9,7 +9,7 @@
  */
 (function (root) {
   'use strict';
-  const VERSION = '2026.10.28.r608';
+  const VERSION = '2026.10.29.r686';
   const PROJECT = 'cdsmnqxtyyoeoznmbidd';
   const HIDDEN_KEY = 'pdc.workshop-tv.hidden.v1';
   const REFRESH_MS = 60 * 1000;
@@ -43,8 +43,11 @@
   /** One bar, clipped to the day. A running job past its end stretches to now. Null if off the day. */
   function barHtml(job, { from, to, now, edge = true }) {
     const state = jobState(job, now);
-    const start = ms(job.start);
+    let start = ms(job.start);
     let end = ms(job.end);
+    // r686 (F296, Craig 29 Oct): a done job shows only from its actual start to when it was completed.
+    const doneAt = state === 'done' ? ms(job.actual_end) : null;
+    if (doneAt !== null) { end = doneAt; start = Math.min(ms(job.actual_start) ?? start ?? doneAt, doneAt); }
     if (start === null || end === null) return '';
     if (state === 'over') end = Math.max(end, now);
     if (end <= from || start >= to) {
@@ -60,7 +63,7 @@
     const over = state === 'over' && ms(job.end) !== null ? ` · due ${hhmm(ms(job.end))}` : '';
     const label = [job.key ? `K${job.key}` : '', job.stock || '', job.vehicle || ''].filter(Boolean).join(' · ');
     const tag = state === 'over' ? 'OVER' : state === 'stop' ? 'STOP' : '';
-    const title = `${STATE_LABEL[state]} · ${label} · ${hhmm(start)}–${hhmm(ms(job.end))}${job.stoppage ? ` · ${job.stoppage}` : ''}`;
+    const title = `${STATE_LABEL[state]} · ${label} · ${hhmm(start)}–${hhmm(doneAt ?? ms(job.end))}${job.stoppage ? ` · ${job.stoppage}` : ''}`;
     return `<div class="tv-job is-${state}" style="left:${left.toFixed(2)}%;width:${width.toFixed(2)}%" title="${esc(title)}">${tag ? `<b>${tag}</b>` : ''}<span>${esc(label)}${esc(over)}</span></div>`;
   }
 
