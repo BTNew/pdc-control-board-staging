@@ -4,7 +4,7 @@
   const DAYS = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
   const esc = value => String(value ?? '').replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]));
   const DAY_LABEL = { monday: 'Monday', tuesday: 'Tuesday', wednesday: 'Wednesday', thursday: 'Thursday', friday: 'Friday', saturday: 'Saturday', sunday: 'Sunday' };
-  const state = { loaded: false, loading: false, payload: null, error: '', openBay: '', warnings: {} };
+  const state = { loaded: false, loading: false, payload: null, error: '', openBay: '', renameBay: '', bayErrors: {}, warnings: {} };
 
   function host() { return document.getElementById('bay-manager-content'); }
   function role() { return window.PDC_AUTH_CONTEXT?.role || ''; }
@@ -76,40 +76,38 @@
     if (bay.override) return `Saved week · Mon ${monday.off ? 'off' : `${monday.start}–${monday.finish}`}`;
     return bay.source === 'bus_shift' ? `Bus shift · Mon ${monday.off ? 'off' : `${monday.start}–${monday.finish}`}` : `Workshop calendar · Mon ${monday.off ? 'off' : `${monday.start}–${monday.finish}`}`;
   }
+  // r640 (F255): no breaks. Craig does not want breaks in any job; saved weeks always carry none.
   function readWeek(form) {
     const hours = {};
     for (const day of DAYS) {
       const off = form.querySelector(`[data-off="${day}"]`)?.checked === true;
       const start = form.querySelector(`[data-start="${day}"]`)?.value || '06:00';
       const finish = form.querySelector(`[data-finish="${day}"]`)?.value || '16:30';
-      const breaks = [];
-      form.querySelectorAll(`[data-break-start="${day}"]`).forEach((input, index) => {
-        const end = form.querySelectorAll(`[data-break-finish="${day}"]`)[index];
-        if (input.value && end?.value) breaks.push({ start: input.value, finish: end.value });
-      });
-      hours[day] = { off, start, finish, breaks: off ? [] : breaks };
+      hours[day] = { off, start, finish, breaks: [] };
     }
     return hours;
   }
   function weekTable(bay, writable) {
     const hours = hoursFor(bay);
     const rows = DAYS.map(day => {
-      const spec = hours?.[day] || { off: true, start: '06:00', finish: '16:30', breaks: [] };
-      const breaks = Array.isArray(spec.breaks) ? spec.breaks : [];
-      const breakCells = [0, 1].map(index => {
-        const item = breaks[index] || {};
-        return `<input data-break-start="${day}" type="time" value="${esc(item.start || '')}" ${writable && !spec.off ? '' : 'disabled'} aria-label="${DAY_LABEL[day]} break ${index + 1} start">
-          <input data-break-finish="${day}" type="time" value="${esc(item.finish || item.end || '')}" ${writable && !spec.off ? '' : 'disabled'} aria-label="${DAY_LABEL[day]} break ${index + 1} finish">`;
-      }).join('');
+      const spec = hours?.[day] || { off: true, start: '06:00', finish: '16:30' };
       return `<tr>
-        <th scope="row">${DAY_LABEL[day]}</th>
-        <td><input data-off="${day}" type="checkbox" ${spec.off ? 'checked' : ''} ${writable ? '' : 'disabled'} aria-label="${DAY_LABEL[day]} day off"></td>
+        <th scope="row">${DAY_LABEL[day].slice(0, 3)}</th>
+        <td><label class="bay-manager-off"><input data-off="${day}" type="checkbox" ${spec.off ? 'checked' : ''} ${writable ? '' : 'disabled'} aria-label="${DAY_LABEL[day]} day off"> Off</label></td>
         <td><input data-start="${day}" type="time" value="${esc(spec.start || '06:00')}" ${writable ? '' : 'disabled'} aria-label="${DAY_LABEL[day]} start"></td>
         <td><input data-finish="${day}" type="time" value="${esc(spec.finish || '16:30')}" ${writable ? '' : 'disabled'} aria-label="${DAY_LABEL[day]} finish"></td>
-        <td>${breakCells}</td>
       </tr>`;
     }).join('');
-    return `<table class="bay-manager-week"><thead><tr><th>Day</th><th>Day off</th><th>Start</th><th>Finish</th><th>Breaks</th></tr></thead><tbody>${rows}</tbody></table>`;
+    return `<table class="bay-manager-week"><thead><tr><th>Day</th><th></th><th>Start</th><th>Finish</th></tr></thead><tbody>${rows}</tbody></table>`;
+  }
+  const BAY_ERRORS = {
+    bay_in_use: 'This bay has open bookings. Move or finish them, then hide it.',
+    version_conflict: 'Someone else just changed this bay. Try again.',
+    display_name_length: 'Names are 1 to 40 characters.',
+  };
+  function bayError(bayId, error) {
+    state.bayErrors[bayId] = BAY_ERRORS[error?.message] || error?.message || 'That change was refused.';
+    render();
   }
   function warningHtml(bayId) {
     const warning = state.warnings[bayId];
@@ -129,7 +127,7 @@
     title.textContent = 'Bay Manager';
     const lead = document.createElement('p');
     lead.className = 'bay-manager-lead';
-    lead.textContent = 'Set the working week for each bay. A bay with no saved week keeps the hours the planner and the clock use today. Saving does not move bookings.';
+    lead.textContent = 'Tap the pencil to rename a bay. Edit hours sets its working week (no breaks). Saving does not move bookings.';
     wrap.append(title, lead);
     if (state.loading && !state.payload) {
       const waiting = document.createElement('p');
@@ -159,39 +157,46 @@
       header.textContent = station.label;
       section.append(header);
       for (const bay of station.bays || []) {
+        // r640 (F255): one slim row per bay: name with a pencil, code, state, hours, then Edit hours and Hide on the right.
         const article = document.createElement('article');
-        article.className = 'bay-manager-bay';
-        const head = document.createElement('div');
-        head.className = 'bay-manager-bay-head';
-        head.innerHTML = `<strong>${esc(bay.display_name)}</strong><span class="bay-manager-code">${esc(bay.code)}</span><span class="bay-manager-state ${bay.is_active ? 'is-active' : 'is-hidden'}">${bay.is_active ? 'Active' : 'Hidden'}</span><span class="bay-manager-source">${esc(summary(bay))}</span>`;
-        article.append(head);
-        const rename = document.createElement('form');
-        rename.className = 'bay-manager-rename';
-        rename.innerHTML = `<input type="text" name="display" maxlength="40" value="${esc(bay.display_name || '')}" ${writable ? '' : 'disabled'} aria-label="Display name for ${esc(bay.code)}"><button type="submit" ${writable ? '' : 'disabled'}>Save name</button><button type="button" data-active="1" ${canHide() ? '' : 'disabled'} title="${canHide() ? '' : 'Hide and show stay with an administrator.'}">${bay.is_active ? 'Hide bay' : 'Show bay'}</button>`;
-        rename.addEventListener('submit', async event => {
+        article.className = `bay-manager-bay${bay.is_active ? '' : ' is-hidden-bay'}`;
+        const row = document.createElement('div');
+        row.className = 'bay-manager-row';
+        const renaming = state.renameBay === bay.id;
+        const open = state.openBay === bay.id;
+        row.innerHTML = `${renaming
+            ? `<form class="bay-manager-rename"><input type="text" name="display" maxlength="40" value="${esc(bay.display_name || '')}" aria-label="Name for ${esc(bay.code)}"><button type="submit" class="bay-manager-primary">Save name</button><button type="button" data-rename-cancel>Cancel</button></form>`
+            : `<strong class="bay-manager-name">${esc(bay.display_name)}</strong>${writable ? `<button type="button" class="bay-manager-pencil" data-rename title="Change name" aria-label="Change name of ${esc(bay.display_name)}">&#9998;</button>` : ''}`}<span class="bay-manager-code">${esc(bay.code)}</span><span class="bay-manager-state ${bay.is_active ? 'is-active' : 'is-hidden'}">${bay.is_active ? 'Active' : 'Hidden'}</span><span class="bay-manager-source">${esc(summary(bay))}</span><span class="bay-manager-row-actions"><button type="button" data-hours>${open ? 'Close hours' : 'Edit hours'}</button>${canHide() ? `<button type="button" data-active>${bay.is_active ? 'Hide bay' : 'Show bay'}</button>` : ''}</span>`;
+        article.append(row);
+        row.querySelector('[data-rename]')?.addEventListener('click', () => { state.renameBay = bay.id; delete state.bayErrors[bay.id]; render(); host()?.querySelector('.bay-manager-rename input')?.focus(); });
+        row.querySelector('[data-rename-cancel]')?.addEventListener('click', () => { state.renameBay = ''; render(); });
+        row.querySelector('.bay-manager-rename')?.addEventListener('submit', async event => {
           event.preventDefault();
           if (!writable) return;
           try {
-            await rpc('set_workshop_bay_display_name', { p_bay_id: bay.id, p_expected_version: bay.bay_version, p_display_name: new FormData(rename).get('display') });
+            await rpc('set_workshop_bay_display_name', { p_bay_id: bay.id, p_expected_version: bay.bay_version, p_display_name: new FormData(event.currentTarget).get('display') });
+            state.renameBay = ''; delete state.bayErrors[bay.id];
             await refresh();
-          } catch (error) { state.error = error.message; render(); }
+          } catch (error) { bayError(bay.id, error); }
         });
-        rename.querySelector('[data-active]')?.addEventListener('click', async () => {
+        row.querySelector('[data-active]')?.addEventListener('click', async () => {
           if (!canHide()) return;
           try {
             await rpc('set_workshop_bay_active', { p_bay_id: bay.id, p_expected_version: bay.bay_version, p_active: !bay.is_active });
+            delete state.bayErrors[bay.id];
             await refresh();
-          } catch (error) { state.error = error.message; render(); }
+          } catch (error) { bayError(bay.id, error); }
         });
-        article.append(rename);
-        const open = state.openBay === bay.id;
-        const toggle = document.createElement('button');
-        toggle.type = 'button';
-        toggle.textContent = open ? 'Close hours' : 'Edit hours';
-        toggle.addEventListener('click', () => { state.openBay = open ? '' : bay.id; render(); });
-        article.append(toggle);
+        row.querySelector('[data-hours]')?.addEventListener('click', () => { state.openBay = open ? '' : bay.id; render(); });
+        if (state.bayErrors[bay.id]) {
+          const problem = document.createElement('p');
+          problem.className = 'bay-manager-warning bay-manager-bay-error';
+          problem.textContent = state.bayErrors[bay.id];
+          article.append(problem);
+        }
         if (open) {
           const form = document.createElement('form');
+          form.className = 'bay-manager-hours';
           form.innerHTML = `${weekTable(bay, writable)}<div class="bay-manager-actions"><button class="bay-manager-primary" type="submit" ${writable ? '' : 'disabled'}>Save hours</button><button type="button" data-copy="1" ${writable ? '' : 'disabled'}>Copy to all bays in station</button><button type="button" data-reset="1" ${writable ? '' : 'disabled'}>Reset to station default</button></div>`;
           form.addEventListener('submit', event => { event.preventDefault(); void save(bay, 'save', readWeek(form)); });
           form.querySelector('[data-copy]')?.addEventListener('click', () => { void save(bay, 'copy', readWeek(form)); });
@@ -222,8 +227,7 @@
       state.error = '';
       await refresh();
     } catch (error) {
-      state.error = error.message;
-      render();
+      bayError(bay.id, error);
     }
   }
   async function refresh() {
