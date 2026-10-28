@@ -12,8 +12,10 @@
   // Never rewrite OAuth/password-recovery fragments.
   const phone = window.matchMedia?.('(max-width: 900px), (pointer: coarse) and (max-width: 1024px)').matches;
   const requestedIntake = !phone && ['#/newvehicles','#/operationupdates'].includes(location.hash);
-  document.documentElement.classList.toggle('pdc-qc-phone', Boolean(phone && location.hash !== '#/fitters'));
-  if (phone && location.hash !== '#/fitters' && (!location.hash || location.hash.startsWith('#/'))) {
+  // r643 (F258): Fitters bay and Sublet · MMT keep their own page on a phone (pmgpdc.au/mmt opens #/mmt-sublet).
+  const ownPhonePage = ['#/fitters', '#/mmt-sublet'].includes(location.hash);
+  document.documentElement.classList.toggle('pdc-qc-phone', Boolean(phone && !ownPhonePage));
+  if (phone && !ownPhonePage && (!location.hash || location.hash.startsWith('#/'))) {
     window.history.replaceState({ pdcView: 'qc' }, '', `${location.pathname}${location.search}#/qc`);
   }
   const version = '2026.09.10.01';
@@ -25,7 +27,7 @@
     document.head.appendChild(style);
 
     const script = document.createElement('script');
-    script.src = `pdc-qc-mobile.js?v=${version}&deep-review=2026.09.13.01&sublet-qc=2026.09.14.01&readable-text=2026.09.16.01&fitters=2026.09.16.01&separate-screens-pmb-warning=2026.09.16.01`;
+    script.src = `pdc-qc-mobile.js?v=${version}&deep-review=2026.09.13.01&sublet-qc=2026.09.14.01&readable-text=2026.09.16.01&fitters=2026.09.16.01&separate-screens-pmb-warning=2026.09.16.01&r643=2026.10.28.r643`;
     const loadReview = () => {
       const reviewStyle = document.createElement('link');
       reviewStyle.rel = 'stylesheet';
