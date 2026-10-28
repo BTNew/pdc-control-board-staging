@@ -305,6 +305,7 @@
     } catch (_) { /* next render */ }
   };
   async function load(force) {
+    if (String(window.PDC_AUTH_CONTEXT?.role || '').trim().toLowerCase() === 'fitter') return; // r616 (F231): Fitters bay only
     if (loading || !window.__pdcCachedAccessToken || (!force && document.visibilityState === 'hidden')) return;
     loading = true;
     try {

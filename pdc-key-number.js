@@ -206,6 +206,7 @@
     };
   }
   async function loadRole() {
+    if (String(window.PDC_AUTH_CONTEXT?.role || '').trim().toLowerCase() === 'fitter') return; // r616 (F231): Fitters bay only
     if (!token()) return;
     try {
       const data = await rpc('get_pdc_vehicle_key_number_460', { p_vehicle_id: null });

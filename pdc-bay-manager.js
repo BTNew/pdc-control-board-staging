@@ -45,6 +45,7 @@
   }
 
   async function load(force) {
+    if (String(window.PDC_AUTH_CONTEXT?.role || '').trim().toLowerCase() === 'fitter') return; // r616 (F231): Fitters bay only
     if (state.loading) return state.payload;
     if (state.loaded && !force) return state.payload;
     state.loading = true;

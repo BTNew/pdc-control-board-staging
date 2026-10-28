@@ -225,6 +225,7 @@
 
   function rerender() { try { if (typeof refreshAllViews === 'function') refreshAllViews(); } catch (_) { /* next render */ } }
   function load() {
+    if (String(window.PDC_AUTH_CONTEXT?.role || '').trim().toLowerCase() === 'fitter') return; // r616 (F231): Fitters bay only
     // r612: fitter logins may only call the Fitters bay; they never see Vehicle Locations, so do not ask.
     if (loading || !token() || window.PDC_AUTH_CONTEXT?.role === 'fitter') return loading;
     loading = rpc('get_pdc_pit_board_604', {})

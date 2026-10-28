@@ -316,7 +316,7 @@ test('r482: Prioritise vehicle asks before applying a plan that books before the
 test('r482: cache-bust tags and versions', () => {
   assert.equal(eta.VERSION, '2026.10.22.r482');
   const entrySource = fs.readFileSync('canonical-entry.js', 'utf8');
-  assert.match(entrySource, /pdc-parts-eta\.js\?parts-eta=2026\.10\.21\.r436&r475=2026\.10\.22\.r475&r482=2026\.10\.22\.r482(&r490=2026\.10\.23\.r490)?'/); // r490 (F103) appends its own tag
+  assert.match(entrySource, /pdc-parts-eta\.js\?parts-eta=2026\.10\.21\.r436&r475=2026\.10\.22\.r475&r482=2026\.10\.22\.r482(&r490=2026\.10\.23\.r490)?(&r616=2026\.10\.28\.r616)?'/); // r490 (F103) appends its own tag
   assert.match(entrySource, /pdc-book-all-stations\.js\?[^']*&r482=2026\.10\.22\.r482'/);
   const html = fs.readFileSync('index.html', 'utf8');
   assert.match(html, /canonical-entry\.js\?[^"]*r482=2026\.10\.22\.r482/);
