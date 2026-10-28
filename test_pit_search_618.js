@@ -40,6 +40,6 @@ test('table: the panel is asked for only on the PIT tile, and PIT stays the tile
   const src = fs.readFileSync('pdc-vehicle-locations-table.js', 'utf8');
   assert.match(src, /afterRender\?\.\(host, \{ bucket: !scope\.stoppages && scope\.bucket === 'pit' \? 'pit' : '', search: scope\.searching \? searchCriteria : null \}\)/);
   assert.match(src, /if \(held === 'pit'\) return \{ searching: true, bucket: 'pit'/);
-  assert.match(fs.readFileSync('canonical-entry.js', 'utf8'), /pdc-pit-bookings\.js\?[^']*&r618=2026\.10\.28\.r618'/);
+  assert.match(fs.readFileSync('canonical-entry.js', 'utf8'), /pdc-pit-bookings\.js\?[^']*&r618=2026\.10\.28\.r618(?:&r622=2026\.10\.28\.r622)?'/);
   assert.match(fs.readFileSync('pdc-pit-bookings.js', 'utf8'), /if \(bucket !== 'pit'\) return;/);
 });

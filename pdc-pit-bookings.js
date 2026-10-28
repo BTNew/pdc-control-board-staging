@@ -56,6 +56,9 @@
     return { today: isoDate(json?.today) || toIso(Date.now()), canEdit: json?.can_edit === true, vehicles, byKey };
   }
 
+  // r622 (F237): dd/mm, the same date style as the Parts ETA cell.
+  const ddmm = iso => { const d = isoDate(iso); return d ? `${d.slice(8, 10)}/${d.slice(5, 7)}` : ''; };
+
   /** The Pit cell for a Vehicle Locations row. A dash unless a pit date is booked. */
   function cellHtml(entry, today) {
     const date = isoDate(entry?.pit_date);
@@ -66,13 +69,14 @@
     const place = PLACES.includes(entry.pit_location) ? entry.pit_location : '';
     if (entry.back) {
       const when = entry.back_at ? ` Ticked back ${String(entry.back_at).slice(0, 10)}.` : '';
-      return `<span class="pdc-pit-chip is-back" data-pdc-pit-cell title="${esc(`Pitted ${shortDate(date)} at ${place}.${when}`)}"><span aria-hidden="true">✓</span> ${esc(shortDate(date))}${place ? ` · ${esc(place)}` : ''}</span>`;
+      return `<span class="pdc-pit-chip is-back" data-pdc-pit-cell title="${esc(`Pitted ${shortDate(date)}${place ? ` at ${place}` : ''}.${when}`)}"><span aria-hidden="true">✓</span> ${esc(ddmm(date))}</span>`;
     }
     const days = daysUntil(date, today);
     const tone = days === null ? '' : days < 0 ? ' is-over' : days === 0 ? ' is-today' : days <= 2 ? ' is-soon' : '';
-    const counter = counterText(days);
+    // r622 (F237): the same words as the Parts ETA cell ("14/12 · 9 days"); the place moves to the hover.
+    const counter = days === null ? '' : days > 0 ? `${days} day${days === 1 ? '' : 's'}` : days === 0 ? 'today' : `${-days} day${days === -1 ? '' : 's'} overdue`;
     const title = days === null ? '' : days > 0 ? `Pit booked in ${days} day${days === 1 ? '' : 's'}` : days === 0 ? 'Pit booked today' : `Pit date was ${-days} day${days === -1 ? '' : 's'} ago. Not ticked back yet.`;
-    return `<span class="pdc-pit-chip${tone}" data-pdc-pit-cell title="${esc(`${title}. ${place}.`)}">${esc(shortDate(date))}${place ? ` · ${esc(place)}` : ''}${counter ? ` <b class="pdc-pit-count">${esc(counter)}</b>` : ''}</span>`;
+    return `<span class="pdc-pit-chip${tone}" data-pdc-pit-cell title="${esc(`${title}.${place ? ` ${place}.` : ''}`)}">${esc(ddmm(date))}${counter ? ` · ${esc(counter)}` : ''}</span>`;
   }
 
   /** Monday-first weeks covering the month of `monthIso` (YYYY-MM-01). */
@@ -178,7 +182,7 @@
   const CSS = `
 .vlt-table col.c-pit { width: var(--vlt-w-pit, 104px); }
 .vlt-table td.c-pit { white-space: normal; }
-.pdc-pit-chip { display: inline-block; font-size: 10.5px; line-height: 1.15; padding: 1px 5px; border-radius: 4px; background: #eef2f7; color: #1e293b; white-space: nowrap; }
+.pdc-pit-chip { display: inline-block; max-width: 100%; overflow: hidden; text-overflow: ellipsis; vertical-align: middle; font-size: 10.5px; line-height: 1.12; padding: 1px 5px; border-radius: 4px; background: #e0f2fe; color: #075985; white-space: nowrap; }
 .pdc-pit-chip .pdc-pit-count { font-weight: 700; margin-left: 2px; }
 .pdc-pit-chip.is-soon { background: #fef3c7; color: #78350f; }
 .pdc-pit-chip.is-today { background: #dbeafe; color: #1e3a8a; }

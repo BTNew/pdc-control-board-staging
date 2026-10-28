@@ -31,17 +31,18 @@ test('index by vehicle id and stock (case-insensitive), as the table row key is 
   assert.equal(board.canEdit, true);
 });
 
-test('Pit cell: dash when not booked, date + place + counter when booked, green tick when back', () => {
+test('Pit cell (r622): dash when not booked, "dd/mm · N days" when booked with the place in the hover, green tick when back', () => {
   assert.match(pit.cellHtml(board.byKey.get('a1'), board.today), /vlt-subtle-dash[^>]*Needs pitting/);
   const booked = pit.cellHtml(board.byKey.get('b2'), board.today);
-  assert.match(booked, /Sat 31 Oct · Wangara/);
-  assert.match(booked, /<b class="pdc-pit-count">in 3d<\/b>/);
+  assert.match(booked, />31\/10 · 3 days<\/span>$/);
+  assert.match(booked, /title="[^"]*Wangara/);
   assert.doesNotMatch(booked, /is-back/);
-  assert.match(pit.cellHtml(board.byKey.get('c3'), board.today), /is-over[\s\S]*\+2d/);
+  assert.match(pit.cellHtml(board.byKey.get('c3'), board.today), /is-over[\s\S]*2 days overdue/);
   const back = pit.cellHtml(board.byKey.get('d4'), board.today);
   assert.match(back, /pdc-pit-chip is-back/);
   assert.match(back, /✓/);
-  assert.doesNotMatch(back, /pdc-pit-count/, 'no counter once it is back');
+  assert.match(back, /✓<\/span> 29\/10|✓<\/span> \d\d\/\d\d<\/span>/);
+  assert.doesNotMatch(back, /days/, 'no counter once it is back');
   assert.match(pit.cellHtml(undefined, board.today), /No pit booked/);
 });
 

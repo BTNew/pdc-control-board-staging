@@ -95,7 +95,7 @@
     cust: { label: 'Customer', width: 104, min: 48, flex: 1 },
     unit: { label: 'Vehicle', width: 112, min: 60, flex: 1 },
     ploc: { label: 'Parts loc', width: 60, min: 44 },
-    pit: { label: 'Pit', width: 104, min: 56 }, // r604 (F218): pit date, place and day counter, left of Parts ETA
+    pit: { label: 'Pit', width: 96, min: 56 }, // r604 (F218); r622 (F237): same size and wording as Parts ETA, place in the hover
     eta: { label: 'Parts ETA', width: 96, min: 56 }, // r475 (F88)
     work: { label: 'Stations', width: 276, min: 276 },
     age: { label: 'Age / ETA', width: 72, min: 48 },
@@ -191,7 +191,8 @@
     const parts = extractPartsLocation(html(p.unit));
     const ploc = parts.span || '<span class="vlt-subtle-dash" title="No parts location">—</span>';
     const eta = extractPartsEta(parts.unit); // r475: the parts ETA chip gets its own column
-    const etaCell = eta.span || '<span class="vlt-subtle-dash" title="No parts ETA">—</span>';
+    // r622 (F237, Craig 28 Oct): the cell shows only the date and days ("14/12 · 9 days"); the part count stays in the hover.
+    const etaCell = (eta.span || '').replace(/ · \d+ parts(?=<\/span>)/, '') || '<span class="vlt-subtle-dash" title="No parts ETA">—</span>';
     // r604 (F218): the Pit cell comes from pdc-pit-bookings.js when it is loaded; a dash otherwise.
     const pitApi = typeof globalThis !== 'undefined' ? globalThis.PDC_PIT_BOOKINGS : null;
     let pitCell = '<span class="vlt-subtle-dash" title="No pit booked">—</span>';
@@ -386,7 +387,7 @@
     if (doc.querySelector('link[data-pdc-vehicle-locations-table]')) return;
     const link = doc.createElement('link');
     link.rel = 'stylesheet';
-    link.href = `pdc-vehicle-locations-table.css?vehicle-locations-table=${VERSION}`;
+    link.href = `pdc-vehicle-locations-table.css?vehicle-locations-table=${VERSION}&r622=2026.10.28.r622`; // r622 (F237): new Parts ETA and Pit cell styles
     link.dataset.pdcVehicleLocationsTable = '1';
     doc.head.appendChild(link);
   }
