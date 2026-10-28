@@ -7,20 +7,55 @@
     if (!lines.length) return '<h3>Items for this bay</h3><div class="fitter-lines"><p class="fitter-empty">No approved operation lines for this bay. Ask the controller to review the vehicle.</p></div>';
     const todo = [], done = [];
     lines.forEach((l, i) => (l.completed ? done : todo).push(card(l, i)));
-    return `<h3>To do (${todo.length})</h3><div class="fitter-lines">${todo.join('') || '<p class="fitter-empty">Every item for this bay is completed.</p>'}</div>`
+    return `<h3>To do (${todo.length})</h3><div class="fitter-lines fitter-todo-list">${todo.join('') || '<p class="fitter-empty">Every item for this bay is completed.</p>'}</div>`
       + (done.length ? `<h3 class="fitter-done-heading">Completed (${done.length})</h3><div class="fitter-lines fitter-done-list">${done.join('')}</div>` : '');
   }
-  if (typeof document !== 'undefined' && !document.getElementById('fitter-done-slim-621')) {
+  if (typeof document !== 'undefined' && !document.getElementById('fitter-done-slim-626')) {
     const style = document.createElement('style');
-    style.id = 'fitter-done-slim-621';
-    style.textContent = '.fitter-done-heading{margin-top:18px;color:#1f7a3a}'
-      + '.fitter-done-list{gap:4px}'
-      + '.fitter-done-list .fitter-line{padding:4px 10px;min-height:0;box-shadow:none}'
+    style.id = 'fitter-done-slim-626';
+    // r626 (F241): To do rows slimmer; Completed as tight one-line rows, two or more across on a wide tablet.
+    style.textContent = '.fitter-done-heading{margin-top:14px;color:#1f7a3a}'
+      + '.fitter-todo-list{gap:6px}'
+      + '.fitter-todo-list .fitter-line{padding:6px 10px;border-radius:8px;display:flex;flex-wrap:wrap;align-items:center;gap:2px 16px}'
+      // r627 (F242): one row per item: name, Start, Done, Later, note. The label stays a label (tap the name or Done).
+      + '.fitter-done-cap{display:none}'
+      + '.fitter-todo-list .fitter-line>.fitter-line-check{display:contents}'
+      + '.fitter-todo-list .fitter-line-check>span{order:1;flex:1 1 240px;min-width:0}'
+      + '.fitter-todo-list .fitter-item-ticks{order:2}'
+      + '.fitter-todo-list .fitter-line-check>input{order:3;margin:0 0 0 6px}'
+      + '.fitter-todo-list .fitter-done-cap{order:4;display:inline;font-size:16px;cursor:pointer;margin-left:-8px}'
+      + '.fitter-todo-list .fitter-later{order:5}'
+      + '.fitter-todo-list .fitter-notes{order:6}'
+      + '.fitter-todo-list .fitter-line>*:not(.fitter-line-check):not(.fitter-item-ticks):not(.fitter-notes):not(.fitter-later){order:7;flex-basis:100%}'
+      + '.fitter-todo-list .fitter-line>.fitter-later[open],.fitter-todo-list .fitter-line>.fitter-later.is-set{flex-basis:100%}'
+      + '.fitter-later summary{cursor:pointer;font-weight:700;color:#92400e;list-style:none;border:1px solid #d6b98a;border-radius:6px;padding:3px 10px}'
+      + '.fitter-later-form{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}'
+      + '.fitter-later-form select,.fitter-later-form input{font:inherit;padding:6px 8px;border:1px solid #aab7c5;border-radius:5px}'
+      + '.fitter-later-form input{flex:1 1 180px}'
+      + '.fitter-later.is-set{display:flex;align-items:center;gap:10px;background:#fffbeb;border:1px solid #f0c674;border-radius:6px;padding:4px 10px;color:#78350f;font-size:14px}'
+      + '.fitter-line.is-later{background:#fffdf5}'
+      + '.fitter-complete-later{margin-top:8px;width:100%;padding:12px;border:2px solid #b45309;background:#fffbeb;color:#78350f;font-weight:700;border-radius:8px;font-size:16px;cursor:pointer}'
+      + '.fitter-complete-later-note{margin:4px 0 0;font-size:13px;color:#64748b}'
+      + '.fitter-todo-list .fitter-line>.fitter-notes[open]{flex-basis:100%}'
+      + '.fitter-todo-list .fitter-item-ticks .conv-bar{flex-basis:100%}'
+      + '.fitter-todo-list .fitter-line-check{min-height:0;gap:10px;align-items:center}'
+      + '.fitter-todo-list .fitter-line-check input{flex:0 0 22px;width:22px;height:22px;margin:0}'
+      + '.fitter-todo-list .fitter-line-check>span{gap:1px}'
+      + '.fitter-todo-list .fitter-line-check strong{font-size:16px;line-height:1.25}'
+      + '.fitter-todo-list .fitter-line-check small{font-size:12.5px}'
+      + '.fitter-todo-list .fitter-item-ticks{margin:0}'
+      + '.fitter-todo-list .fitter-notes{margin:0;font-size:13px}'
+      + '.fitter-todo-list .fitter-source-note{margin:4px 0 0;font-size:13px}'
+      + '.fitter-done-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:3px 8px}'
+      + '.fitter-done-list .fitter-line{padding:1px 8px;min-height:0;box-shadow:none;border-radius:6px}'
       + '.fitter-done-list .fitter-line>*:not(.fitter-line-check):not(details){display:none!important}'
-      + '.fitter-done-list .fitter-line-check{margin:0;padding:2px 0;min-height:0}'
-      + '.fitter-done-list .fitter-line-check strong{font-size:.95rem;font-weight:600}'
+      + '.fitter-done-list .fitter-line-check{margin:0;padding:0;min-height:30px;gap:8px;align-items:center}'
+      + '.fitter-done-list .fitter-line-check input{flex:0 0 18px;width:18px;height:18px;margin:0}'
+      + '.fitter-done-list .fitter-line-check>span{display:block;min-width:0;overflow:hidden}'
+      + '.fitter-done-list .fitter-line-check strong{display:block;font-size:13px;font-weight:500;line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}'
       + '.fitter-done-list .fitter-line-check small{display:none}'
-      + '.fitter-done-list .conv-list>:not(summary){display:none!important}';
+      + '.fitter-done-list .conv-list>:not(summary){display:none!important}'
+      + '.fitter-done-list .conv-list summary{padding:2px 0;font-size:13px}';
     (document.head || document.documentElement).appendChild(style);
   }
 
@@ -357,6 +392,7 @@
       resetItem:body => { invalidateReads(); return rpc('reset_fitter_item_timing', body, true); },
       sendHandoff:body => { invalidateReads(); return rpc('handoff_operation_line_583', body, true); },
       undoHandoff:body => { invalidateReads(); return rpc('undo_line_handoff_583', body, true); },
+      setLater:body => { invalidateReads(); return rpc('set_line_later_627', body, true); },
       listHandoffs:vehicleId => rpc('list_line_handoffs_583', {p_vehicle_id:vehicleId || null}, false),
       invalidate() { generation++; retry = null; rosterCache = null; rosterRequest = null; invalidateReads(); },
       get busy() { return busy; }, get retryPending() { return Boolean(retry); },
@@ -448,6 +484,18 @@
       : m.running ? `${state.paused ? 'Paused · ' : ''}${m.over ? `In progress · over by ${itemDuration(m.elapsed - m.planned)}` : m.planned ? `In progress · ${itemDuration(m.elapsed)} of ${itemDuration(m.planned)}` : `In progress · ${itemDuration(m.elapsed)} · no allowance`}${line.item_stale ? ' · running too long, tick Done or ask the controller to reset' : ''}` : '';
     return `<div class="fitter-item-ticks"><label class="conv-tick"><input type="checkbox" data-fitter-item-start="${id}" ${m.running || m.done ? 'checked' : ''} ${state.disabled || m.done ? 'disabled' : ''}> Start</label>${status ? `<small class="fitter-item-status">${esc(status)}</small>` : m.needsStart && state.editable ? '<small class="fitter-item-hint">Press Start first</small>' : ''}${m.running ? itemPauseHtml(state, line.line_identity, line.description) : ''}</div>${bar}`;
   }
+  // r627 (F242): Later = can't be done in this booking. Stays outstanding for the station; this booking can be completed.
+  const LATER_REASONS = [['parts','Waiting on parts'],['time','Out of time'],['other_trade','Needs another trade'],['other','Other']];
+  function fitterLaterHtml(line, state) {
+    if (line.completed) return '';
+    const id = esc(line.line_identity);
+    if (line.later) {
+      const label = (LATER_REASONS.find(r => r[0] === line.later.reason) || ['', 'Later'])[1];
+      return `<div class="fitter-later is-set"><span>Later · ${esc(label)}${line.later.note ? ` · ${esc(line.later.note)}` : ''}</span>${state.editable ? `<button type="button" data-fitter-later-undo="${id}" ${state.disabled ? 'disabled' : ''}>Undo</button>` : ''}</div>`;
+    }
+    if (!state.editable) return '';
+    return `<details class="fitter-later"><summary>Later</summary><div class="fitter-later-form"><select data-fitter-later-reason aria-label="Why later">${LATER_REASONS.map(r => `<option value="${r[0]}">${r[1]}</option>`).join('')}</select><input type="text" data-fitter-later-note maxlength="300" placeholder="Note (optional)" aria-label="Later note"><button type="button" data-fitter-later-save="${id}" ${state.disabled ? 'disabled' : ''}>Save</button></div></details>`;
+  }
   function fitterLineCardHtml(line, index, state) {
     const sentAway = line.handoff?.sent_away === true && !line.completed;
     const disabled = state.disabled || sentAway, note = state.note, editable = state.editable, open = state.open;
@@ -455,8 +503,9 @@
     // r440: Done stays disabled until the item is started (existing Done items stay ticked and can still be unticked).
     const doneLocked = timed && m.needsStart;
     const cardState = {...state, disabled};
-    return `<article class="fitter-line${line.completed ? ' is-done' : ''}${sentAway ? ' is-sent' : ''}${line.handoff?.received_here && !line.completed ? ' is-received' : ''}${m.running ? ' is-running' : ''}${m.running && state.paused ? ' is-paused' : ''}${line.item_stale && m.running ? ' is-stale' : ''}${doneLocked ? ' needs-start' : ''}"><label class="fitter-line-check"${doneLocked && editable && !sentAway ? ' title="Press Start first"' : ''}><input type="checkbox" data-fitter-line="${esc(line.line_identity)}" aria-label="${esc(line.description)} done" ${line.completed ? 'checked' : ''} ${disabled || doneLocked ? 'disabled' : ''}><span><strong>${esc(line.description)}</strong><small>${esc(line.stage_code.replaceAll('_',' '))} · ${line.external_work ? 'Supplier work · internal labour not counted' : line.hours == null ? 'Hours need review' : `${esc(line.hours)} h`}${line.completed ? ' · Work completed' : ''}</small></span></label>
+    return `<article class="fitter-line${line.completed ? ' is-done' : ''}${sentAway ? ' is-sent' : ''}${line.handoff?.received_here && !line.completed ? ' is-received' : ''}${m.running ? ' is-running' : ''}${m.running && state.paused ? ' is-paused' : ''}${line.item_stale && m.running ? ' is-stale' : ''}${doneLocked ? ' needs-start' : ''}${line.later && !line.completed ? ' is-later' : ''}"><label class="fitter-line-check"${doneLocked && editable && !sentAway ? ' title="Press Start first"' : ''}><input type="checkbox" data-fitter-line="${esc(line.line_identity)}" aria-label="${esc(line.description)} done" ${line.completed ? 'checked' : ''} ${disabled || doneLocked ? 'disabled' : ''}><span><strong>${esc(line.description)}</strong><small>${esc(line.stage_code.replaceAll('_',' '))} · ${line.external_work ? 'Supplier work · internal labour not counted' : line.hours == null ? 'Hours need review' : `${esc(line.hours)} h`}${line.completed ? ' · Work completed' : ''}</small></span><b class="fitter-done-cap" aria-hidden="true">Done</b></label>
       ${timed && !sentAway ? fitterItemTicksHtml(line, cardState) : ''}
+      ${!sentAway ? fitterLaterHtml(line, cardState) : ''}
       ${fitterHandoffHtml(line, cardState)}
       ${line.scope_changed ? '<p class="fitter-warning">This item changed. Review the work before ticking it again.</p>' : ''}
       ${line.source_note ? `<p class="fitter-source-note">${esc(line.source_note)}</p>` : ''}
@@ -528,12 +577,21 @@
   function jobPreview(job) {
     return `<strong>${esc(job.stock || 'Stock not recorded')}</strong><span>${esc(job.customer || 'Customer not recorded')} · ${esc(job.vehicle || 'Vehicle details pending')}</span><small>${esc(job.stage_name)} · ${esc(bayText(job.stage_code, job.bay_number))} · ${esc(time(job.start_at))}</small>`;
   }
+  // r627 (F242): items in this bay that are still open (not Done, not Later, not sent away).
+  function openOwnLines() {
+    const lines = detail?.lines || [];
+    return lines.filter(l => !l.completed && !l.later && !l.handoff?.sent_away && (l.stage_code === detail.stage_code || l.handoff?.received_here));
+  }
   function nextJobHtml(flow, locked, editable) {
     const unsaved=[...drafts.keys()].some(k=>k.startsWith(selected+':')) || root.PdcConversions?.hasDrafts() || conversionNotes.size>0;
     const ready=detail?.progress?.can_complete && !unsaved && !root.PdcBusWorkflow?.hasDrafts() && !busPending();
     const completeLabel=(saving||loading)&&pendingAction==='complete'?'Completing job…':flow.otherActive.length?'Complete & return to active work':flow.next?'Complete & open next job':'Complete bay job';
     const help=unsaved?'Save your notes before completing this bay.':detail?.status==='stoppage'?'Resume this job before completing the bay.':ready?(Number(detail?.progress?.handed_away)>0?'Lines sent to another department stay outstanding there. This bay can be completed.':'All items are done. Complete this bay to continue.'):'Tick off every item in this bay before completing the job.';
-    return `<footer class="fitter-finish" aria-label="Finish current job and continue"><div class="fitter-finish-action"><div><h3>Finish this bay</h3><p>${esc(help)}</p></div><button type="button" class="fitter-primary" data-fitter-action="complete" ${locked||!editable||!ready?'disabled':''}>${completeLabel}</button></div><div class="fitter-next" aria-label="Next job preview"><span class="fitter-kicker">Next job</span>${flow.next?`${jobPreview(flow.next)}<p>${flow.otherActive.length?'Available after your active jobs are completed.':'Opens automatically after the current job is completed.'} You choose when to start it.</p>`:'<p>No further jobs assigned at the moment.</p>'}</div>${flow.upcoming.length?`<details class="fitter-upcoming"><summary>Later jobs (${flow.upcoming.length})</summary>${flow.upcoming.map(j=>`<div class="fitter-later-job">${jobPreview(j)}</div>`).join('')}</details>`:''}</footer>`;
+    // r627 (F242): complete with items left: they are marked Later and stay outstanding for this station to rebook.
+    const left=openOwnLines().length;
+    const canLeave=!ready && left>0 && !unsaved && !root.PdcBusWorkflow?.hasDrafts() && !busPending() && detail?.status==='started';
+    const leaveBtn=canLeave?`<button type="button" class="fitter-secondary fitter-complete-later" data-fitter-complete-later ${locked||!editable?'disabled':''}>Complete &amp; leave ${left} item${left===1?'':'s'} for later</button><p class="fitter-complete-later-note">Unfinished items stay outstanding for this station so the controller can book them in again.</p>`:'';
+    return `<footer class="fitter-finish" aria-label="Finish current job and continue"><div class="fitter-finish-action"><div><h3>Finish this bay</h3><p>${esc(help)}</p></div><button type="button" class="fitter-primary" data-fitter-action="complete" ${locked||!editable||!ready?'disabled':''}>${completeLabel}</button>${leaveBtn}</div><div class="fitter-next" aria-label="Next job preview"><span class="fitter-kicker">Next job</span>${flow.next?`${jobPreview(flow.next)}<p>${flow.otherActive.length?'Available after your active jobs are completed.':'Opens automatically after the current job is completed.'} You choose when to start it.</p>`:'<p>No further jobs assigned at the moment.</p>'}</div>${flow.upcoming.length?`<details class="fitter-upcoming"><summary>Later jobs (${flow.upcoming.length})</summary>${flow.upcoming.map(j=>`<div class="fitter-later-job">${jobPreview(j)}</div>`).join('')}</details>`:''}</footer>`;
   }
   // r500: the stoppage (pause) panel; shown under the item whose Pause was pressed, otherwise under the job buttons.
   function stopPanelHtml() {
@@ -756,6 +814,29 @@
     } catch (e) { message=e.message; if(e.code!=='busy') connected=false; }
     finally { saving=false; pendingAction=''; if(!service.retryPending) await refresh(); else render(); }
   }
+  async function markLater(lineId, reason, note) {
+    if (saving || loading || !connected || !detail || !lineId) return;
+    loadGeneration++; refreshing=false; freezeTimer(); saving=true; pendingAction='later'; message=''; render();
+    try {
+      await service.setLater({p_booking_id:selected, p_line_identity:lineId, p_reason:reason || null, p_note:note || null});
+      message = reason ? 'Marked for later. It stays outstanding and does not block this booking.' : 'Back on this booking.';
+      connected=false;
+    } catch (e) { message=e.message; if(e.code!=='busy') connected=false; }
+    finally { saving=false; pendingAction=''; if(!service.retryPending) await refresh(); else render(); }
+  }
+  async function completeLeavingLater() {
+    if (saving || loading || !connected || !detail || detail.status !== 'started') return;
+    const open = openOwnLines();
+    if (!open.length) return;
+    loadGeneration++; refreshing=false; freezeTimer(); saving=true; pendingAction='complete'; message=''; render();
+    try {
+      for (const l of open) await service.setLater({p_booking_id:selected, p_line_identity:l.line_identity, p_reason:'time', p_note:'Not finished this booking'});
+    } catch (e) { message=e.message; saving=false; pendingAction=''; connected=false; await refresh(); return; }
+    saving=false; pendingAction=''; connected=false;
+    await refresh();
+    if (detail?.progress?.can_complete) await act('complete');
+    else { message='The unfinished items were left for later, but the bay could not be completed yet. Check the items and press Complete.'; render(); }
+  }
   function mountController(panel, vehicle) {
     const id = typeof root.pmbArrivalVehicleId === 'function' ? root.pmbArrivalVehicleId(vehicle) : String(vehicle?.id || vehicle?.__emailVehicleId || vehicle?.sharedVehicleId || '');
     const host = panel?.querySelector?.('.vso-body') || panel;
@@ -800,6 +881,9 @@
     on('[data-fitter-line]','change',e=>{ const n=e.currentTarget; const checked=n.checked; n.checked=!checked; void act('line',n.dataset.fitterLine,checked); });
     on('[data-fitter-handoff]','change',e=>{ const value=e.target.value; e.target.value=''; if(value) void sendLine(e.target.dataset.fitterHandoff, value); });
     on('[data-fitter-handoff-undo]','click',e=>{ void undoLine(e.currentTarget.dataset.fitterHandoffUndo); });
+    on('[data-fitter-later-save]','click',e=>{ const box=e.currentTarget.closest('.fitter-later'); void markLater(e.currentTarget.dataset.fitterLaterSave, box?.querySelector('[data-fitter-later-reason]')?.value || 'other', box?.querySelector('[data-fitter-later-note]')?.value || ''); });
+    on('[data-fitter-later-undo]','click',e=>{ void markLater(e.currentTarget.dataset.fitterLaterUndo, null, null); });
+    on('[data-fitter-complete-later]','click',()=>{ void completeLeavingLater(); });
     on('[data-fitter-item-start]','change',e=>{ const n=e.currentTarget, checked=n.checked; n.checked=!checked; void act(checked?'item_start':'item_reset',n.dataset.fitterItemStart); });
     on('[data-fitter-note]','input',e=>{ const id=e.target.dataset.fitterNote, l=detail.lines.find(l=>l.line_identity===id); drafts.set(`${selected}:${id}`,{note:e.target.value,scope:l.scope_hash}); target.querySelector('[data-fitter-action="complete"]')?.setAttribute('disabled',''); });
     on('[data-fitter-save-note]','click',e=>{ const id=e.currentTarget.dataset.fitterSaveNote; void act('line',id,detail.lines.find(l=>l.line_identity===id).completed); });
