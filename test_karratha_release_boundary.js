@@ -305,7 +305,7 @@ const approvedRootImportPatch = Object.freeze({
   // r590: the QC sign-off button stays visible and names what is still outstanding (F204). Department 135 keeps its frozen app.js.
   // r593: a recent key is listed in New to PMB and stays in the PMB bucket. No department tick (F207). Department 135 keeps its frozen app.js.
   // r591: Admin > Revolution uploads is administrators only (F205). Department 135 is not tagged.
-  "app.js": "0edfcd303ae67d2ea679258a6c9dc65c193037f530ef34f59502b7d5b2808ac9",
+  "app.js": "1ddca4ce7b32ce201567b4b794a4ed795f9a93d8b768cd1f19fd9e3455222201",
   // r464: a booking that runs past the day divider is one bar (joined per-day pieces, display only; F77). The Karratha copy stays frozen.
   // r465: overview bar labels show Key · JC and the customer only (Stock and the vehicle description stay in the hover title); the customer span is classed for the Running layout (F78).
   // r467: Day / Week / Month zoom on the overview timeline (display only; F80).
@@ -454,7 +454,8 @@ const approvedRootImportPatch = Object.freeze({
   // r601: index.html adds r601=2026.10.28.r601 on app.js (cascade text, cross-bay guard off, F212 to F215). Department 135 is not tagged.
   // r604: index.html adds r604=2026.10.28.r604 on canonical-entry.js (pit bookings, F218). Department 135 is not tagged.
   // r616: pdc-auth.js, pdc-bay-manager.js and canonical-entry.js carry r616=2026.10.28.r616 (fitter sessions send only Fitters bay requests, F231). Department 135 is not tagged.
-  "index.html": "88008b34fe8de4a83fd3af832c8b2877831d6b7d84db5695f3ccff3966e89f64",
+  // r642: Sublet · MMT nav and view, pdc-mmt-sublet.css/js, r642 on app.js and pdc-staff-usage.js (F257). Department 135 is not tagged.
+  "index.html": "d2811028614e492a7a73b0e99c52922c05cde259c6e2f233a43dddf934be7e95",
   "pdc-conversions.js": "0a99e7a5306f15e434b293a3ca9a318ffad4b78eb814c27144d75ff98821d810",
   // r401: Pit tick and read RPCs (set_pdc_pit_line_tick_401, get_pdc_pit_line_ticks_401).
   // r414: readQcPhotoReceipt (get_pdc_qc_photo_receipt_414) for the QC page (F30).
@@ -481,7 +482,7 @@ const approvedRootImportPatch = Object.freeze({
   // r525: Period option Last 24 hours (p_days 1) on Website activity (F139). The Karratha copy stays frozen.
   // r570: bay-manager counts under the Update History bucket (F184). The Karratha copy stays frozen.
   // r591: revolution-upload counts under the Update History bucket (F205). The Karratha copy stays frozen.
-  "pdc-staff-usage.js": "944b3e3f4849ea8632e9c98992f18bf7e0c4beac04d3cb22b20e8949fa14151f",
+  "pdc-staff-usage.js": "e2d8753aefa23d3bd3668cef868d1bb5232a2e32451130611cb76ed9624df632",
   "site-switcher.css": "84882066f9ff13057de368d8af1418788e82b2723ec68683166e2f8ded6c8348",
   // r403: the own-role monitor reconnects instead of locking on a realtime blip
   // (F11); index.html and app.js/canonical-entry.js add r403=2026.10.21.01 for

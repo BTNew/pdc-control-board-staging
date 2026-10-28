@@ -29,6 +29,8 @@
     'bay-manager':'update-history',
     // r591: Admin > Revolution uploads shares the Update History bucket. The database page list is unchanged.
     'revolution-upload':'update-history',
+    // r642 (F257): the MMT sublet page counts under Sublet.
+    'mmt-sublet':'sublet',
   });
   const PAGES = new Set(Object.keys(PAGE_LABELS));
   const cleanPage = page => {
