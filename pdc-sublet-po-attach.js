@@ -181,6 +181,7 @@
     } catch (_) { /* next render */ }
   };
   async function loadPilot() {
+    if (String(window.PDC_AUTH_CONTEXT?.role || '').trim().toLowerCase() === 'fitter') return; // r616 (F231): Fitters bay only
     if (!token()) return;
     try {
       const data = await rpc('get_pdc_sublet_po_attach_pilot_445', {});

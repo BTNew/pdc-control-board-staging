@@ -493,6 +493,7 @@
   }
   let loading = false;
   async function load() {
+    if (String(window.PDC_AUTH_CONTEXT?.role || '').trim().toLowerCase() === 'fitter') return; // r616 (F231): Fitters bay only
     if (loading || missing || !token() || base() !== `https://${PROJECT}.supabase.co` || document.visibilityState === 'hidden') return;
     loading = true;
     try {

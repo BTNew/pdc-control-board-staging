@@ -843,6 +843,53 @@
     return keys.length === 1 && keys[0] === 'x-pdc-sales-branch' && /^[a-z]{3,20}$/.test(branch) ? { 'x-pdc-sales-branch': branch } : null;
   }
 
+  // r616 (F231): Fitters bay accounts only see the Fitters bay. The database
+  // request hook (pdc_check_fitter_request) already refuses every other RPC
+  // with 403 / 42501, but the hidden board modules (Parts ETA, Sublet PO,
+  // Parts stoppage, key numbers, bay hours, pit board) kept polling, which
+  // produced ~32,000 refused requests a day from the shared fitter tablets.
+  // For a fitter session, any RPC outside the same allowlist is now answered
+  // locally with the same 42501 refusal and never leaves the browser.
+  const FITTER_RPC_ALLOWLIST = Object.freeze(new Set([
+    'get_fitter_roster', 'get_fitter_jobs', 'get_fitter_job', 'get_fitter_refresh',
+    'fitter_job_command', 'record_pdc_usage_20260914',
+    'handoff_operation_line_583', 'undo_line_handoff_583', 'list_line_handoffs_583',
+  ]));
+
+  function isFitterSession() {
+    return String(window.PDC_AUTH_CONTEXT?.role || '').trim().toLowerCase() === 'fitter';
+  }
+
+  function locallyRefusedRpc(name) {
+    const result = Object.freeze({
+      data: null,
+      error: Object.freeze({ code: '42501', message: 'This account can access Fitters bay only', details: `rpc/${name} not requested (fitter scope)`, hint: null }),
+      count: null,
+      status: 403,
+      statusText: 'Forbidden',
+    });
+    // Chainable like a PostgREST builder (.single(), .abortSignal(), ...), awaitable like one.
+    const builder = new Proxy(function refusedRpc() {}, {
+      get(_, prop) {
+        if (prop === 'then') return (resolve, reject) => Promise.resolve(result).then(resolve, reject);
+        if (prop === 'catch') return (reject) => Promise.resolve(result).catch(reject);
+        if (prop === 'finally') return (fn) => Promise.resolve(result).finally(fn);
+        return () => builder;
+      },
+    });
+    return builder;
+  }
+
+  function installFitterRpcGuard(client) {
+    if (!client || typeof client.rpc !== 'function' || client.__pdcFitterRpcGuard) return;
+    const rpc = client.rpc.bind(client);
+    client.rpc = function guardedRpc(name, ...rest) {
+      if (isFitterSession() && !FITTER_RPC_ALLOWLIST.has(String(name || ''))) return locallyRefusedRpc(name);
+      return rpc(name, ...rest);
+    };
+    Object.defineProperty(client, '__pdcFitterRpcGuard', { value: true });
+  }
+
   async function initialize() {
     lockApplication();
     const config = authConfig();
@@ -862,6 +909,7 @@
       },
       ...(salesBranchHeaders ? { global: { headers: salesBranchHeaders } } : {}),
     });
+    installFitterRpcGuard(state.client);
     window.PDC_SUPABASE = state.client;
 
     el('pdc-microsoft-login')?.addEventListener('click', signInWithMicrosoft);

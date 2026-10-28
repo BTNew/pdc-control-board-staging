@@ -196,6 +196,7 @@
   // Perth date from the device clock (so the countdown turns over at Perth midnight), else the server's date.
   const today = () => perthToday() || index?.today || '';
   async function load() {
+    if (String(window.PDC_AUTH_CONTEXT?.role || '').trim().toLowerCase() === 'fitter') return; // r616 (F231): Fitters bay only
     const config = window.PDC_SUPABASE_CONFIG, token = window.__pdcCachedAccessToken;
     if (loading || !token || config?.url?.replace(/\/$/, '') !== `https://${PROJECT}.supabase.co` || document.visibilityState === 'hidden') return;
     loading = true;

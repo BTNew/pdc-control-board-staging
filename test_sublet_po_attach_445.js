@@ -102,7 +102,7 @@ test('text is escaped (file names and emails come from users)', () => {
 
 test('loader: canonical-entry loads the attach module after pdc-sublet-po.js and before pdc-operation-panels.js; panels still load if it fails', () => {
   const entry = fs.readFileSync('canonical-entry.js', 'utf8');
-  assert.match(entry, /subletPoAttach\.src = 'pdc-sublet-po-attach\.js\?sublet-po-attach=2026\.10\.21\.r445(&r490=2026\.10\.23\.r490)?';/); // r490 (F103) appends its own tag
+  assert.match(entry, /subletPoAttach\.src = 'pdc-sublet-po-attach\.js\?sublet-po-attach=2026\.10\.21\.r445(&r490=2026\.10\.23\.r490)?(&r616=2026\.10\.28\.r616)?';/); // r490 (F103) appends its own tag
   assert.match(entry, /subletPo\.onload = loadSubletPoAttach;\s*subletPo\.onerror = loadSubletPoAttach;/);
   assert.match(entry, /subletPoAttach\.onload = loadOperationPanels;\s*subletPoAttach\.onerror = loadOperationPanels;/);
   const html = fs.readFileSync('index.html', 'utf8');

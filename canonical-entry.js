@@ -71,7 +71,7 @@
     const loadPartsEta = () => {
       if (document.querySelector('script[data-pdc-parts-eta]')) return;
       const partsEta = document.createElement('script');
-      partsEta.src = 'pdc-parts-eta.js?parts-eta=2026.10.21.r436&r475=2026.10.22.r475&r482=2026.10.22.r482&r490=2026.10.23.r490';
+      partsEta.src = 'pdc-parts-eta.js?parts-eta=2026.10.21.r436&r475=2026.10.22.r475&r482=2026.10.22.r482&r490=2026.10.23.r490&r616=2026.10.28.r616';
       partsEta.dataset.pdcPartsEta = '1';
       partsEta.onload = loadJitaEta;
       partsEta.onerror = loadJitaEta;
@@ -109,7 +109,7 @@
     const loadKeyNumber = () => {
       if (document.querySelector('script[data-pdc-key-number]')) return;
       const keyNumber = document.createElement('script');
-      keyNumber.src = 'pdc-key-number.js?key-number=2026.10.22.r460&r472=2026.10.22.r472&r490=2026.10.23.r490&r575=2026.10.27.r575';
+      keyNumber.src = 'pdc-key-number.js?key-number=2026.10.22.r460&r472=2026.10.22.r472&r490=2026.10.23.r490&r575=2026.10.27.r575&r616=2026.10.28.r616';
       keyNumber.dataset.pdcKeyNumber = '1';
       keyNumber.onload = loadPartsStoppage;
       keyNumber.onerror = loadPartsStoppage;
@@ -121,7 +121,7 @@
     const loadPartsStoppage = () => {
       if (document.querySelector('script[data-pdc-parts-stoppage]')) return;
       const stoppage = document.createElement('script');
-      stoppage.src = 'pdc-parts-stoppage.js?r567=2026.10.27.r567&r573=2026.10.27.r573&r595=2026.10.28.r595';
+      stoppage.src = 'pdc-parts-stoppage.js?r567=2026.10.27.r567&r573=2026.10.27.r573&r595=2026.10.28.r595&r616=2026.10.28.r616';
       stoppage.dataset.pdcPartsStoppage = '1';
       stoppage.onload = loadVehicleLocationsTable;
       stoppage.onerror = loadVehicleLocationsTable;
@@ -135,7 +135,7 @@
       // each Pit cell at render time and the module redraws once its data is in, so the order does not matter.
       if (!document.querySelector('script[data-pdc-pit-bookings]')) {
         const pit = document.createElement('script');
-        pit.src = 'pdc-pit-bookings.js?r604=2026.10.28.r604&r611=2026.10.28.r611&r612=2026.10.28.r612';
+        pit.src = 'pdc-pit-bookings.js?r604=2026.10.28.r604&r611=2026.10.28.r611&r612=2026.10.28.r612&r616=2026.10.28.r616';
         pit.dataset.pdcPitBookings = '1';
         document.head.appendChild(pit);
       }
@@ -168,7 +168,7 @@
     document.head.appendChild(serviceLocations);
     // r439 (F50): sublet POs: each GP PO line gets its PO and a 'sublet done' tick inline (r439b; own row under the description, r439c); Sublet box orange/green (the script guards double loads).
     const subletPo = document.createElement('script');
-    subletPo.src = 'pdc-sublet-po.js?sublet-po=2026.10.21.r444&r490=2026.10.23.r490&r494=2026.10.23.r494c';
+    subletPo.src = 'pdc-sublet-po.js?sublet-po=2026.10.21.r444&r490=2026.10.23.r490&r494=2026.10.23.r494c&r616=2026.10.28.r616';
     // r443 (F56): packed 2-column category panels for the operations summary; loads after the PO module so it wraps outermost.
     const loadOperationPanels = () => {
       if (document.querySelector('script[data-pdc-operation-panels]')) return;
@@ -182,7 +182,7 @@
     const loadSubletPoAttach = () => {
       if (document.querySelector('script[data-pdc-sublet-po-attach]')) return loadOperationPanels();
       const subletPoAttach = document.createElement('script');
-      subletPoAttach.src = 'pdc-sublet-po-attach.js?sublet-po-attach=2026.10.21.r445&r490=2026.10.23.r490';
+      subletPoAttach.src = 'pdc-sublet-po-attach.js?sublet-po-attach=2026.10.21.r445&r490=2026.10.23.r490&r616=2026.10.28.r616';
       subletPoAttach.dataset.pdcSubletPoAttach = '1';
       subletPoAttach.onload = loadOperationPanels;
       subletPoAttach.onerror = loadOperationPanels;
