@@ -3783,7 +3783,7 @@ function loadVehicleLifecycleSharedActionsIfConfigured() {
         initVehicleLifecycleSharedActionsIfEnabled();
         return;
       }
-      loadExternalScript(`workshop-data-service.js?r424=2026.10.21.01&r417=2026.10.21.01&scope-reuse=2026.10.18.01&lock-recovery=2026.10.18.02&station-switch=2026.10.17.03&connection-speed=2026.10.17.01&planner-speed=2026.09.17.02&speed=2026.09.17.01&planner-reliability=2026.09.16.01&review-fixes=2026.09.13.01&v=${encodeURIComponent(APP_VERSION)}&bhavesh-followup=2026.09.23.01&search-drag=2026.10.19.04&hoist-corrections=2026.10.19.02&planner-followup=2026.10.19.01`, 'workshop-data-service-script')
+      loadExternalScript(`workshop-data-service.js?r424=2026.10.21.01&r417=2026.10.21.01&scope-reuse=2026.10.18.01&lock-recovery=2026.10.18.02&station-switch=2026.10.17.03&connection-speed=2026.10.17.01&planner-speed=2026.09.17.02&speed=2026.09.17.01&planner-reliability=2026.09.16.01&review-fixes=2026.09.13.01&v=${encodeURIComponent(APP_VERSION)}&bhavesh-followup=2026.09.23.01&search-drag=2026.10.19.04&hoist-corrections=2026.10.19.02&planner-followup=2026.10.19.01&r592=2026.10.28.r592`, 'workshop-data-service-script')
         .then(() => initVehicleLifecycleSharedActionsIfEnabled())
         .catch(() => { /* fail closed: configured shared lifecycle actions report service_unavailable */ });
     })
@@ -6060,10 +6060,10 @@ function renderWorkshopPlannerWhenReady() {
   // to true; the planner UI/runtime is not modified by this load and
   // continues to operate exactly as before.
   Promise.all([
-    loadExternalScript(`workshop-data-service.js?r424=2026.10.21.01&r417=2026.10.21.01&scope-reuse=2026.10.18.01&lock-recovery=2026.10.18.02&station-switch=2026.10.17.03&connection-speed=2026.10.17.01&planner-speed=2026.09.17.02&speed=2026.09.17.01&planner-reliability=2026.09.16.01&review-fixes=2026.09.13.01&v=${encodeURIComponent(WORKSHOP_PLANNER_SCRIPT_VERSION)}&bhavesh-followup=2026.09.23.01&search-drag=2026.10.19.04&hoist-corrections=2026.10.19.02&planner-followup=2026.10.19.01`, 'workshop-data-service-script'),
+    loadExternalScript(`workshop-data-service.js?r424=2026.10.21.01&r417=2026.10.21.01&scope-reuse=2026.10.18.01&lock-recovery=2026.10.18.02&station-switch=2026.10.17.03&connection-speed=2026.10.17.01&planner-speed=2026.09.17.02&speed=2026.09.17.01&planner-reliability=2026.09.16.01&review-fixes=2026.09.13.01&v=${encodeURIComponent(WORKSHOP_PLANNER_SCRIPT_VERSION)}&bhavesh-followup=2026.09.23.01&search-drag=2026.10.19.04&hoist-corrections=2026.10.19.02&planner-followup=2026.10.19.01&r592=2026.10.28.r592`, 'workshop-data-service-script'),
     loadExternalScript(`workshop-realtime.js?v=${encodeURIComponent(WORKSHOP_PLANNER_SCRIPT_VERSION)}`, 'workshop-realtime-script'),
-    loadExternalScript(`workshop-shared-actions.js?v=${encodeURIComponent(WORKSHOP_PLANNER_SCRIPT_VERSION)}&bhavesh-followup=2026.09.23.01&r417=2026.10.21.01&r424=2026.10.21.01&r569=2026.10.27.r569`, 'workshop-shared-actions-script'),
-    loadExternalScript(`workshop-planner.js?station-scope=2026.10.19.03&r403=2026.10.21.01&r406=2026.10.21.01&r493=2026.10.22.r493&r498=2026.10.22.r498&r407=2026.10.21.01&r415=2026.10.21.01&r417=2026.10.21.01&r424=2026.10.21.01&bay8-category=2026.10.20.01&returned-selection=2026.10.19.02&lock-recovery=2026.10.18.02&weekly-scope=2026.10.18.01&retired-readiness=2026.10.17.01&planner-navigation=2026.10.17.01&jobcard-categories=2026.10.15.01&site-speed=2026.10.16.02&department-bays=2026.10.15.02&closed-hours=2026.10.02.13&bus-clock=2026.09.21.02&bus-workflow=2026.09.21.01&bay-assignment=2026.09.17.01&planner-speed=2026.09.17.02&speed=2026.09.17.01&planner-reliability=2026.09.16.01&move-conflict-scope=2026.09.16.01&review-fixes=2026.09.13.01&performance=2026.09.13.01&v=${encodeURIComponent(WORKSHOP_PLANNER_SCRIPT_VERSION)}&search-identity=2026.09.11.01&vehicle-handover=2026.09.11.01&continuation=2026.09.11.01&weekday-hours=2026.09.11.01&hide-weekly-toolbar=2026.09.12.01&deep-review=2026.09.13.01&focused-fit=2026.09.14.01&ai-hours=2026.09.14.01&capacity=2026.09.14.01&one-hour-gap=2026.09.14.01&board-context=2026.09.15.01&best-slot=2026.09.16.01&fitters=2026.09.16.03&carry-over=2026.09.16.06&start-priority=2026.09.16.05&controller-moves=2026.09.16.01&bhavesh-followup=2026.09.23.01&search-drag=2026.10.19.04&hoist-corrections=2026.10.19.02&planner-followup=2026.10.19.01&r483=2026.10.22.r483&r527=2026.10.25.r527&r531=2026.10.26.r531&r535=2026.10.26.r535&r540=2026.10.26.r540&r548=2026.10.26.r548&r550=2026.10.26.r550&r549=2026.10.26.r549&r561=2026.10.27.r561&r570=2026.10.27.r570&search-jobcards=2026.10.26.01&r569=2026.10.27.r569&r573=2026.10.27.r573`, 'workshop-planner-script')
+    loadExternalScript(`workshop-shared-actions.js?v=${encodeURIComponent(WORKSHOP_PLANNER_SCRIPT_VERSION)}&bhavesh-followup=2026.09.23.01&r417=2026.10.21.01&r424=2026.10.21.01&r569=2026.10.27.r569&r592=2026.10.28.r592`, 'workshop-shared-actions-script'),
+    loadExternalScript(`workshop-planner.js?station-scope=2026.10.19.03&r403=2026.10.21.01&r406=2026.10.21.01&r493=2026.10.22.r493&r498=2026.10.22.r498&r407=2026.10.21.01&r415=2026.10.21.01&r417=2026.10.21.01&r424=2026.10.21.01&bay8-category=2026.10.20.01&returned-selection=2026.10.19.02&lock-recovery=2026.10.18.02&weekly-scope=2026.10.18.01&retired-readiness=2026.10.17.01&planner-navigation=2026.10.17.01&jobcard-categories=2026.10.15.01&site-speed=2026.10.16.02&department-bays=2026.10.15.02&closed-hours=2026.10.02.13&bus-clock=2026.09.21.02&bus-workflow=2026.09.21.01&bay-assignment=2026.09.17.01&planner-speed=2026.09.17.02&speed=2026.09.17.01&planner-reliability=2026.09.16.01&move-conflict-scope=2026.09.16.01&review-fixes=2026.09.13.01&performance=2026.09.13.01&v=${encodeURIComponent(WORKSHOP_PLANNER_SCRIPT_VERSION)}&search-identity=2026.09.11.01&vehicle-handover=2026.09.11.01&continuation=2026.09.11.01&weekday-hours=2026.09.11.01&hide-weekly-toolbar=2026.09.12.01&deep-review=2026.09.13.01&focused-fit=2026.09.14.01&ai-hours=2026.09.14.01&capacity=2026.09.14.01&one-hour-gap=2026.09.14.01&board-context=2026.09.15.01&best-slot=2026.09.16.01&fitters=2026.09.16.03&carry-over=2026.09.16.06&start-priority=2026.09.16.05&controller-moves=2026.09.16.01&bhavesh-followup=2026.09.23.01&search-drag=2026.10.19.04&hoist-corrections=2026.10.19.02&planner-followup=2026.10.19.01&r483=2026.10.22.r483&r527=2026.10.25.r527&r531=2026.10.26.r531&r535=2026.10.26.r535&r540=2026.10.26.r540&r548=2026.10.26.r548&r550=2026.10.26.r550&r549=2026.10.26.r549&r561=2026.10.27.r561&r570=2026.10.27.r570&search-jobcards=2026.10.26.01&r569=2026.10.27.r569&r573=2026.10.27.r573&r592=2026.10.28.r592&r594=2026.10.28.r594`, 'workshop-planner-script')
   ])
     .then(() => {
       window.__workshopPlannerModulesLoading = false;
@@ -6111,11 +6111,11 @@ function ensureDashboardWorkshopProjectionReady() {
   }
   if (window.__dashboardWorkshopProjectionLoading) return false;
   window.__dashboardWorkshopProjectionLoading = true;
-  loadExternalScript(`workshop-data-service.js?r424=2026.10.21.01&r417=2026.10.21.01&scope-reuse=2026.10.18.01&lock-recovery=2026.10.18.02&station-switch=2026.10.17.03&connection-speed=2026.10.17.01&planner-speed=2026.09.17.02&speed=2026.09.17.01&planner-reliability=2026.09.16.01&review-fixes=2026.09.13.01&v=${encodeURIComponent(WORKSHOP_PLANNER_SCRIPT_VERSION)}&bhavesh-followup=2026.09.23.01&search-drag=2026.10.19.04&hoist-corrections=2026.10.19.02&planner-followup=2026.10.19.01`, 'workshop-data-service-script')
+  loadExternalScript(`workshop-data-service.js?r424=2026.10.21.01&r417=2026.10.21.01&scope-reuse=2026.10.18.01&lock-recovery=2026.10.18.02&station-switch=2026.10.17.03&connection-speed=2026.10.17.01&planner-speed=2026.09.17.02&speed=2026.09.17.01&planner-reliability=2026.09.16.01&review-fixes=2026.09.13.01&v=${encodeURIComponent(WORKSHOP_PLANNER_SCRIPT_VERSION)}&bhavesh-followup=2026.09.23.01&search-drag=2026.10.19.04&hoist-corrections=2026.10.19.02&planner-followup=2026.10.19.01&r592=2026.10.28.r592`, 'workshop-data-service-script')
     .then(() => loadExternalScript(`workshop-realtime.js?v=${encodeURIComponent(WORKSHOP_PLANNER_SCRIPT_VERSION)}`, 'workshop-realtime-script'))
-    .then(() => loadExternalScript(`workshop-shared-actions.js?v=${encodeURIComponent(WORKSHOP_PLANNER_SCRIPT_VERSION)}&bhavesh-followup=2026.09.23.01&r417=2026.10.21.01&r424=2026.10.21.01&r569=2026.10.27.r569`, 'workshop-shared-actions-script'))
+    .then(() => loadExternalScript(`workshop-shared-actions.js?v=${encodeURIComponent(WORKSHOP_PLANNER_SCRIPT_VERSION)}&bhavesh-followup=2026.09.23.01&r417=2026.10.21.01&r424=2026.10.21.01&r569=2026.10.27.r569&r592=2026.10.28.r592`, 'workshop-shared-actions-script'))
     .catch(() => { /* read-only projection remains unavailable */ })
-    .then(() => loadExternalScript(`workshop-planner.js?station-scope=2026.10.19.03&r403=2026.10.21.01&r406=2026.10.21.01&r493=2026.10.22.r493&r498=2026.10.22.r498&r407=2026.10.21.01&r415=2026.10.21.01&r417=2026.10.21.01&r424=2026.10.21.01&bay8-category=2026.10.20.01&returned-selection=2026.10.19.02&lock-recovery=2026.10.18.02&weekly-scope=2026.10.18.01&retired-readiness=2026.10.17.01&planner-navigation=2026.10.17.01&jobcard-categories=2026.10.15.01&site-speed=2026.10.16.02&department-bays=2026.10.15.02&closed-hours=2026.10.02.13&bus-clock=2026.09.21.02&bus-workflow=2026.09.21.01&bay-assignment=2026.09.17.01&planner-speed=2026.09.17.02&speed=2026.09.17.01&review-fixes=2026.09.13.01&performance=2026.09.13.01&v=${encodeURIComponent(WORKSHOP_PLANNER_SCRIPT_VERSION)}&search-identity=2026.09.11.01&vehicle-handover=2026.09.11.01&continuation=2026.09.11.01&weekday-hours=2026.09.11.01&hide-weekly-toolbar=2026.09.12.01&deep-review=2026.09.13.01&focused-fit=2026.09.14.01&ai-hours=2026.09.14.01&capacity=2026.09.14.01&one-hour-gap=2026.09.14.01&board-context=2026.09.15.01&best-slot=2026.09.16.01&fitters=2026.09.16.03&carry-over=2026.09.16.06&start-priority=2026.09.16.05&controller-moves=2026.09.16.01&bhavesh-followup=2026.09.23.01&search-drag=2026.10.19.04&hoist-corrections=2026.10.19.02&planner-followup=2026.10.19.01&r483=2026.10.22.r483&r527=2026.10.25.r527&r531=2026.10.26.r531&r535=2026.10.26.r535&r540=2026.10.26.r540&r548=2026.10.26.r548&r550=2026.10.26.r550&r549=2026.10.26.r549&r561=2026.10.27.r561&r570=2026.10.27.r570&search-jobcards=2026.10.26.01&r569=2026.10.27.r569&r573=2026.10.27.r573`, 'workshop-planner-script'))
+    .then(() => loadExternalScript(`workshop-planner.js?station-scope=2026.10.19.03&r403=2026.10.21.01&r406=2026.10.21.01&r493=2026.10.22.r493&r498=2026.10.22.r498&r407=2026.10.21.01&r415=2026.10.21.01&r417=2026.10.21.01&r424=2026.10.21.01&bay8-category=2026.10.20.01&returned-selection=2026.10.19.02&lock-recovery=2026.10.18.02&weekly-scope=2026.10.18.01&retired-readiness=2026.10.17.01&planner-navigation=2026.10.17.01&jobcard-categories=2026.10.15.01&site-speed=2026.10.16.02&department-bays=2026.10.15.02&closed-hours=2026.10.02.13&bus-clock=2026.09.21.02&bus-workflow=2026.09.21.01&bay-assignment=2026.09.17.01&planner-speed=2026.09.17.02&speed=2026.09.17.01&review-fixes=2026.09.13.01&performance=2026.09.13.01&v=${encodeURIComponent(WORKSHOP_PLANNER_SCRIPT_VERSION)}&search-identity=2026.09.11.01&vehicle-handover=2026.09.11.01&continuation=2026.09.11.01&weekday-hours=2026.09.11.01&hide-weekly-toolbar=2026.09.12.01&deep-review=2026.09.13.01&focused-fit=2026.09.14.01&ai-hours=2026.09.14.01&capacity=2026.09.14.01&one-hour-gap=2026.09.14.01&board-context=2026.09.15.01&best-slot=2026.09.16.01&fitters=2026.09.16.03&carry-over=2026.09.16.06&start-priority=2026.09.16.05&controller-moves=2026.09.16.01&bhavesh-followup=2026.09.23.01&search-drag=2026.10.19.04&hoist-corrections=2026.10.19.02&planner-followup=2026.10.19.01&r483=2026.10.22.r483&r527=2026.10.25.r527&r531=2026.10.26.r531&r535=2026.10.26.r535&r540=2026.10.26.r540&r548=2026.10.26.r548&r550=2026.10.26.r550&r549=2026.10.26.r549&r561=2026.10.27.r561&r570=2026.10.27.r570&search-jobcards=2026.10.26.01&r569=2026.10.27.r569&r573=2026.10.27.r573&r592=2026.10.28.r592&r594=2026.10.28.r594`, 'workshop-planner-script'))
     .then(() => {
       window.__dashboardWorkshopProjectionLoading = false;
       if (app.currentView !== 'dashboard') return;
@@ -6136,6 +6136,7 @@ const qcPagePhotoUploadInFlight = new Set();
 const qcPagePhotoReceiptReads = new Map();
 const qcPageOperationPending = new Map();
 const qcPageFeedback = new Map();
+const qcPageSignoffBlockers = new Map();
 const qcPageRejectInFlight = new Set();
 let qcPageOperationMutationChain = Promise.resolve();
 let qcPageNotice = '';
@@ -6160,6 +6161,7 @@ function qcPageResetAuthority(event = {}) {
   qcPageOperationMutationChain = Promise.resolve();
   qcPageOperationPending.clear(); qcPagePhotoUploadInFlight.clear();
   qcPageSignoffInFlight.clear(); qcPageRejectInFlight.clear(); qcPageFeedback.clear();
+  qcPageSignoffBlockers.clear();
   app.partsCompletionInFlight?.clear(); app.partsStoppageInFlight?.clear();
   app.rftTransportActionInFlight?.clear(); app.rftTransportActionOwners?.clear();
   qcSelectedVehicleKey = '';
@@ -6316,6 +6318,60 @@ function qcPageAllOperationLinesComplete(vehicle = {}) {
   return lines.length > 0 && lines.every(line => line.completed === true);
 }
 
+function qcPageSignoffCacheKey(vehicle = {}) {
+  return `${String(vehicle.__emailVehicleId || '')}:${Number(vehicle.__emailVehicleVersion || 0)}`;
+}
+
+function qcPageSignoffStatus(vehicle = {}, options = {}) {
+  const photoValid = options.photoValid === true;
+  const local = qcPageOperationLines(vehicle)
+    .filter(line => line.completed !== true)
+    .map(line => `${qcPageStageLabel(line.stageCode)}: ${line.description || line.operationNo || 'a line'} is not ticked.`);
+  const forced = Array.isArray(options.outstanding);
+  const cache = qcPageSignoffBlockers.get(qcPageSignoffCacheKey(vehicle));
+  const checked = forced || Boolean(cache && cache.loading !== true && Array.isArray(cache.outstanding));
+  const server = (forced ? options.outstanding : (checked ? cache.outstanding : []))
+    .map(item => String(item || '').trim())
+    .filter(Boolean);
+  const shown = checked ? [...new Set([...server, ...local])] : local;
+  const ready = checked && shown.length === 0 && photoValid && qcPageAllOperationLinesComplete(vehicle);
+  const note = shown.length
+    ? shown.join(' ')
+    : !checked
+      ? 'Checking what is still outstanding…'
+      : !photoValid
+        ? 'Store a completion photo before final sign-off.'
+        : 'Photo stored. Final sign-off records QC evidence and moves the vehicle to RFT. No salesperson email or dealer-transit timer starts until explicit RFT Booked.';
+  return { ready, note, shown, checked };
+}
+
+async function qcPageLoadSignoffOutstanding(vehicle = {}) {
+  const id = String(vehicle.__emailVehicleId || '');
+  if (!id) return;
+  const cacheKey = qcPageSignoffCacheKey(vehicle);
+  if (qcPageSignoffBlockers.has(cacheKey)) return;
+  qcPageSignoffBlockers.set(cacheKey, { loading: true, outstanding: null });
+  const service = app.emailVehicleLocationService;
+  let outstanding = [];
+  let failed = typeof service?.readQcSignoffOutstanding !== 'function';
+  if (!failed) {
+    try {
+      const result = await service.readQcSignoffOutstanding(id);
+      if (result?.ok === true && result.ready === true) outstanding = [];
+      else if (Array.isArray(result?.outstanding) && result.outstanding.length) outstanding = result.outstanding.map(item => String(item || '')).filter(Boolean);
+      else if (result?.message) outstanding = [String(result.message)];
+      else failed = true;
+    } catch (_error) {
+      failed = true;
+    }
+  }
+  qcPageSignoffBlockers.set(cacheKey, {
+    loading: false,
+    outstanding: failed ? ['QC sign-off status could not be read. Refresh QC before signing off.'] : outstanding,
+  });
+  if (typeof renderQualityControlPage === 'function') renderQualityControlPage();
+}
+
 function qcPageOperationHoursLabel(line = {}) {
   if (line.stageCode === 'SUBLET') return 'Hours not required';
   if (line.estimatedHours === null || line.estimatedHours === undefined || line.estimatedHours === '') return 'Unknown hours';
@@ -6468,7 +6524,8 @@ function qcPageDetailHtml(vehicle = {}) {
   const allComplete = qcPageAllOperationLinesComplete(vehicle);
   const hasSalesperson = Boolean(cleanNavisionText(vehicle.salespersonCode || '') && cleanNavisionText(vehicle.salespersonEmail || ''));
   const photoValid = qcPhotoEvidenceIsValid(photo);
-  const signoffReady = allComplete && photoValid;
+  const signoff = qcPageSignoffStatus(vehicle, { photoValid });
+  const signoffBusy = qcPageSignoffInFlight.has(key);
   const inputId = `qc-photo-input-${key}`;
   const photoDisabledReason = qcPagePhotoDisabledReason(vehicle, key);
   const feedback = qcPageFeedback.get(key);
@@ -6490,7 +6547,7 @@ function qcPageDetailHtml(vehicle = {}) {
       ${photo && !photoValid && photo.status !== 'uploading' ? `<button class="small-button qc-photo-clear" type="button" data-qc-photo-clear="${escapeHtml(key)}">Clear / choose another</button>` : ''}
       </div>
       <div class="qc-detail-actions"><button class="small-button qc-reject-action" type="button" data-qc-reject="${escapeHtml(key)}" ${rejectBusy ? 'disabled' : ''}>${rejectBusy ? 'Rejecting…' : 'Reject / QC Fix Required'}</button></div>
-      <div class="qc-signoff-bar"><span class="qc-signoff-note" role="status">${signoffReady ? 'Photo stored. Final sign-off records QC evidence and moves the vehicle to RFT. No salesperson email or dealer-transit timer starts until explicit RFT Booked.' : allComplete ? 'Store a completion photo before final sign-off.' : 'Every active operation line must be complete before final sign-off.'}</span>${signoffReady ? `<button class="primary" type="button" data-qc-signoff="${escapeHtml(key)}" ${qcPageSignoffInFlight.has(key) ? 'disabled' : ''}>${qcPageSignoffInFlight.has(key) ? 'Signing off…' : 'Sign off QC → RFT'}</button>` : ''}</div>
+      <div class="qc-signoff-bar"><span class="qc-signoff-note" role="status">${escapeHtml(signoff.note)}</span><button class="primary qc-signoff-button" type="button" data-qc-signoff="${escapeHtml(key)}" ${(signoff.ready && !signoffBusy) ? '' : 'disabled'}>${signoffBusy ? 'Signing off…' : 'Sign off QC → RFT'}</button></div>
   </section>`;
 }
 
@@ -6498,6 +6555,7 @@ function qcPageReceiptLineApply(vehicle = {}, lineIdentity = '', result = {}) {
   const line = qcPageOperationLines(vehicle).find(item => item.lineIdentity === String(lineIdentity || ''));
   const receiptLine = result?.data?.line;
   if (!line || !receiptLine || String(receiptLine.line_identity || '') !== String(lineIdentity || '')) return false;
+  qcPageSignoffBlockers.clear();
   line.completed = receiptLine.completed === true;
   line.completedBy = receiptLine.completed_by || null;
   line.completedAt = receiptLine.completed_at || null;
@@ -6670,8 +6728,11 @@ async function qcPageSignoff(key = '') {
   const vehicle = qcPageVehicles().find(row => qcPageVehicleKey(row) === cleanKey);
   const photo = qcPhotoEvidence.get(cleanKey);
   if (!vehicle || !qcPhotoEvidenceIsValid(photo)) return false;
-  if (!qcPageAllOperationLinesComplete(vehicle)) {
-    pdcNotify('Every active authenticated or audited manual operation line must be complete before QC finalization.');
+  const signoff = qcPageSignoffStatus(vehicle, { photoValid: true });
+  if (!signoff.ready) {
+    qcPageFeedback.set(cleanKey, { kind: 'error', message: signoff.note });
+    pdcNotify(signoff.note);
+    renderQualityControlPage();
     return false;
   }
   qcPageSignoffInFlight.add(cleanKey);
@@ -6755,6 +6816,7 @@ function renderQualityControlPage() {
   if (!vehicles.some(vehicle => qcPageVehicleKey(vehicle) === qcSelectedVehicleKey)) qcSelectedVehicleKey = mobile ? '' : qcPageVehicleKey(vehicles[0] || {});
   const selected = vehicles.find(vehicle => qcPageVehicleKey(vehicle) === qcSelectedVehicleKey) || null;
   if (selected) void qcPageLoadStoredPhoto(qcPageVehicleKey(selected));
+  if (selected) void qcPageLoadSignoffOutstanding(selected);
   host.innerHTML = `<div class="qc-page-layout ${mobile ? selected ? 'is-mobile-detail' : 'is-mobile-list' : ''}">${qcPageNotice ? `<div class="qc-finalization-notice" role="status" aria-live="polite">${escapeHtml(qcPageNotice)}</div>` : ''}
     <section class="qc-queue" aria-labelledby="qc-queue-title"><div class="qc-queue-header"><div><h3 id="qc-queue-title">Vehicles requiring QC</h3><p>${vehicles.length} awaiting QC sign-off</p></div><span class="qc-queue-count">${vehicles.length}</span></div><div class="qc-vehicle-list">${vehicles.length ? vehicles.map(vehicle => qcPageVehicleCardHtml(vehicle, qcPageVehicleKey(vehicle) === qcSelectedVehicleKey)).join('') : '<div class="qc-empty-state"><strong>No vehicles require QC</strong><span>Vehicles appear here after all required workshop work is complete.</span></div>'}</div></section>
     <section class="qc-detail-host">${selected ? qcPageDetailHtml(selected) : '<div class="qc-empty-state qc-detail-empty"><strong>Select a vehicle</strong><span>Choose a QC vehicle to review its completed work and store the completion photo.</span></div>'}</section>
@@ -7912,10 +7974,13 @@ async function completeVehicleQualityControl(key = '', photoEvidence = null, aut
         qc_photo_receipt_required: 'The server could not verify the stored completion photo receipt. No vehicle state changed.',
       };
       const resultCode = cleanNavisionText(result?.code || result?.error || '');
-      const message = qcFinalizationMessages[resultCode] || (typeof describeVehicleLifecycleActionError === 'function'
+      const named = cleanNavisionText(result?.message || '');
+      const listed = (Array.isArray(result?.outstanding) ? result.outstanding : []).map(item => cleanNavisionText(item || '')).filter(Boolean).join(' ');
+      const message = named || listed || qcFinalizationMessages[resultCode] || (typeof describeVehicleLifecycleActionError === 'function'
         ? describeVehicleLifecycleActionError(result && (result.code || result.error))
         : 'The QC finalization could not be saved.');
       pdcNotify(message);
+      qcPageFeedback.set(String(key || ''), { kind: 'error', message });
       if (window.__workshopDataService && typeof window.__workshopDataService.loadSnapshot === 'function') await window.__workshopDataService.loadSnapshot('qc_finalization_rejected');
       renderAll();
       return false;

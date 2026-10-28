@@ -9,12 +9,12 @@
  * Loads after the key number and before the Vehicle Locations table. styles.css and app.js are untouched.
  * r573 (F187): the form can place that date as a vehicle STOPPAGE. The planner lists it
  * in the Stoppage section. Clearing the date, or leaving the tick off, lifts it. Blue, not orange.
- * r589 (F203): the Vehicle Locations Parts ETA cell is read-only. The date is set only in the
+ * r595 (F209): the Vehicle Locations Parts ETA cell is read-only. The date is set only in the
  * vehicle side panel. That section offers Place as STOPPAGE without rebuilding the board.
  */
 (() => {
   'use strict';
-  const VERSION = '2026.10.28.r589';
+  const VERSION = '2026.10.28.r595';
   const PROJECT = 'cdsmnqxtyyoeoznmbidd';
   const BOARD_RPC = 'get_pdc_parts_stoppage_board_564';
   const SET_RPC = 'set_pdc_parts_stoppage_564';
@@ -88,7 +88,7 @@
       checked && `Last checked ${checked}${who ? ` by ${who}` : ''}`,
       email && manualDate && email !== manualDate ? `Email ${ddmmyy(email)} is kept` : ''
     ].filter(Boolean).join(' · ');
-    // r589: the table lifts this slot. It is a date, never a button and never a form.
+    // r595: the table lifts this slot. It is a date, never a button and never a form.
     const label = shown ? `${ddmm(shown)}${left.text ? ` · ${left.text}` : ''}` : '—';
     const open = `<span class="pdc-parts-stoppage-open is-${left.state || 'empty'}" title="${esc(title)}">${esc(label)}${note ? `<small class="pdc-parts-stoppage-note">${esc(clip(note))}</small>` : ''}</span>`;
     const secondary = email && manualDate && email !== manualDate ? `<small class="pdc-parts-stoppage-email">Email ${esc(ddmm(email))}</small>` : '';

@@ -140,7 +140,7 @@ const WORKSHOP_CANONICAL_MUTATION_ERRORS = new Set([
   // r417 (F32): bay rule warning the planner did or did not confirm.
   'bay_rule_warning', 'bay_rule_not_confirmed',
   // r424 (F38): push-back warning, bay re-order and its undo.
-  'later_bookings_warning', 'later_bookings_not_confirmed', 'resequence_rejected', 'plan_changed',
+  'later_bookings_warning', 'later_bookings_not_confirmed', 'place_after_running', 'place_after_not_confirmed', 'resequence_rejected', 'plan_changed',
   'order_unchanged', 'not_same_bay', 'started_job_fixed', 'resequence_too_large', 'booking_not_found'
 ]);
 

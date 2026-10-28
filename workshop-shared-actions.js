@@ -82,13 +82,34 @@ function workshopIsPushLaterWarning(result) {
     && Array.isArray(result.pushes) && result.pushes.length);
 }
 
+// r592 (F206): a drop onto a job that is already running or on stoppage asks to
+// place this job right after it. Later jobs in that bay move back. Cancel leaves
+// the bay as it is. The same plan hash is sent once, under a new request ID.
+function workshopPlaceAfterQuestion(result) {
+  const pushes = Array.isArray(result.pushes) ? result.pushes : [];
+  const lines = pushes.map(push => {
+    const what = [push?.key_number ? `Key ${push.key_number}` : 'A later job', push?.bay_number ? `Bay ${push.bay_number}` : '']
+      .filter(Boolean).join(' · ');
+    return `• ${what}: ${workshopPushLaterWhen(push?.from_start)} → ${workshopPushLaterWhen(push?.to_start)}`;
+  }).join('\n');
+  const lead = String(result.message || 'A job is already running in this bay. Place this job right after it?');
+  if (!lines) return `${lead}\n\nChoose OK to place it right after that job. Choose Cancel to leave everything as it is.`;
+  const them = pushes.length === 1 ? 'the later job' : 'those later jobs';
+  return `${lead}\n\n${lines}\n\nChoose OK to place it after that job and push ${them} back (Perth time). Choose Cancel to leave everything as it is.`;
+}
+
+function workshopIsPlaceAfterWarning(result) {
+  return Boolean(result && result.ok === false && result.warning === true && result.requires_confirmation === true
+    && result.error === 'place_after_running' && typeof result.plan_hash === 'string' && result.plan_hash);
+}
+
 async function workshopConfirmBayRuleWarning(mutate, name, params, ask) {
   const confirmFn = typeof ask === 'function' ? ask
     : (typeof window === 'object' && typeof window.confirm === 'function' ? window.confirm.bind(window) : null);
   let current = params;
   let result = await mutate(name, current);
-  // At most one bay-rule question and one push-back question per change.
-  for (let round = 0; round < 2; round += 1) {
+  // At most one bay-rule question, one place-after question, and one push-back question per change.
+  for (let round = 0; round < 3; round += 1) {
     if (workshopIsBayRuleWarning(result)) {
       if (current.p_metadata?.bay_rule_confirm) return result;
       if (!confirmFn || !confirmFn(workshopBayRuleQuestion(result))) {
@@ -96,6 +117,12 @@ async function workshopConfirmBayRuleWarning(mutate, name, params, ask) {
       }
       const rules = result.rules.map(rule => String(rule?.rule || '')).filter(Boolean);
       current = { ...current, p_metadata: { ...(current.p_metadata || {}), bay_rule_confirm: { rules } }, p_request_id: workshopBayRuleRequestId() };
+    } else if (workshopIsPlaceAfterWarning(result)) {
+      if (current.p_metadata?.place_after_confirm) return result;
+      if (!confirmFn || !confirmFn(workshopPlaceAfterQuestion(result))) {
+        return { ok: false, error: 'place_after_not_confirmed', cancelled: true, pushes: result.pushes };
+      }
+      current = { ...current, p_metadata: { ...(current.p_metadata || {}), place_after_confirm: { plan_hash: result.plan_hash } }, p_request_id: workshopBayRuleRequestId() };
     } else if (workshopIsPushLaterWarning(result)) {
       if (current.p_metadata?.push_later_confirm) return result;
       if (!confirmFn || !confirmFn(workshopPushLaterQuestion(result))) {
@@ -450,7 +477,7 @@ function buildWorkshopSharedActions(dataService, { confirmBayRule = null } = {})
 }
 
 if (typeof module !== 'undefined' && module.exports) {
-  module.exports = { buildWorkshopSharedActions, workshopConfirmBayRuleWarning, workshopBayRuleQuestion, workshopPushLaterQuestion };
+  module.exports = { buildWorkshopSharedActions, workshopConfirmBayRuleWarning, workshopBayRuleQuestion, workshopPushLaterQuestion, workshopPlaceAfterQuestion };
 }
 if (typeof window !== 'undefined') {
   window.buildWorkshopSharedActions = buildWorkshopSharedActions;

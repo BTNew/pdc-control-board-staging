@@ -81,7 +81,7 @@ test('4. everything else stays: board handlers, Key No. (Edit / History) in the 
 });
 
 test('loader and docs: r473 cache-bust tags, FAULT_LOG F86, panel doc; no real stock numbers here', () => {
-  assert.match(fs.readFileSync('canonical-entry.js', 'utf8'), /slideout\.src = 'pdc-vehicle-slideout\.js\?vehicle-slideout=2026\.10\.28\.r588&r589=2026\.10\.28\.r589';/ /* r588 grid stays; r589 opens once */);
+  assert.match(fs.readFileSync('canonical-entry.js', 'utf8'), /slideout\.src = 'pdc-vehicle-slideout\.js\?vehicle-slideout=2026\.10\.28\.r588&r595=2026\.10\.28\.r595';/ /* r588 grid stays; r595 opens once */);
   assert.match(fs.readFileSync('index.html', 'utf8'), /canonical-entry\.js\?[^"]*&amp;r473=2026\.10\.22\.r473&amp;/);
   assert.match(SRC, /pdc-vehicle-slideout\.css\?vehicle-slideout=\$\{VERSION\}/);
   const row = fs.readFileSync('docs/FAULT_LOG.md', 'utf8').split('\n').find(line => line.startsWith('| F86 |'));

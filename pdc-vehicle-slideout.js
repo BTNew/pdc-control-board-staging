@@ -45,7 +45,7 @@
  */
 (function vehicleSlideoutModule(root) {
   'use strict';
-  const VERSION = '2026.10.28.r588'; // r588 (F202): CSS cache-bust for the five-column operation-line grid. r589 (F203) is a script query only: the panel opens once.
+  const VERSION = '2026.10.28.r588'; // r588 (F202): CSS cache-bust for the five-column operation-line grid. r595 (F209) is a script query only: the panel opens once.
   // r496: the panel's slim copy of the Work & bookings rows. Kept so the full editor's markup can still be reduced.
   // r565 does not use it for Edit: Edit stays on the chip list.
   function slimWorkPage(html) {
@@ -863,7 +863,7 @@
   function watchOperations(panel) {
     opsObserver?.disconnect();
     // r496: a block another script draws again gets its Edit / Open full editor (and the open editor) back.
-    // r589: one frame for a burst of chip inserts, and the observer is off while this paint writes.
+    // r595: one frame for a burst of chip inserts, and the observer is off while this paint writes.
     let scheduled = false;
     const run = () => {
       if (scheduled) return;

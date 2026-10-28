@@ -10,13 +10,13 @@ The cell and the panel both asked a function named `refreshAllViews` to repaint.
 
 ### Fix
 
-r589 / F203 / sort 361. Craig approved go-live of #571 at 06:59 AWST on 28 Oct 2026. Apply after 07:30 AWST. Staging `cdsmnqxtyyoeoznmbidd`. Production `vjdtsswhroyguxyfjdkt` was not touched. r587 / F201 / sort 359 is live as `board_qc_nesting_587`. r588 / F202 is the live tick grid (#573) and inserted no check. Sort 360 is not on the ledger. The Key 460 hoist preview still says r588 and is not required. This go-live takes the triple the #570 New to PMB preview had claimed. Sort 356 / r584 / F198 stays with the #498 preview. Pin count stays 241. No pin is inserted. Department 135 stays `fd05b9eef69498002ac06dd68e01cdff`. Kajel's rows validator stays `9be0883b1a555f48f3c1ba9fa111c891` and the apply stays `b62fb7c29ffd2a1629f214f696e5cb14`. The manual save stays `fa275b45be296e9021f9f4dc570f5751`. The stoppage board stays `c22076cba374291befa2ea23fc59f276`. No function body is replaced, so those functions still return the same bytes. Up md5 `4b16b128799f2f9a91bb8a04aee812bb`. Down md5 `181771bc4dfca21833102deed38e3bf9`.
+r595 / F209 / sort 365. Craig approved go-live of #571 at 06:59 AWST on 28 Oct 2026. Re-checked at 08:35 AWST. Staging `cdsmnqxtyyoeoznmbidd`. Production `vjdtsswhroyguxyfjdkt` was not touched. The ledger tip before this apply is `outstanding_station_hours_594` (r594 / F208 / sort 364). r592 / F206 / sort 360, r590 / F204 / sort 361 and r593 / F207 / sort 363 are live. Sort 362 stays with the Revolution preview (#575, r591 / F205). r588 / F202 is the live tick grid and inserted no check. Pin count stays 241. No pin is inserted. Department 135 stays `fd05b9eef69498002ac06dd68e01cdff`. Kajel's rows validator stays `9be0883b1a555f48f3c1ba9fa111c891` and the apply stays `b62fb7c29ffd2a1629f214f696e5cb14`. The manual save stays `fa275b45be296e9021f9f4dc570f5751`. The stoppage board stays `c22076cba374291befa2ea23fc59f276`. No function body is replaced, so those functions still return the same bytes. Up md5 `0607df33cbbfd15d27ab5cfca3c78b40`. Down md5 `fe31fe1960c370a336853e5653044c1e`.
 
 The Parts ETA column shows the date and nothing you can click to set one. Set date, Change, and the blue Place as STOPPAGE checkbox are in the side panel. Saving a date calls the existing save. Ticking Place as STOPPAGE calls the existing r581 place. It does not download the stoppage list again. The planner Stoppage section updates from that reply. A tick with no date opens the date form and does not write.
 
 The panel is drawn once per open. When the completion list arrives it puts the ticks back on the chips instead of building the card again. A Vehicle Locations refresh that still shows the same vehicle does not build the card again. Chip inserts share one layout pass.
 
-The five-column operation grid from r588 stays. Its cache-bust stays `vehicle-slideout=2026.10.28.r588` on the script and the stylesheet (`VERSION` is still `2026.10.28.r588`). The script URL also carries `r589=2026.10.28.r589`, and `index.html` keeps `r588=2026.10.28.r588`. The Parts ETA block is a direct child of the detail grid (`grid-column: 1 / -1` only there). It is not on an operation line, so it does not share the PO-chip or tick tracks.
+The five-column operation grid from r588 stays. Its cache-bust stays `vehicle-slideout=2026.10.28.r588` on the script and the stylesheet (`VERSION` is still `2026.10.28.r588`). The script URL also carries `r595=2026.10.28.r595`, and `index.html` keeps `r588=2026.10.28.r588`. The Parts ETA block is a direct child of the detail grid (`grid-column: 1 / -1` only there). It is not on an operation line, so it does not share the PO-chip or tick tracks.
 
 ### Timings
 
@@ -26,7 +26,55 @@ Before, a click on Set stored "editing" and painted nothing, because `refreshAll
 
 ### Check
 
-`parts_eta_panel_only_589` (F203, sort 361). It goes red if the manual save, the stoppage board, the email ETA, Kajel's two import functions or department 135 change, if Place as STOPPAGE is missing, if the pin count leaves 241, or if r589 inserts a pin.
+`parts_eta_panel_only_595` (F209, sort 365). It goes red if the manual save, the stoppage board, the email ETA, Kajel's two import functions or department 135 change, if Place as STOPPAGE is missing, if the pin count leaves 241, or if r595 inserts a pin.
+## QC sign-off refused on stock 13047122
+
+Craig, 28 Oct 2026 07:00 AWST. He opened QC stock 13047122, ticked every item, and the screen would not sign off QC / RFT. His rule: once the vehicle has been through the workshop, every item is ticked, and every station icon is green, QC must be able to sign off. That includes a line or a station a workshop controller or an admin overrode to complete (#564). Craig, 28 Oct 2026 08:05 AWST: ignore the cut-off "and once" in his QC message. Sign-off is the end. No extra step follows it. The vehicle moves to RFT and stays there. Craig approved go-live 28 Oct 2026 08:08 AWST ("Go live #577").
+
+Staging `cdsmnqxtyyoeoznmbidd` only. Production `vjdtsswhroyguxyfjdkt` was not touched. This release does not sign 13047122 off. Craig does that.
+
+Stock 13047122 (VIN MR0PEBHV300404116, key 322) is in QC, version 40, with no QC completion time. All 10 checkable QC lines are ticked and have hours. The completion photo is stored. There is no open booking, no running clock on an open booking, no parts stoppage, and no sublet booking. The Sublet station icon is green, 4 of 4, because the QC ticks and Craig's side-panel ticks (including Pit and weigh) count. There is no station-override row. The Sublet work-item box is still required and not completed. `pdc_qc_gate_issues` returns only `outstanding_required_work:SUBLET`. The before-update trigger raises `QC gate failed: outstanding_required_work:SUBLET` (SQLSTATE 22023). The screen keeps that code, or on the phone says sign-off was not confirmed, and does not say Sublet.
+
+The #564 icon turns green from a QC tick, a side-panel tick, the latest fitter Done, or a controller override. It does not mark the work-item box complete. The QC gate was still reading only that box.
+
+### Fix
+
+r590 / F204 / sort 361. r588 / F202 is the live side-panel tick grid (frontend only). r589 / F203 stays with the open PRs #570 and #571. r592 / F206 / sort 360 is the hoist place-after check already on the ledger. A station the icon calls complete is not outstanding work. A line counts as ticked for sign-off when the QC flag, a panel tick, the latest fitter Done, or a completed station override says so. The sign-off button stays on the screen. While something is still open it is grey and the note names it, for example "Sublet is still required. The station icon is not green." The sign-off function returns that sentence instead of raising 22023. The r405 gate pin moves in place. No pin is inserted. Pin count stays 241. Department 135 stays `fd05b9eef69498002ac06dd68e01cdff`. Kajel rows stay `9be0883b1a555f48f3c1ba9fa111c891` and apply stays `b62fb7c29ffd2a1629f214f696e5cb14`. The clock tick stays `3b2398e33a2ea35fc137deeedeca4af5`.
+
+Up `supabase/migrations/20261028080000_r590_qc_signoff_override.sql` file md5 `6cfc288ff55922d9f4d1e803080b802b`. Down `supabase/rollbacks/20261028080000_r590_qc_signoff_override.down.sql` file md5 `9b61c048454366ee9d40fd6377a4fd6e`.
+
+Applied on staging. Ledger row `20261028002147` `r590_qc_signoff_override`. The vehicle was not signed off. After the apply it is still QC, unsigned, version 41. `qc_signoff_outstanding_590` as Craig returns ready, with nothing outstanding. The gate lists no issues. The F204 check is green: pins 241, icon gaps 0, panel gaps 0, override gaps 0, stock 13047122 clear. `protected_function_md5s` is green, 241 pinned, 0 changed. The earlier dry-run had already shown finalize would return `qc_signed_off_moved_to_rft` and then rolled that back.
+
+### Check
+
+`qc_signoff_override_590` (F204, sort 361). It goes red if a green station icon is still listed as outstanding work, if a panel tick or a station override does not count as a ticked line, if stock 13047122 is still in QC unsigned and the gate still names Sublet, if the sign-off wording is missing, or if the pin count, department 135, Kajel, the clock, or the QC line reader moves.
+## Key 460's Hoist card still says 12.00 hours
+
+Craig, 28 Oct 2026 08:02 AWST. The search card for Key 460 (stock 13071838) said "Unallocated · 12.00 hours retained", and he was still seeing the running-job conflict toast. On the Hoist / GVM panel everything is ticked except one GVM upgrade. That open line is 5.00 hours. The long-range tank (2.00 h) and the other GVM line (5.00 h) are ticked.
+
+The 12.00 h is the unallocated booking's saved duration. The station estimate added every Hoist line and did not look at the panel ticks. A drag of that card then sent 12.00 h, which is the whole station, not the work still to do.
+
+r594 / F208 / sort 364. The station estimate now skips a line whose panel tick is complete. An unallocated drag uses that estimate, so Hoist books 5.00 h. The same rule applies to every station on this planner. The card says how many hours are still to do. Key 460 is not booked by this release. Department 135's own hours function is not changed.
+
+## Key 460 would not go into Jason Ranoco's Hoist bay
+
+Craig, 28 Oct 2026 06:28 AWST, then "fix it" at 06:31 AWST. Staging `cdsmnqxtyyoeoznmbidd` only. Production `vjdtsswhroyguxyfjdkt` was not touched. Key 460 (stock 13071838, job card J139125587, 12.00 h, unallocated) was dropped onto Hoist bay Jason Ranoco as the next job after Key 328. The toast said: "This change conflicts with a job already running or on stoppage. No changes were saved."
+
+Two `administrator_move_workshop_booking` calls at 06:27 AWST returned HTTP 200. That is a drag with cascade on, not Schedule and not Best slot. Key 328 is started. Its chip ends at 10:12, but the booking's real end is 12:05. The 12 hour window overlaps that running job, so `cascade_workshop_booking_move_pre_116` returns `live_booking_conflict` and never pushes the later jobs. There is no "too many vehicles" limit on this path. A plan at 10:12 already wants to move the 10 later jobs in the bay, and the mover's step cap is 800.
+
+### Fix
+
+r592 / F206 / sort 360. r588 / F202 is the side-panel tick grid and has no check. The Parts ETA release is r595 / F209 / sort 365 (#571). r590 / F204 is the QC sign-off label named by the Revolution preview, and r591 / F205 / sort 362 is that preview (#575). A drop that overlaps a running job or a stoppage in the bay asks, in plain English, to place this job at the next working minute at or after that job's real end. Later planned jobs in the bay move back. Cancel leaves the bay as it is. The running job is not moved. Key 460 is not booked by this release; Craig drops it.
+
+The question is `place_after_running`. The confirm sends `place_after_confirm.plan_hash` once. `administrator_move_workshop_booking` stays the r571 pin `6a02115d30578e8eb3807a283b1d60ea`. The pin catalogue stores that signature with `timestamp with time zone`, and the release looks the pin up in that spelling. Pin count stays 241. No pin is inserted. Department 135 stays `fd05b9eef69498002ac06dd68e01cdff`. Kajel rows stay `9be0883b1a555f48f3c1ba9fa111c891` and apply stays `b62fb7c29ffd2a1629f214f696e5cb14`. The clock tick stays `3b2398e33a2ea35fc137deeedeca4af5`.
+
+Up `supabase/migrations/20261028081000_r592_hoist_place_after.sql` file md5 `9ddf6478b361c9736f543b32b695195f`. Down `supabase/rollbacks/20261028081000_r592_hoist_place_after.down.sql` file md5 `610e7526ca91cb6a1e716292bf61a0ef`.
+
+#542 (r560 / F174) is already on main and in the published planner: a stock number opens the Vehicle Locations side panel. This release does not change that SQL. `test_stock_opens_side_panel_560.js` is part of the website regression run.
+
+### Check
+
+`hoist_place_after_592` (F206, sort 360). It goes red if the cascade mover still returns `live_booking_conflict`, the code the planner shows as "This change conflicts with a job already running or on stoppage. No changes were saved." A valid place-after drop asks to place the job after the running one and does not show that toast. The check also goes red if the place-after helper is missing, if the move pin changes, or if department 135 or Kajel's functions change. The apply itself still requires the pin count to be 241. The ongoing check does not lock that total, because the regression self-test rejects a check that does. `test_hoist_place_after_592.js` runs in `node --test test_*.js` and fails if that toast is the message for `place_after_running`.
 
 ## Side panel: PO chips overlapped the completion tick
 
