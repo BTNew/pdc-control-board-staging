@@ -1,5 +1,5 @@
 'use strict';
-// r607 (F221): Completed Vehicles shows every vehicle that has been at PMB, including vehicles taken off the
+// r612 (F226): Completed Vehicles shows every vehicle that has been at PMB, including vehicles taken off the
 // board because they dropped off an upload. Pure rendering only; no network.
 const test = require('node:test');
 const assert = require('node:assert/strict');
@@ -58,12 +58,12 @@ test('detail: milestones, every line with who ticked it, bay bookings with worke
 });
 
 test('wiring: loads after app.js, Pages ships it, reads only, staging only', () => {
-  assert.match(fs.readFileSync('canonical-entry.js', 'utf8'), /pdc-vehicle-history\.js\?r607=2026\.10\.28\.r607/);
-  assert.match(fs.readFileSync('index.html', 'utf8'), /canonical-entry\.js\?[^"]*r607=2026\.10\.28\.r607/);
+  assert.match(fs.readFileSync('canonical-entry.js', 'utf8'), /pdc-vehicle-history\.js\?r612=2026\.10\.28\.r612/);
+  assert.match(fs.readFileSync('index.html', 'utf8'), /canonical-entry\.js\?[^"]*r612=2026\.10\.28\.r612/);
   assert.match(fs.readFileSync('scripts/build_pages_runtime.js', 'utf8'), /'pdc-vehicle-history\.js'/);
   const js = fs.readFileSync('pdc-vehicle-history.js', 'utf8');
-  assert.deepEqual([...new Set([...js.matchAll(/rpc\('([a-z0-9_]+)'/g)].map(m => m[1]))], ['get_pdc_vehicle_history_607', 'get_pdc_vehicle_history_detail_607']);
-  const sql = fs.readFileSync('supabase/migrations/20261028150000_r607_vehicle_history.sql', 'utf8');
+  assert.deepEqual([...new Set([...js.matchAll(/rpc\('([a-z0-9_]+)'/g)].map(m => m[1]))], ['get_pdc_vehicle_history_612', 'get_pdc_vehicle_history_detail_612']);
+  const sql = fs.readFileSync('supabase/migrations/20261028160000_r612_vehicle_history.sql', 'utf8');
   assert.equal((sql.match(/STABLE SECURITY DEFINER/g) || []).length, 2);
   assert.doesNotMatch(sql, /\b(INSERT INTO public|UPDATE public|DELETE FROM public)\b/);
   assert.match(sql, /expected_function_md5\) <> 241/);

@@ -85,7 +85,7 @@ test('panel: list rows drag, booked chips sit on their day, places are PMB / Wan
 
 test('wiring: loader, cache bust, Pages ships the file, migration is staging-only and keeps pins at 241', () => {
   const entry = fs.readFileSync('canonical-entry.js', 'utf8');
-  assert.match(entry, /pdc-pit-bookings\.js\?r604=2026\.10\.28\.r604&r611=2026\.10\.28\.r611&r607=2026\.10\.28\.r607/);
+  assert.match(entry, /pdc-pit-bookings\.js\?r604=2026\.10\.28\.r604&r611=2026\.10\.28\.r611&r612=2026\.10\.28\.r612/);
   assert.match(fs.readFileSync('pdc-pit-bookings.js', 'utf8'), /PDC_AUTH_CONTEXT\?\.role === 'fitter'/, 'fitters do not call the pit read');
   assert.match(entry, /pdc-vehicle-locations-table\.js\?[^']*&r604=2026\.10\.28\.r604/);
   assert.match(fs.readFileSync('index.html', 'utf8'), /canonical-entry\.js\?[^"]*r604=2026\.10\.28\.r604/);

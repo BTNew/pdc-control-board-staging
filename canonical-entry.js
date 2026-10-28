@@ -135,15 +135,15 @@
       // each Pit cell at render time and the module redraws once its data is in, so the order does not matter.
       if (!document.querySelector('script[data-pdc-pit-bookings]')) {
         const pit = document.createElement('script');
-        pit.src = 'pdc-pit-bookings.js?r604=2026.10.28.r604&r611=2026.10.28.r611&r607=2026.10.28.r607';
+        pit.src = 'pdc-pit-bookings.js?r604=2026.10.28.r604&r611=2026.10.28.r611&r612=2026.10.28.r612';
         pit.dataset.pdcPitBookings = '1';
         document.head.appendChild(pit);
       }
-      // r607 (F221): Completed Vehicles lists every vehicle that has been at PMB. It wraps renderCompletedVehicles
+      // r612 (F226): Completed Vehicles lists every vehicle that has been at PMB. It wraps renderCompletedVehicles
       // from app.js, which has loaded by the time this table step runs.
       if (!document.querySelector('script[data-pdc-vehicle-history]')) {
         const history = document.createElement('script');
-        history.src = 'pdc-vehicle-history.js?r607=2026.10.28.r607';
+        history.src = 'pdc-vehicle-history.js?r612=2026.10.28.r612';
         history.dataset.pdcVehicleHistory = '1';
         document.head.appendChild(history);
       }

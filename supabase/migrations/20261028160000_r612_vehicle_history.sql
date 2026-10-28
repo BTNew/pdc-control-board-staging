@@ -1,10 +1,10 @@
--- r607 (F221) / sort 376. Staging cdsmnqxtyyoeoznmbidd only.
+-- r612 (F226) / sort 377. Staging cdsmnqxtyyoeoznmbidd only.
 -- Production vjdtsswhroyguxyfjdkt is not a target.
 -- Craig, 28 Oct 2026: Completed must show every vehicle that has ever been at PMB, including vehicles taken
 -- off the board because they dropped off an upload, with import date, completion times, bay times, what
 -- was done and pit inspection data. Nothing is hard-deleted, so this reads the kept rows.
 -- Two read-only functions. Pin count stays 241. Kajel and Department 135 untouched.
--- Undo: supabase/rollbacks/20261028150000_r607_vehicle_history.down.sql
+-- Undo: supabase/rollbacks/20261028160000_r612_vehicle_history.down.sql
 
 SET LOCAL lock_timeout = '4s';
 SET LOCAL statement_timeout = '60s';
@@ -15,24 +15,24 @@ BEGIN
   IF awst BETWEEN time '12:15' AND time '12:45'
      OR awst BETWEEN time '06:50' AND time '07:30'
      OR awst BETWEEN time '17:50' AND time '18:10' THEN
-    RAISE EXCEPTION 'r607: import window';
+    RAISE EXCEPTION 'r612: import window';
   END IF;
   IF NOT public.pdc_monitor_staging_guard()
      OR (SELECT count(*) FROM public.pdc_staging_environment_sentinel WHERE singleton AND project_ref = 'cdsmnqxtyyoeoznmbidd') <> 1
      OR to_regclass('public.pdc_production_environment_sentinel') IS NOT NULL THEN
-    RAISE EXCEPTION 'r607: staging only';
+    RAISE EXCEPTION 'r612: staging only';
   END IF;
-  IF (SELECT count(*) FROM pdc_ops.expected_function_md5) <> 241 THEN RAISE EXCEPTION 'r607: pin count'; END IF;
+  IF (SELECT count(*) FROM pdc_ops.expected_function_md5) <> 241 THEN RAISE EXCEPTION 'r612: pin count'; END IF;
   IF EXISTS (SELECT 1 FROM pdc_ops.regression_checks
-             WHERE sort_order = 376 OR fault_id = 'F221' OR added_in = 'r607' OR check_name = 'vehicle_history_607') THEN
-    RAISE EXCEPTION 'r607: sort 376 or F221 is taken';
+             WHERE sort_order = 377 OR fault_id = 'F226' OR added_in = 'r612' OR check_name = 'vehicle_history_612') THEN
+    RAISE EXCEPTION 'r612: sort 377 or F226 is taken';
   END IF;
-  IF to_regprocedure('public.get_pdc_vehicle_history_607()') IS NOT NULL THEN RAISE EXCEPTION 'r607: function exists'; END IF;
+  IF to_regprocedure('public.get_pdc_vehicle_history_612()') IS NOT NULL THEN RAISE EXCEPTION 'r612: function exists'; END IF;
 END $guard607$;
 
 -- Every vehicle that has been at PMB: a 138/139 job card, a date to PMB, or a workshop booking.
 -- One summary row each, newest first. Board readers only.
-CREATE FUNCTION public.get_pdc_vehicle_history_607()
+CREATE FUNCTION public.get_pdc_vehicle_history_612()
 RETURNS jsonb
 LANGUAGE sql
 STABLE SECURITY DEFINER
@@ -62,7 +62,7 @@ AS $fn$
     GROUP BY b.vehicle_id
   )
   SELECT CASE WHEN NOT coalesce(public.is_pdc_role('viewer'::public.pdc_role), false) THEN NULL::jsonb ELSE
-    jsonb_build_object('version', 'r607', 'generated_at', clock_timestamp(), 'vehicles', coalesce((
+    jsonb_build_object('version', 'r612', 'generated_at', clock_timestamp(), 'vehicles', coalesce((
       SELECT jsonb_agg(jsonb_build_object(
         'id', v.id, 'stock', v.stock_number, 'key', v.key_number, 'job_card', v.job_card_number,
         'vehicle', coalesce(nullif(btrim(v.vehicle_description), ''), v.model), 'customer', v.customer_name,
@@ -93,7 +93,7 @@ $fn$;
 
 -- Everything kept for one vehicle: job lines and ticks, every bay booking with actual times, fitter line
 -- timings, pit booking and pit line ticks, lifecycle events and board removals. Board readers only.
-CREATE FUNCTION public.get_pdc_vehicle_history_detail_607(p_vehicle_id uuid)
+CREATE FUNCTION public.get_pdc_vehicle_history_detail_612(p_vehicle_id uuid)
 RETURNS jsonb
 LANGUAGE sql
 STABLE SECURITY DEFINER
@@ -101,7 +101,7 @@ SET search_path = pg_catalog, public
 AS $fn$
   SELECT CASE WHEN NOT coalesce(public.is_pdc_role('viewer'::public.pdc_role), false) OR p_vehicle_id IS NULL THEN NULL::jsonb ELSE (
     SELECT jsonb_build_object(
-      'version', 'r607', 'id', v.id, 'stock', v.stock_number, 'key', v.key_number, 'job_card', v.job_card_number,
+      'version', 'r612', 'id', v.id, 'stock', v.stock_number, 'key', v.key_number, 'job_card', v.job_card_number,
       'vin', v.vin, 'rego', v.registration, 'vehicle', coalesce(nullif(btrim(v.vehicle_description), ''), v.model),
       'customer', v.customer_name, 'location', coalesce(nullif(v.location_override, ''), v.current_location),
       'lifecycle', v.lifecycle_state, 'on_board', v.visible_on_board AND v.deleted_at IS NULL,
@@ -163,28 +163,28 @@ AS $fn$
   END
 $fn$;
 
-REVOKE ALL ON FUNCTION public.get_pdc_vehicle_history_607() FROM PUBLIC, anon;
-REVOKE ALL ON FUNCTION public.get_pdc_vehicle_history_detail_607(uuid) FROM PUBLIC, anon;
-GRANT EXECUTE ON FUNCTION public.get_pdc_vehicle_history_607() TO authenticated;
-GRANT EXECUTE ON FUNCTION public.get_pdc_vehicle_history_detail_607(uuid) TO authenticated;
+REVOKE ALL ON FUNCTION public.get_pdc_vehicle_history_612() FROM PUBLIC, anon;
+REVOKE ALL ON FUNCTION public.get_pdc_vehicle_history_detail_612(uuid) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.get_pdc_vehicle_history_612() TO authenticated;
+GRANT EXECUTE ON FUNCTION public.get_pdc_vehicle_history_detail_612(uuid) TO authenticated;
 
 DO $check607$
 DECLARE ok boolean; detail text;
 BEGIN
   INSERT INTO pdc_ops.regression_checks(check_name, fault_id, description, check_sql, enabled, sort_order, added_in)
-  VALUES ('vehicle_history_607', 'F221',
+  VALUES ('vehicle_history_612', 'F226',
     'Vehicle history reads are read-only and signed-in; removed and deleted vehicles stay in the vehicles table; pins stay 241.',
     $chk607$
 SELECT
-  (SELECT bool_and(provolatile = 's') FROM pg_catalog.pg_proc WHERE oid IN (pg_catalog.to_regprocedure('public.get_pdc_vehicle_history_607()'), pg_catalog.to_regprocedure('public.get_pdc_vehicle_history_detail_607(uuid)')))
-  AND NOT pg_catalog.has_function_privilege('anon', 'public.get_pdc_vehicle_history_607()', 'execute')
-  AND NOT pg_catalog.has_function_privilege('anon', 'public.get_pdc_vehicle_history_detail_607(uuid)', 'execute')
+  (SELECT bool_and(provolatile = 's') FROM pg_catalog.pg_proc WHERE oid IN (pg_catalog.to_regprocedure('public.get_pdc_vehicle_history_612()'), pg_catalog.to_regprocedure('public.get_pdc_vehicle_history_detail_612(uuid)')))
+  AND NOT pg_catalog.has_function_privilege('anon', 'public.get_pdc_vehicle_history_612()', 'execute')
+  AND NOT pg_catalog.has_function_privilege('anon', 'public.get_pdc_vehicle_history_detail_612(uuid)', 'execute')
   AND (SELECT count(*) FROM public.vehicles WHERE board_purged_at IS NOT NULL) > 0
   AND (SELECT count(*) FROM pdc_ops.expected_function_md5) = 241
  AS ok,
  'vehicle history stays read-only and keeps removed vehicles' AS detail
 $chk607$,
-    true, 376, 'r607');
-  EXECUTE (SELECT check_sql FROM pdc_ops.regression_checks WHERE check_name = 'vehicle_history_607') INTO ok, detail;
-  IF ok IS NOT TRUE THEN RAISE EXCEPTION 'r607: check red: %', detail; END IF;
+    true, 377, 'r612');
+  EXECUTE (SELECT check_sql FROM pdc_ops.regression_checks WHERE check_name = 'vehicle_history_612') INTO ok, detail;
+  IF ok IS NOT TRUE THEN RAISE EXCEPTION 'r612: check red: %', detail; END IF;
 END $check607$;

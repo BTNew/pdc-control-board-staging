@@ -1,15 +1,15 @@
 /*
- * r607 (F221): Completed Vehicles shows every vehicle that has been at PMB. Craig, 28 Oct 2026.
+ * r612 (F226): Completed Vehicles shows every vehicle that has been at PMB. Craig, 28 Oct 2026.
  * Includes vehicles taken off the board because they dropped off an upload (they are archived, never
  * deleted), deleted vehicles, RFT and completed ones. Each row: import date, PMB, QC, RFT and leaving
  * dates, lines done, bay time, stations and pit. "Details" opens everything kept for that vehicle:
  * every job line and who ticked it, every bay booking with actual times and fitter line timings, pit
  * booking and pit ticks, and the board history (removed, put back, deleted).
- * Reads get_pdc_vehicle_history_607 and get_pdc_vehicle_history_detail_607. View only.
+ * Reads get_pdc_vehicle_history_612 and get_pdc_vehicle_history_detail_612. View only.
  */
 (function (root) {
   'use strict';
-  const VERSION = '2026.10.28.r607';
+  const VERSION = '2026.10.28.r612';
   const PROJECT = 'cdsmnqxtyyoeoznmbidd';
   const LIST_TTL_MS = 2 * 60 * 1000;
 
@@ -196,7 +196,7 @@
   }
   function load(force) {
     if (ui.loading || (!force && ui.list && Date.now() - ui.loadedAt < LIST_TTL_MS)) return ui.loading;
-    ui.loading = rpc('get_pdc_vehicle_history_607', {})
+    ui.loading = rpc('get_pdc_vehicle_history_612', {})
       .then(json => { if (json) { ui.list = json; ui.loadedAt = Date.now(); ui.error = ''; } })
       .catch(error => { ui.error = error.message || ''; })
       .finally(() => { ui.loading = null; paint(); });
@@ -206,7 +206,7 @@
     ui.openId = ui.openId === id ? '' : id;
     paint();
     if (!ui.openId || ui.details[id]) return;
-    try { ui.details[id] = await rpc('get_pdc_vehicle_history_detail_607', { p_vehicle_id: id }) || { lines: [], bookings: [], events: [] }; }
+    try { ui.details[id] = await rpc('get_pdc_vehicle_history_detail_612', { p_vehicle_id: id }) || { lines: [], bookings: [], events: [] }; }
     catch (error) { ui.details[id] = { stock: '', vehicle: `Could not load: ${error.message || ''}`, lines: [], bookings: [], events: [] }; }
     paint();
   }
