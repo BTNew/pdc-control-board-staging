@@ -59,6 +59,8 @@ const STARTUP_ORDER = [
   'pdc-bay-manager.js',
   // r591 (F205): Revolution uploads loads with the board. Apply stays off in this preview.
   'pdc-revolution-upload.js',
+  // r642 (F257): Sublet · MMT page.
+  'pdc-mmt-sublet.js',
   'pdc-workshop-hours.js',
   'pdc-vehicle-sublets.js' // r494 (F107): Manage sublets per vehicle
 ];

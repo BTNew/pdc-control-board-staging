@@ -1,0 +1,26 @@
+/* r642 (F257): MMT sublet page. */
+.mmt-toolbar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 0 0 12px; }
+.mmt-filter span { display: inline-block; min-width: 1.6em; margin-left: 4px; padding: 0 6px; border-radius: 999px; background: rgba(0, 0, 0, .08); font-size: 12px; }
+.mmt-filter.is-active { background: var(--ink, #1f2937); color: #fff; border-color: var(--ink, #1f2937); }
+.mmt-filter.is-active span { background: rgba(255, 255, 255, .2); }
+.mmt-search { margin-left: auto; min-width: 220px; padding: 7px 10px; border: 1px solid var(--line, #d1d5db); border-radius: 8px; font: inherit; }
+.mmt-table td { vertical-align: middle; }
+.mmt-po strong { font-variant-numeric: tabular-nums; }
+.mmt-key { font-weight: 700; font-size: 1.05em; }
+.mmt-desc { max-width: 380px; color: var(--muted, #6b7280); font-size: 13px; }
+.mmt-ticks { white-space: nowrap; }
+.mmt-tick { display: inline-flex; align-items: center; gap: 6px; margin-right: 8px; padding: 6px 10px; border: 1px solid var(--line, #d1d5db); border-radius: 8px; cursor: pointer; user-select: none; }
+.mmt-tick input { width: 18px; height: 18px; margin: 0; cursor: inherit; }
+.mmt-tick.is-on { background: #e7f6ec; border-color: #2e9d57; color: #1d6b3a; font-weight: 600; }
+.mmt-tick:has(input:disabled) { opacity: .55; cursor: not-allowed; }
+.mmt-row.is-complete td { background: #f3faf5; }
+.mmt-error { display: block; color: var(--toyota-red, #c00); margin-top: 4px; }
+.mmt-empty, .mmt-note { color: var(--muted, #6b7280); }
+@media (prefers-color-scheme: dark) {
+  .mmt-tick.is-on { background: #12361f; color: #9be3b4; }
+  .mmt-row.is-complete td { background: #0f2417; }
+}
+@media (max-width: 760px) {
+  .mmt-search { margin-left: 0; width: 100%; }
+  .mmt-desc { max-width: none; }
+}

@@ -5181,6 +5181,7 @@ function showView(view, options) {
   if (app.currentView === 'update-history' && nextView !== 'update-history') window.PdcUpdateHistory?.close();
   if (app.currentView === 'fitting-stats' && nextView !== 'fitting-stats') window.PdcFittingStats?.close();
   if (app.currentView === 'bay-manager' && nextView !== 'bay-manager') window.PdcBayManager?.close();
+  if (app.currentView === 'mmt-sublet' && nextView !== 'mmt-sublet') window.PdcMmtSublet?.close(); // r642 (F257)
   if (app.currentView === 'revolution-upload' && nextView !== 'revolution-upload') window.PdcRevolutionUpload?.reset();
   if (app.currentView === 'lists' && nextView !== 'lists') window.PdcWorkshopHours?.reset();
   app.currentRequestedView = requestedView;
@@ -5207,6 +5208,7 @@ function showView(view, options) {
     emailreview: 'AI Intake',
     'ai-auditor': 'BETA – AI Auditor',
     sublet: 'Sublet',
+    'mmt-sublet': 'Sublet · Malaga Motor Trimmers',
     rft: 'RFT',
     completed: 'Completed vehicles',
     collected: 'Collected Vehicles',
@@ -7013,6 +7015,9 @@ function renderActiveView() {
       break;
     case 'bay-manager':
       window.PdcBayManager?.open();
+      break;
+    case 'mmt-sublet': // r642 (F257)
+      window.PdcMmtSublet?.open();
       break;
     case 'revolution-upload':
       window.PdcRevolutionUpload?.open();

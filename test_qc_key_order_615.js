@@ -19,5 +19,5 @@ test('QC cards show a key badge (desktop html and phone decorator), cache bust',
   assert.match(src, /qcPageSortByKeyNumber\(eligible\) : eligible; \/\/ r615/);
   assert.match(src, /class="qc-key-badge" style="\$\{QC_KEY_BADGE_STYLE\}">K\$\{escapeHtml\(vehicleKeyNumber\(vehicle\)\)\}/);
   assert.match(src, /querySelectorAll\('\.qc-phone-vehicle\[data-qc-open-vehicle\]'\)/);
-  assert.match(fs.readFileSync('index.html', 'utf8'), /app\.js\?[^"]*&amp;r615=2026\.10\.28\.r615(&amp;r619=2026\.10\.28\.r619)?"/);
+  assert.match(fs.readFileSync('index.html', 'utf8'), /app\.js\?[^"]*&amp;r615=2026\.10\.28\.r615(&amp;r619=2026\.10\.28\.r619)?(&amp;r642=2026\.10\.28\.r642)?"/);
 });
