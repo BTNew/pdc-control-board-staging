@@ -37,3 +37,13 @@ test('server: never ticks or completes, per booking, fitter on own booking only,
   assert.doesNotMatch(sql.split('$chk623$')[1], /expected_function_md5/);
   assert.ok(fs.existsSync('supabase/rollbacks/20261028200000_r623_fitter_later.down.sql'));
 });
+
+test('complete & leave items for later; station stays on the list to book', () => {
+  assert.match(js, /data-fitter-complete-later/);
+  assert.match(js, /Complete &amp; leave \$\{left\} item/);
+  assert.match(js, /p_reason:'time', p_note:'Not finished this booking'/);
+  assert.match(js, /if \(detail\?\.progress\?\.can_complete\) await act\('complete'\);/);
+  assert.match(sql, /CREATE TRIGGER keep_station_open_623 BEFORE INSERT OR UPDATE OF completed ON public\.vehicle_work_items/);
+  assert.match(sql, /keep_station_open_623\(\) RETURNS trigger SECURITY DEFINER/);
+  assert.match(sql, /NEW\.completed := false; NEW\.completed_by := NULL; NEW\.completed_at := NULL;/);
+});

@@ -28,6 +28,7 @@ BEGIN
     RAISE EXCEPTION 'r623: sort 380 or F238 is taken';
   END IF;
   IF to_regclass('public.pdc_line_later_623') IS NOT NULL THEN RAISE EXCEPTION 'r623: table exists'; END IF;
+  IF EXISTS (SELECT 1 FROM pg_trigger WHERE tgrelid = 'public.vehicle_work_items'::regclass AND NOT tgisinternal) THEN RAISE EXCEPTION 'r623: vehicle_work_items has triggers now'; END IF;
   -- The two functions replaced here must be exactly what this release was written against.
   IF md5((SELECT prosrc FROM pg_proc WHERE oid = 'public.pdc_check_fitter_request()'::regprocedure)) <> '11c9967c8fe76e4ba8fe0bd88f20ed1f' THEN RAISE EXCEPTION 'r623: fitter gate changed'; END IF;
   IF strpos((SELECT prosrc FROM pg_proc WHERE oid = 'public.get_fitter_job(uuid,uuid)'::regprocedure),
@@ -129,6 +130,26 @@ BEGIN
 END $fn$;
 REVOKE ALL ON FUNCTION pdc_work_categories_private.line_later_623(uuid, text, jsonb, jsonb) FROM PUBLIC, anon, authenticated;
 
+-- Completing a booking marks its station's vehicle_work_items row done (for bookings without a work category), which
+-- takes the vehicle off that station's "to book" list. While a Later item at that station is still not done, keep the
+-- station requirement open so the vehicle stays in that station's list to book the rest.
+CREATE FUNCTION pdc_work_categories_private.keep_station_open_623() RETURNS trigger SECURITY DEFINER
+LANGUAGE plpgsql SET search_path = pg_catalog, public AS $fn$
+BEGIN
+  IF NEW.completed AND NEW.required AND EXISTS (
+    SELECT 1 FROM public.pdc_line_later_623 m
+    WHERE m.vehicle_id = NEW.vehicle_id AND m.stage_code = public.workshop_stage_code_for_work_key(NEW.work_key)
+      AND NOT EXISTS (SELECT 1 FROM public.pdc_panel_line_completion_565 c WHERE c.vehicle_id = m.vehicle_id AND c.line_identity = m.line_identity AND c.completed)
+      AND NOT coalesce((SELECT p.completed FROM pdc_fitter_private.operation_progress p JOIN public.workshop_bookings wb ON wb.id = p.booking_id
+            WHERE wb.vehicle_id = m.vehicle_id AND wb.deleted_at IS NULL AND p.line_identity = m.line_identity ORDER BY p.updated_at DESC LIMIT 1), false)) THEN
+    NEW.completed := false; NEW.completed_by := NULL; NEW.completed_at := NULL;
+  END IF;
+  RETURN NEW;
+END $fn$;
+REVOKE ALL ON FUNCTION pdc_work_categories_private.keep_station_open_623() FROM PUBLIC, anon, authenticated;
+CREATE TRIGGER keep_station_open_623 BEFORE INSERT OR UPDATE OF completed ON public.vehicle_work_items
+FOR EACH ROW WHEN (NEW.completed) EXECUTE FUNCTION pdc_work_categories_private.keep_station_open_623();
+
 CREATE OR REPLACE FUNCTION public.get_fitter_job(p_technician_id uuid, p_booking_id uuid)
  RETURNS jsonb
  LANGUAGE plpgsql
@@ -194,6 +215,7 @@ SELECT
   AND strpos((SELECT prosrc FROM pg_proc WHERE oid = to_regprocedure('public.set_line_later_623(uuid,text,text,text)')), 'complete_workshop_work') = 0
   AND NOT has_function_privilege('anon', 'public.set_line_later_623(uuid,text,text,text)', 'execute')
   AND (SELECT relrowsecurity FROM pg_class WHERE oid = 'public.pdc_line_later_623'::regclass)
+  AND EXISTS (SELECT 1 FROM pg_trigger WHERE tgname = 'keep_station_open_623' AND tgrelid = 'public.vehicle_work_items'::regclass AND tgenabled = 'O')
   AND md5((SELECT prosrc FROM pg_proc WHERE oid = to_regprocedure('karratha135_pdc.fitter_job_command(uuid,uuid,integer,text,uuid,text,text,boolean,text)'))) = 'fd05b9eef69498002ac06dd68e01cdff'
  AS ok,
  'fitter Later keeps items outstanding and only unblocks this booking' AS detail

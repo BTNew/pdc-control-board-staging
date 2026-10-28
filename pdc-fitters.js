@@ -34,6 +34,8 @@
       + '.fitter-later-form input{flex:1 1 180px}'
       + '.fitter-later.is-set{display:flex;align-items:center;gap:10px;background:#fffbeb;border:1px solid #f0c674;border-radius:6px;padding:4px 10px;color:#78350f;font-size:14px}'
       + '.fitter-line.is-later{background:#fffdf5}'
+      + '.fitter-complete-later{margin-top:8px;width:100%;padding:12px;border:2px solid #b45309;background:#fffbeb;color:#78350f;font-weight:700;border-radius:8px;font-size:16px;cursor:pointer}'
+      + '.fitter-complete-later-note{margin:4px 0 0;font-size:13px;color:#64748b}'
       + '.fitter-todo-list .fitter-line>.fitter-notes[open]{flex-basis:100%}'
       + '.fitter-todo-list .fitter-item-ticks .conv-bar{flex-basis:100%}'
       + '.fitter-todo-list .fitter-line-check{min-height:0;gap:10px;align-items:center}'
@@ -575,12 +577,21 @@
   function jobPreview(job) {
     return `<strong>${esc(job.stock || 'Stock not recorded')}</strong><span>${esc(job.customer || 'Customer not recorded')} · ${esc(job.vehicle || 'Vehicle details pending')}</span><small>${esc(job.stage_name)} · ${esc(bayText(job.stage_code, job.bay_number))} · ${esc(time(job.start_at))}</small>`;
   }
+  // r623 (F238): items in this bay that are still open (not Done, not Later, not sent away).
+  function openOwnLines() {
+    const lines = detail?.lines || [];
+    return lines.filter(l => !l.completed && !l.later && !l.handoff?.sent_away && (l.stage_code === detail.stage_code || l.handoff?.received_here));
+  }
   function nextJobHtml(flow, locked, editable) {
     const unsaved=[...drafts.keys()].some(k=>k.startsWith(selected+':')) || root.PdcConversions?.hasDrafts() || conversionNotes.size>0;
     const ready=detail?.progress?.can_complete && !unsaved && !root.PdcBusWorkflow?.hasDrafts() && !busPending();
     const completeLabel=(saving||loading)&&pendingAction==='complete'?'Completing job…':flow.otherActive.length?'Complete & return to active work':flow.next?'Complete & open next job':'Complete bay job';
     const help=unsaved?'Save your notes before completing this bay.':detail?.status==='stoppage'?'Resume this job before completing the bay.':ready?(Number(detail?.progress?.handed_away)>0?'Lines sent to another department stay outstanding there. This bay can be completed.':'All items are done. Complete this bay to continue.'):'Tick off every item in this bay before completing the job.';
-    return `<footer class="fitter-finish" aria-label="Finish current job and continue"><div class="fitter-finish-action"><div><h3>Finish this bay</h3><p>${esc(help)}</p></div><button type="button" class="fitter-primary" data-fitter-action="complete" ${locked||!editable||!ready?'disabled':''}>${completeLabel}</button></div><div class="fitter-next" aria-label="Next job preview"><span class="fitter-kicker">Next job</span>${flow.next?`${jobPreview(flow.next)}<p>${flow.otherActive.length?'Available after your active jobs are completed.':'Opens automatically after the current job is completed.'} You choose when to start it.</p>`:'<p>No further jobs assigned at the moment.</p>'}</div>${flow.upcoming.length?`<details class="fitter-upcoming"><summary>Later jobs (${flow.upcoming.length})</summary>${flow.upcoming.map(j=>`<div class="fitter-later-job">${jobPreview(j)}</div>`).join('')}</details>`:''}</footer>`;
+    // r623 (F238): complete with items left: they are marked Later and stay outstanding for this station to rebook.
+    const left=openOwnLines().length;
+    const canLeave=!ready && left>0 && !unsaved && !root.PdcBusWorkflow?.hasDrafts() && !busPending() && detail?.status==='started';
+    const leaveBtn=canLeave?`<button type="button" class="fitter-secondary fitter-complete-later" data-fitter-complete-later ${locked||!editable?'disabled':''}>Complete &amp; leave ${left} item${left===1?'':'s'} for later</button><p class="fitter-complete-later-note">Unfinished items stay outstanding for this station so the controller can book them in again.</p>`:'';
+    return `<footer class="fitter-finish" aria-label="Finish current job and continue"><div class="fitter-finish-action"><div><h3>Finish this bay</h3><p>${esc(help)}</p></div><button type="button" class="fitter-primary" data-fitter-action="complete" ${locked||!editable||!ready?'disabled':''}>${completeLabel}</button>${leaveBtn}</div><div class="fitter-next" aria-label="Next job preview"><span class="fitter-kicker">Next job</span>${flow.next?`${jobPreview(flow.next)}<p>${flow.otherActive.length?'Available after your active jobs are completed.':'Opens automatically after the current job is completed.'} You choose when to start it.</p>`:'<p>No further jobs assigned at the moment.</p>'}</div>${flow.upcoming.length?`<details class="fitter-upcoming"><summary>Later jobs (${flow.upcoming.length})</summary>${flow.upcoming.map(j=>`<div class="fitter-later-job">${jobPreview(j)}</div>`).join('')}</details>`:''}</footer>`;
   }
   // r500: the stoppage (pause) panel; shown under the item whose Pause was pressed, otherwise under the job buttons.
   function stopPanelHtml() {
@@ -813,6 +824,19 @@
     } catch (e) { message=e.message; if(e.code!=='busy') connected=false; }
     finally { saving=false; pendingAction=''; if(!service.retryPending) await refresh(); else render(); }
   }
+  async function completeLeavingLater() {
+    if (saving || loading || !connected || !detail || detail.status !== 'started') return;
+    const open = openOwnLines();
+    if (!open.length) return;
+    loadGeneration++; refreshing=false; freezeTimer(); saving=true; pendingAction='complete'; message=''; render();
+    try {
+      for (const l of open) await service.setLater({p_booking_id:selected, p_line_identity:l.line_identity, p_reason:'time', p_note:'Not finished this booking'});
+    } catch (e) { message=e.message; saving=false; pendingAction=''; connected=false; await refresh(); return; }
+    saving=false; pendingAction=''; connected=false;
+    await refresh();
+    if (detail?.progress?.can_complete) await act('complete');
+    else { message='The unfinished items were left for later, but the bay could not be completed yet. Check the items and press Complete.'; render(); }
+  }
   function mountController(panel, vehicle) {
     const id = typeof root.pmbArrivalVehicleId === 'function' ? root.pmbArrivalVehicleId(vehicle) : String(vehicle?.id || vehicle?.__emailVehicleId || vehicle?.sharedVehicleId || '');
     const host = panel?.querySelector?.('.vso-body') || panel;
@@ -859,6 +883,7 @@
     on('[data-fitter-handoff-undo]','click',e=>{ void undoLine(e.currentTarget.dataset.fitterHandoffUndo); });
     on('[data-fitter-later-save]','click',e=>{ const box=e.currentTarget.closest('.fitter-later'); void markLater(e.currentTarget.dataset.fitterLaterSave, box?.querySelector('[data-fitter-later-reason]')?.value || 'other', box?.querySelector('[data-fitter-later-note]')?.value || ''); });
     on('[data-fitter-later-undo]','click',e=>{ void markLater(e.currentTarget.dataset.fitterLaterUndo, null, null); });
+    on('[data-fitter-complete-later]','click',()=>{ void completeLeavingLater(); });
     on('[data-fitter-item-start]','change',e=>{ const n=e.currentTarget, checked=n.checked; n.checked=!checked; void act(checked?'item_start':'item_reset',n.dataset.fitterItemStart); });
     on('[data-fitter-note]','input',e=>{ const id=e.target.dataset.fitterNote, l=detail.lines.find(l=>l.line_identity===id); drafts.set(`${selected}:${id}`,{note:e.target.value,scope:l.scope_hash}); target.querySelector('[data-fitter-action="complete"]')?.setAttribute('disabled',''); });
     on('[data-fitter-save-note]','click',e=>{ const id=e.currentTarget.dataset.fitterSaveNote; void act('line',id,detail.lines.find(l=>l.line_identity===id).completed); });

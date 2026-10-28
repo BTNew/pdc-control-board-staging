@@ -234,7 +234,7 @@ const approvedRootImportPatch = Object.freeze({
   // r564: Fitters bay shows Key N beside stock (F178). Department 135 keeps the frozen fitter script.
   // r568: a Bus 4x4 bay can start or finish another component's line items (F182). Department 135 keeps the frozen fitter script.
   // r583: each bay line can be sent to another department (F197). Department 135 keeps its frozen pdc-fitters.js.
-  "pdc-fitters.js": "13ca4e42219cc4d911641bdefd51817f63cc5ea09dfab6a78d44ebd6d6d31c37",
+  "pdc-fitters.js": "0103e57f4666bb23d00a8fa56527b757ca55cb66d99f3cc54a7ab1d37cf1c469",
   // Deliberate live-board change, 19 October 2026. Department 135 stays parked.
   // app.js keeps Setup backup polling, hoist-corrections=2026.10.19.02,
   // planner-followup=2026.10.19.01, and the Vehicle Locations summary that

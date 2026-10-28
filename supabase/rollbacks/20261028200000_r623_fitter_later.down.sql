@@ -41,6 +41,8 @@ BEGIN
   END IF;
  END IF;
 END $function$;
+DROP TRIGGER IF EXISTS keep_station_open_623 ON public.vehicle_work_items;
+DROP FUNCTION IF EXISTS pdc_work_categories_private.keep_station_open_623();
 DROP FUNCTION IF EXISTS pdc_work_categories_private.line_later_623(uuid, text, jsonb, jsonb);
 DROP FUNCTION IF EXISTS public.set_line_later_623(uuid, text, text, text);
 DROP TABLE IF EXISTS public.pdc_line_later_623;
