@@ -6161,7 +6161,7 @@ function qcPageResetAuthority(event = {}) {
   qcPageOperationMutationChain = Promise.resolve();
   qcPageOperationPending.clear(); qcPagePhotoUploadInFlight.clear();
   qcPageSignoffInFlight.clear(); qcPageRejectInFlight.clear(); qcPageFeedback.clear();
-  qcPageSignoffBlockers.clear();
+  if (typeof qcPageSignoffBlockers !== 'undefined') qcPageSignoffBlockers.clear();
   app.partsCompletionInFlight?.clear(); app.partsStoppageInFlight?.clear();
   app.rftTransportActionInFlight?.clear(); app.rftTransportActionOwners?.clear();
   qcSelectedVehicleKey = '';
@@ -6555,7 +6555,7 @@ function qcPageReceiptLineApply(vehicle = {}, lineIdentity = '', result = {}) {
   const line = qcPageOperationLines(vehicle).find(item => item.lineIdentity === String(lineIdentity || ''));
   const receiptLine = result?.data?.line;
   if (!line || !receiptLine || String(receiptLine.line_identity || '') !== String(lineIdentity || '')) return false;
-  qcPageSignoffBlockers.clear();
+  if (typeof qcPageSignoffBlockers !== 'undefined') qcPageSignoffBlockers.clear();
   line.completed = receiptLine.completed === true;
   line.completedBy = receiptLine.completed_by || null;
   line.completedAt = receiptLine.completed_at || null;
