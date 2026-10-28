@@ -16,7 +16,7 @@ r590 / F204 / sort 361. r588 / F202 is the live side-panel tick grid (frontend o
 
 Up `supabase/migrations/20261028080000_r590_qc_signoff_override.sql` file md5 `6cfc288ff55922d9f4d1e803080b802b`. Down `supabase/rollbacks/20261028080000_r590_qc_signoff_override.down.sql` file md5 `9b61c048454366ee9d40fd6377a4fd6e`.
 
-The dry-run was one rolled-back transaction as Craig. Outstanding was ready and the message was empty. Finalize returned `qc_signed_off_moved_to_rft`. Inside the transaction the location was RFT and the version moved from 40 to 42. The exception aborted the transaction. Afterwards the vehicle was still QC, version 40, with no sign-off receipt.
+Applied on staging. Ledger row `20261028002147` `r590_qc_signoff_override`. The vehicle was not signed off. After the apply it is still QC, unsigned, version 41. `qc_signoff_outstanding_590` as Craig returns ready, with nothing outstanding. The gate lists no issues. The F204 check is green: pins 241, icon gaps 0, panel gaps 0, override gaps 0, stock 13047122 clear. `protected_function_md5s` is green, 241 pinned, 0 changed. The earlier dry-run had already shown finalize would return `qc_signed_off_moved_to_rft` and then rolled that back.
 
 ### Check
 
