@@ -3,12 +3,16 @@
 .mmt-filter span { display: inline-block; min-width: 1.6em; margin-left: 4px; padding: 0 6px; border-radius: 999px; background: rgba(0, 0, 0, .08); font-size: 12px; }
 .mmt-filter.is-active { background: var(--ink, #1f2937); color: #fff; border-color: var(--ink, #1f2937); }
 .mmt-filter.is-active span { background: rgba(255, 255, 255, .2); }
-.mmt-search { margin-left: auto; min-width: 220px; padding: 7px 10px; border: 1px solid var(--line, #d1d5db); border-radius: 8px; font: inherit; }
+.mmt-search { margin-left: auto; width: 260px; max-width: 100%; padding: 7px 10px; border: 1px solid var(--line, #d1d5db); border-radius: 8px; font: inherit; }
 .mmt-table td { vertical-align: middle; }
 .mmt-po strong { font-variant-numeric: tabular-nums; }
 .mmt-key { font-weight: 700; font-size: 1.05em; }
 .mmt-desc { max-width: 380px; color: var(--muted, #6b7280); font-size: 13px; }
-.mmt-ticks { white-space: nowrap; }
+.mmt-table { width: 100%; table-layout: auto !important; }
+.mmt-table th:nth-child(-n+5), .mmt-table td:nth-child(-n+5) { width: 1%; white-space: nowrap; }
+.mmt-table th, .mmt-table td { padding-right: 10px; }
+.mmt-ticks { white-space: nowrap; width: 1%; }
+.mmt-tick + .mmt-tick { margin-right: 0; }
 .mmt-tick { display: inline-flex; align-items: center; gap: 6px; margin-right: 8px; padding: 6px 10px; border: 1px solid var(--line, #d1d5db); border-radius: 8px; cursor: pointer; user-select: none; }
 .mmt-tick input { width: 18px; height: 18px; margin: 0; cursor: inherit; }
 .mmt-tick.is-on { background: #e7f6ec; border-color: #2e9d57; color: #1d6b3a; font-weight: 600; }
