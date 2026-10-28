@@ -4,10 +4,11 @@
 -- at 0 or no hours gets an estimate: the median hours of the same job wording on other vehicles, else the station
 -- default (Tyres 0.5, Fitting 0.5, Electrical 0.5, Fab 1.0). Sublet (supplier work) and job card notes stay at 0.
 -- Saved through the normal hours save (save_vehicle_workshop_line_hours_batch_768, as Craig), then marked
--- zero_hour_estimate_683 so the board shows "Estimate". A pg_cron job repeats it every 10 minutes for new imports,
--- outside the import windows and never while an import job is running. A person's own hours (manual) are never touched.
+-- zero_hour_estimate_683 so the board shows "Estimate". One run only (Craig 07:11: the 0-hour lines come from the
+-- mass import of current job cards; new vehicles get hours when they come on). The function stays for a manual rerun;
+-- it skips the import windows and running imports. A person's own hours (manual) are never touched.
 SET LOCAL lock_timeout = '4s';
-SET LOCAL statement_timeout = '120s';
+SET LOCAL statement_timeout = '600s';
 
 DO $guard683$
 DECLARE awst time := (clock_timestamp() AT TIME ZONE 'Australia/Perth')::time;
@@ -91,17 +92,22 @@ BEGIN
 END $fn$;
 REVOKE ALL ON FUNCTION pdc_ops.zero_hour_estimate_683(integer) FROM PUBLIC, anon, authenticated, service_role;
 
-SELECT cron.schedule('pdc_zero_hour_estimate_683', '*/10 * * * *', 'SELECT pdc_ops.zero_hour_estimate_683(40)');
+-- One run over every vehicle with 0-hour lines (about 280).
+DO $run683$ DECLARE r jsonb; BEGIN
+  r := pdc_ops.zero_hour_estimate_683(200);
+  RAISE NOTICE 'r683 run 1: %', r;
+  r := pdc_ops.zero_hour_estimate_683(200);
+  RAISE NOTICE 'r683 run 2: %', r;
+END $run683$;
 
 DO $check683$
 DECLARE ok boolean; detail text;
 BEGIN
   INSERT INTO pdc_ops.regression_checks(check_name, fault_id, description, check_sql, enabled, sort_order, added_in)
   VALUES ('zero_hour_estimates_683', 'F293',
-    'Open Fitting/Electrical/Fab/Tyres lines with 0 hours get an estimate every 10 minutes (Sublet stays 0).',
+    'The one-off 0-hour estimate run is in place and marked lines show as Estimate (Sublet stays 0).',
     $chk$
-SELECT EXISTS (SELECT 1 FROM cron.job WHERE jobname = 'pdc_zero_hour_estimate_683' AND active)
-  AND to_regprocedure('pdc_ops.zero_hour_estimate_683(integer)') IS NOT NULL
+SELECT to_regprocedure('pdc_ops.zero_hour_estimate_683(integer)') IS NOT NULL
   AND strpos(pg_get_constraintdef((SELECT oid FROM pg_constraint WHERE conname = 'pdc_auditor_adjustment_origin_check')), 'zero_hour_estimate_683') > 0
  AS ok, 'zero hour estimates scheduled' AS detail
 $chk$, true, 428, 'r683');

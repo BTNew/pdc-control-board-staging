@@ -11,7 +11,7 @@ test('estimates: same job median, else station default; never Sublet; never a pe
   assert.match(sql, /coalesce\(h\.med, CASE x->>'stage_code' WHEN 'FABRICATION' THEN 1\.0 ELSE 0\.5 END\)/);
   assert.match(sql, /correction_origin IN \('manual_operator', 'manual_operator_unknown'\)/);
   assert.match(sql, /status IN \('queued', 'running'\)/);
-  assert.match(sql, /cron\.schedule\('pdc_zero_hour_estimate_683', '\*\/10 \* \* \* \*'/);
+  assert.doesNotMatch(sql, /cron\.schedule/, 'one run only, no background job');
 });
 test('the board labels these hours Estimate', () => {
   assert.match(app, /adjustment\.correction_origin === 'zero_hour_estimate_683'\s*\? 'zero_hour_estimate'/);
