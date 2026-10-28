@@ -10,5 +10,5 @@ test('key search waits for typing to stop; Enter searches now; cache bust', () =
   assert.match(js, /keyTimer = setTimeout\(queue, KEY_SEARCH_WAIT_MS\)/);
   assert.match(js, /event\.key === 'Enter'\) \{ clearTimeout\(keyTimer\); queue\(\); \}/);
   assert.doesNotMatch(js, /keyLabel\.querySelector\('input'\)\.addEventListener\('input', queue\)/);
-  assert.match(fs.readFileSync('canonical-entry.js', 'utf8'), /pdc-vehicle-locations-table\.js\?[^']*&r613=2026\.10\.28\.r613'/);
+  assert.match(fs.readFileSync('canonical-entry.js', 'utf8'), /pdc-vehicle-locations-table\.js\?[^']*&r613=2026\.10\.28\.r613[&']/);
 });

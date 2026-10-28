@@ -1,5 +1,21 @@
 # Reported faults
 
+## Pit list could not be searched and showed on other tiles
+
+Craig, 28 Oct 2026 13:58 AWST. On the PIT tile, typing key 509 jumped to the PMB tile, but the pit list and calendar stayed on screen, unfiltered.
+
+### Cause
+
+The pit panel was drawn for the tile picked before the search (PIT), while the search showed the PMB tile. The panel never read the key or text box. r604 was only tested with no search typed.
+
+### Fix
+
+r618 / F233. Front end only, no SQL. Searching from the PIT tile keeps PIT as the tile and searches the pit list: key number exact (leading zeros ignored), the other box matches stock, job card, vehicle, location or pit line. Filter counts and calendar chips follow the search. Click another tile and the pit list goes; it never shows on any tile but PIT.
+
+### Lesson
+
+Test new panels with a search typed and with every tile, not just the empty view. Before numbering a release, check open branches too: this fix was first numbered r616 / F231, which two other sessions had taken.
+
 ## r598 to r601 went live on the database but never reached the site
 
 Claude, 28 Oct 2026 10:45 AWST, taking over from Grok. The r598 to r601 SQL (place after a running job, cross-bay guard off, clock resume cascade, booking check follows the guard) was applied to staging, but PR #591 with the matching site text, migration files and undo files was never merged. The live planner still said "drag it again and choose OK" and asked for a 1-hour gap that no longer applies.
