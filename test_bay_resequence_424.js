@@ -22,26 +22,27 @@ const push = { ok: false, warning: true, requires_confirmation: true, error: 'la
 const rule = { ok: false, warning: true, requires_confirmation: true, error: 'bay_rule_warning', rules: [{ rule: 'category_bay_mismatch', message: 'Bay 8 is Electrical.' }] };
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
 
-test('a push-back warning lists the moves and a confirmed change is resent with the plan hash', async () => {
+test('a push-back lists the moves and cascades without a question, resending the plan hash', async () => {
   const calls = [];
   const asked = [];
   const result = await workshopConfirmBayRuleWarning(async (name, params) => { calls.push(params); return calls.length === 1 ? push : { ok: true }; },
-    'administrator_move_workshop_booking', { p_booking_id: 'b', p_metadata: { source: 'drag' }, p_request_id: 'r1' }, q => { asked.push(q); return true; });
+    'administrator_move_workshop_booking', { p_booking_id: 'b', p_metadata: { source: 'drag' }, p_request_id: 'r1' }, q => { asked.push(q); return false; });
   assert.equal(result.ok, true);
   assert.equal(calls.length, 2);
-  assert.match(asked[0], /Key 516 · electrical · Bay 8/);
-  assert.match(asked[0], /Key 516 · qa · Bay 7/);
-  assert.match(asked[0], /push them back/);
+  assert.equal(asked.length, 0);
+  assert.match(workshopPushLaterQuestion(push), /Key 516 · electrical · Bay 8/);
+  assert.match(workshopPushLaterQuestion(push), /Key 516 · qa · Bay 7/);
+  assert.match(workshopPushLaterQuestion(push), /push them back/);
   assert.deepEqual(calls[1].p_metadata, { source: 'drag', push_later_confirm: { plan_hash: 'h1' } });
   assert.match(calls[1].p_request_id, UUID);
-  assert.match(workshopPushLaterQuestion(push), /Cancel to leave everything as it is/);
+  assert.match(result.cascade_notice, /Key 516 and 1 later job moved back/);
 });
 
-test('Cancel on a push-back leaves everything as it is; a repeated warning is not asked twice', async () => {
+test('a push-back is not waiting on Cancel, and a repeated warning is not sent again', async () => {
   let n = 0;
-  const cancelled = await workshopConfirmBayRuleWarning(async () => { n += 1; return push; }, 'x', { p_metadata: {} }, () => false);
-  assert.equal(n, 1);
-  assert.equal(cancelled.error, 'later_bookings_not_confirmed');
+  const done = await workshopConfirmBayRuleWarning(async () => { n += 1; return n === 1 ? push : { ok: true }; }, 'x', { p_metadata: {} }, () => false);
+  assert.equal(n, 2);
+  assert.equal(done.ok, true);
   n = 0;
   const again = await workshopConfirmBayRuleWarning(async () => { n += 1; return push; }, 'x', { p_metadata: {} }, () => true);
   assert.equal(n, 2, 'one resend only');
