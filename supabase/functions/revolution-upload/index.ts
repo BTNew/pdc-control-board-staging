@@ -10,7 +10,7 @@ const PRODUCTION = 'vjdtsswhroyguxyfjdkt';
 const STAGING = 'cdsmnqxtyyoeoznmbidd';
 const cors = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, apikey, content-type, x-filename, x-uploader',
+  'Access-Control-Allow-Headers': 'authorization, apikey, content-type, x-client-info, x-filename, x-uploader',
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
 };
 

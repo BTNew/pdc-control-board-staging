@@ -145,8 +145,8 @@ if (typeof window !== 'undefined') (function () {
   async function postFile(file, action) {
     const url = new URL(endpoint());
     url.searchParams.set('action', action);
-    const session = window.PDC_SUPABASE_CONFIG?.session || window.pdcSession;
-    const { form, headers } = revolutionUploadParts(file, session?.access_token);
+    const token = typeof getPdcSupabaseAccessToken === 'function' ? getPdcSupabaseAccessToken() : null;
+    const { form, headers } = revolutionUploadParts(file, token);
     const response = await fetch(url, { method: 'POST', body: form, headers });
     const payload = await response.json();
     if (!response.ok && !payload.md5 && !payload.error) throw new Error('The server did not return a dry run.');
