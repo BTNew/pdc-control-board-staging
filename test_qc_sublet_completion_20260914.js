@@ -52,7 +52,7 @@ function harness(row = fixture()) {
     displayStockNumber: v => v.stock, displayVehicle: v => v.vehicle,
     vehicleCustomerName: v => v.client, vehicleKeyNumber: () => '', pmbStageLabel: stage => stage,
     qcPageOperationPending: new Map(), qcPagePhotoUploadInFlight: new Set(),
-    qcPageRejectInFlight: new Set(), qcPageSignoffInFlight: new Set(),
+    qcPageRejectInFlight: new Set(), qcPageSignoffInFlight: new Set(), qcPageSignoffBlockers: new Map(),
     qcPhotoEvidence: new Map(), qcPageFeedback: new Map(), qcPageNotice: '',
     qcPageOperationMutationChain: Promise.resolve(), qcSelectedVehicleKey: 'fixture',
     capturePdcWriteAuthority: () => ({ actor: 'synthetic-operator' }), pdcWriteAuthorityCurrent: () => true,

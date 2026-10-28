@@ -56,18 +56,12 @@ test('the signed-in departments each get their own tick, labelled for that depar
   c.app.pmbArrivalAck = new Map([[waiting.id, {
     vehicle_id: waiting.id, viewer_pending: true, source: 'location', departments: fittingDepartments(),
   }]]);
-  const row = c.incomingVehicleDetailRow(waiting, 'newpmb', { workshopProjectionAvailable: false });
-  assert.match(row, /Acknowledge for Fitting/);
-  assert.match(row, /Acknowledge for Hoist/);
-  assert.match(row, /Acknowledge for Electrical/);
-  assert.doesNotMatch(row, /Acknowledge for Fabrication/);
-  assert.match(row, /data-pmb-ack-station="FITTING"/);
-  assert.match(row, /data-pmb-ack-station="HOIST"/);
-  assert.match(row, /data-pmb-ack-station="ELECTRICAL"/);
-  assert.doesNotMatch(row, /data-pmb-ack-station="FABRICATION"/);
-  assert.match(row, /pmb-ack-tick/);
+  const row = c.incomingVehicleDetailRow(waiting, 'pmb', { workshopProjectionAvailable: false });
+  assert.doesNotMatch(row, /Acknowledge for /);
+  assert.doesNotMatch(row, /data-pmb-ack-station=/);
+  assert.doesNotMatch(row, /pmb-ack-tick/);
   assert.equal(c.incomingBucketForVehicle(waiting), 'pmb');
-  assert.equal(c.vehicleLocationsDisplayBucket(waiting), 'newpmb');
+  assert.equal(c.vehicleLocationsDisplayBucket(waiting), 'pmb');
 });
 
 test('a keyed tick offers that department’s bays and Best slot, then the vehicle leaves that list', () => {
@@ -96,16 +90,15 @@ test('a keyed tick offers that department’s bays and Best slot, then the vehic
     },
   };
   c.PDC_AUTH_CONTEXT = { role: 'fitter' };
-  const before = c.incomingVehicleDetailRow(waiting, 'newpmb', { workshopProjectionAvailable: false });
-  assert.match(before, /Acknowledge for Fitting/);
+  const before = c.incomingVehicleDetailRow(waiting, 'pmb', { workshopProjectionAvailable: false });
+  assert.doesNotMatch(before, /Acknowledge for Fitting/);
   assert.doesNotMatch(before, /Book into a Fitting bay/);
   return c.acknowledgePmbArrival(c.vehicleKey(waiting), 'FITTING').then(() => {
     const ack = calls.filter(call => call.name === 'acknowledge_pmb_arrival_557');
     assert.equal(ack.length, 1);
     assert.equal(ack[0].args.p_station, 'FITTING');
-    assert.equal(c.vehicleLocationsDisplayBucket(waiting), 'pmb', 'Fitting has ticked, so Fitting no longer sees New to PMB');
-    assert.match(c.pmbArrivalNoteHtml(waiting), /Fitting: Oleg/);
-    assert.match(c.pmbArrivalNoteHtml(waiting), /Fabrication awaiting acknowledgement/);
+    assert.equal(c.vehicleLocationsDisplayBucket(waiting), 'pmb', 'a department tick no longer moves the vehicle off PMB');
+    assert.equal(c.pmbArrivalNoteHtml(waiting), '');
     assert.equal(c.pmbArrivalActionHtml(waiting, c.vehicleKey(waiting)), '');
     const offer = c.pmbArrivalBayBookingHtml(waiting, 'FITTING', 'Fitting');
     assert.match(offer, /Book into a Fitting bay/);
@@ -122,9 +115,9 @@ test('a keyed tick offers that department’s bays and Best slot, then the vehic
         { station: 'FABRICATION', label: 'Fabrication', pending: true, can_acknowledge: true },
       ],
     });
-    assert.equal(c.vehicleLocationsDisplayBucket(waiting), 'newpmb', 'Fabrication has not ticked, so Fabrication still sees it');
+    assert.equal(c.vehicleLocationsDisplayBucket(waiting), 'pmb', 'a remaining department no longer keeps its own New to PMB list');
     const fabrication = c.pmbArrivalActionHtml(waiting, c.vehicleKey(waiting));
-    assert.match(fabrication, /Acknowledge for Fabrication/);
+    assert.equal(fabrication, '');
     assert.doesNotMatch(fabrication, /Acknowledge for Fitting/);
   });
 });
@@ -198,8 +191,8 @@ test('a tick without a key does not offer a bay, and the completing tick stays b
       ],
     });
     const blocked = c.pmbArrivalActionHtml(waiting, c.vehicleKey(waiting));
-    assert.match(blocked, /Acknowledge for Fitting/);
-    assert.match(blocked, /disabled/);
+    assert.equal(blocked, '');
+    assert.doesNotMatch(blocked, /Acknowledge for Fitting/);
     assert.doesNotMatch(blocked, /data-pmb-ack=/);
   });
 });

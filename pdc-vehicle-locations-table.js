@@ -63,7 +63,7 @@
  */
 (function vehicleLocationsTableModule(root) {
   'use strict';
-  const VERSION = '2026.10.27.r566'; // r476 (F89) widths, r475 (F88) Parts ETA column, r481 (F94) search across tiles, r485 (F98) table only, r557 (F171) New to PMB tile, r562 (F176) key-number gate, r563 (F177) arrival age, r566 (F180) planner search boxes (cache-busts this module)
+  const VERSION = '2026.10.28.r593'; // r476 (F89) widths, r475 (F88) Parts ETA column, r481 (F94) search across tiles, r485 (F98) table only, r557 (F171) New to PMB tile, r562 (F176) key-number gate, r563 (F177) arrival age, r566 (F180) planner search boxes, r593 (F207) New to PMB view (cache-busts this module)
   // r485 (F98): the one switch for the hidden Drop-down view. false = Table view only (Craig 22 Oct). true = r481 behaviour.
   const DROPDOWN_VIEW_ENABLED = false;
   const STORAGE_PREFIX = 'pdc.vehicle-locations-view.v1:';
@@ -76,7 +76,7 @@
     transit: ['In transit (IT)', 'To WA / Kewdale', 'transit-it', 'IT'],
     yardhold: ['Yard Hold', 'Release to PMB', 'yardhold', 'YH'],
     nonnavision: ['Non-Navision', 'No Navision updates', 'unconfirmed', 'NON-NAV'],
-    newpmb: ['New to PMB', 'Awaiting acknowledgement', 'newpmb', 'NEW'],
+    newpmb: ['New to PMB', 'Key under 4 days', 'newpmb', 'NEW'],
     pmb: ['PMB', 'Work still active', 'transit', 'PMB'],
     qc: ['QC', 'Awaiting QC sign-off', 'hold', 'QC'],
     pit: ['PIT', 'Dept of Transport', 'production', 'PIT'],
@@ -662,13 +662,20 @@
     const rank = new Map(order.map((key, index) => [key, index]));
     const priorityRows = root.incomingDepartmentPriorityRows(filters);
     const stoppageKeys = new Set(priorityRows.map(row => root.vehicleKey(row.vehicle)));
-    const displayBucket = vehicle => typeof root.vehicleLocationsDisplayBucket === 'function'
-      ? root.vehicleLocationsDisplayBucket(vehicle)
-      : root.incomingBucketForVehicle(vehicle);
-    const entries = filteredRows.map(vehicle => ({ vehicle, bucket: displayBucket(vehicle), key: root.vehicleKey(vehicle) }))
-      .filter(entry => rank.has(entry.bucket) && (!filters.bucket || filters.bucket === entry.bucket));
+    const displayBuckets = vehicle => typeof root.vehicleLocationsDisplayBuckets === 'function'
+      ? root.vehicleLocationsDisplayBuckets(vehicle)
+      : [typeof root.vehicleLocationsDisplayBucket === 'function' ? root.vehicleLocationsDisplayBucket(vehicle) : root.incomingBucketForVehicle(vehicle)];
     const counts = new Map();
-    entries.forEach(entry => counts.set(entry.bucket, (counts.get(entry.bucket) || 0) + 1));
+    filteredRows.forEach(vehicle => {
+      displayBuckets(vehicle).forEach(bucket => {
+        if (!rank.has(bucket)) return;
+        if (bucket === 'newpmb' && typeof root.pmbKeyIsNew === 'function' && !root.pmbKeyIsNew(vehicle)) return;
+        counts.set(bucket, (counts.get(bucket) || 0) + 1);
+      });
+    });
+    const entries = filteredRows.flatMap(vehicle => displayBuckets(vehicle)
+      .filter(bucket => rank.has(bucket) && (!filters.bucket || filters.bucket === bucket))
+      .map(bucket => ({ vehicle, bucket, key: root.vehicleKey(vehicle) })));
     if (state.bucket && !rank.has(state.bucket)) state.bucket = '';
     // r481 (F94): while searching, the tile picked before the search does not hide matches (it comes back on clear).
     const scope = searchScope({ entries, bucket: state.bucket, stoppages: state.stoppages, needle, pick: state.search.pick, order });
@@ -677,6 +684,7 @@
     const cardFor = entry => root.incomingVehicleDetailRow(entry.vehicle, entry.bucket, { workshopPlans, workshopProjectionAvailable, subletNavigation: true });
     const shown = entries
       .filter(entry => (!scope.bucket || entry.bucket === scope.bucket) && (!scope.stoppages || stoppageKeys.has(entry.key)))
+      .filter(entry => scope.bucket || entry.bucket !== 'newpmb' || !entries.some(other => other.key === entry.key && other.bucket === 'pmb'))
       .map(entry => { const card = cardFor(entry); return { ...entry, card, partsLoc: extractPartsLocation(html(splitCard(card).unit)).text }; })
       .sort((a, b) => rank.get(a.bucket) - rank.get(b.bucket)
         || (state.partsSort ? comparePartsLocation(a.partsLoc, b.partsLoc, state.partsSort) : 0)
@@ -699,12 +707,13 @@
       const found = scope.searching && key !== '' && (key === STOPPAGES ? false : scope.found.includes(key));
       const held = scope.searching && !active && scope.held && scope.held === key;
       const hint = found ? ' · contains the search result' : held ? ' · your tile before searching; it comes back when you clear the search' : '';
-      const alerting = key === 'newpmb' && !loading && count > 0 ? ' is-alerting' : '';
+      const holdWaiting = key === 'newpmb' && filteredRows.some(vehicle => typeof root.pmbBodybuilderHoldOpen === 'function' && root.pmbBodybuilderHoldOpen(vehicle));
+      const alerting = holdWaiting && !loading ? ' is-alerting' : '';
       return `<button type="button" class="vlt-tile ${esc(tone)}${alerting}${active ? ' active' : ''}${found ? ' vlt-found' : ''}${held ? ' vlt-held' : ''}" data-vlt-tile="${esc(key)}" aria-pressed="${active}" title="${esc((title || caption) + hint)}"><span>${esc(label)}</span><strong>${loading ? '…' : count}</strong><small>${esc(caption)}</small></button>`;
     };
     const defFor = key => defs.find(def => def.key === key) || {};
     const tilesHtml = `<div class="vlt-tiles" role="toolbar" aria-label="Filter Vehicle Locations by location">${
-      tile('', 'All vehicles', entries.length, 'Every active vehicle', 'all', !scope.bucket && !scope.stoppages, 'Show every vehicle')}${
+      tile('', 'All vehicles', new Set(entries.map(entry => entry.key)).size, 'Every active vehicle', 'all', !scope.bucket && !scope.stoppages, 'Show every vehicle')}${
       order.map(key => tile(key, TILE[key]?.[0] || defFor(key).label || key, counts.get(key) || 0, TILE[key]?.[1] || '', TILE[key]?.[2] || 'unknown', !scope.stoppages && scope.bucket === key, defFor(key).hint)).join('')}${
       tile(STOPPAGES, 'STOPPAGES', priorityRows.length, 'Fix first', 'stoppage', scope.stoppages, 'STOPPAGES / Fix First — the same list as the drop-down view')}</div>`;
     const headingSort = state.partsSort ? {} : sort; // only one column shows as sorted

@@ -75,7 +75,7 @@ test('service reads the stored receipt and accepts it only when the file exists 
 
 test('QC page loads the stored photo, uses it on qc_photo_already_recorded and never shows a stuck pending receipt', () => {
   assert.match(app, /async function qcPageLoadStoredPhoto\(/);
-  assert.match(app, /if \(selected\) void qcPageLoadStoredPhoto\(qcPageVehicleKey\(selected\)\);/);
+  assert.match(app, /if \(selected\) \{\s*void qcPageLoadStoredPhoto\(qcPageVehicleKey\(selected\)\);/);
   assert.match(app, /result\?\.code === 'qc_photo_already_recorded' && await qcPageLoadStoredPhoto\(cleanKey, \{ force: true \}\)/);
   assert.match(app, /qc_photo_already_recorded: 'A completion photo is already stored for this QC/);
   assert.doesNotMatch(app, /Selected image; receipt validation is pending\./);

@@ -48,7 +48,7 @@ test('r566: summary label for the filter bar', () => {
 });
 
 test('r566: table module wires dual search and the shared matcher', () => {
-  assert.equal(table.VERSION, '2026.10.27.r566');
+  assert.equal(table.VERSION, '2026.10.28.r593');
   assert.match(SOURCE, /ensureDualSearchPanel/);
   assert.match(SOURCE, /vehicleMatchesTableFilters/);
   assert.match(SOURCE, /PDC_WORKSHOP_VEHICLE_SEARCH/);
