@@ -6,7 +6,7 @@
 -- (pdc_sublet_line_ticks_439), so the Sublet box on the board ticks off with it.
 -- Who ticks: controllers, administrators and fitters (as on the board), plus any approved login whose email is
 -- listed in pdc_mmt_private.providers (Craig adds the MMT login there). Everyone else with board access reads.
--- Changes to existing objects: one CHECK on pdc_sublet_line_ticks_439.changed_role also allows 'sublet_provider'.
+-- Changes to existing objects: none here (the changed_role CHECK is r642b).
 -- No import function, pin, booking, location or Department 135 object changes. Pin count stays 241.
 -- Kajel rows 9be0883b1a555f48f3c1ba9fa111c891 and apply b62fb7c29ffd2a1629f214f696e5cb14 are not edited.
 -- Undo: supabase/rollbacks/20261028233000_r642_mmt_sublet.down.sql
@@ -46,6 +46,8 @@ CREATE TABLE pdc_mmt_private.providers (
   added_at timestamptz NOT NULL DEFAULT now()
 );
 
+INSERT INTO pdc_mmt_private.providers (email) VALUES ('mmt@neatseat.com.au');
+
 -- Built tick, one per MMT PO line. Complete lives in pdc_sublet_line_ticks_439.
 CREATE TABLE pdc_mmt_private.builds (
   vehicle_id uuid NOT NULL REFERENCES public.vehicles(id) ON DELETE CASCADE,
@@ -82,10 +84,8 @@ ALTER TABLE pdc_mmt_private.builds ENABLE ROW LEVEL SECURITY;
 ALTER TABLE pdc_mmt_private.history ENABLE ROW LEVEL SECURITY;
 REVOKE ALL ON ALL TABLES IN SCHEMA pdc_mmt_private FROM PUBLIC, anon, authenticated;
 
--- The provider's Complete tick is recorded with its own role name on the board's tick.
-ALTER TABLE public.pdc_sublet_line_ticks_439 DROP CONSTRAINT pdc_sublet_line_ticks_439_changed_role_check;
-ALTER TABLE public.pdc_sublet_line_ticks_439 ADD CONSTRAINT pdc_sublet_line_ticks_439_changed_role_check
-  CHECK (changed_role = ANY (ARRAY['operator'::text, 'administrator'::text, 'fitter'::text, 'sublet_provider'::text]));
+-- The CHECK on pdc_sublet_line_ticks_439.changed_role that allows 'sublet_provider' is in r642b
+-- (20261028234500_r642b_mmt_tick_role.sql): a long backup held that table when r642 went on (18:11 AWST).
 
 -- Who is asking: their tick role ('operator' / 'administrator' / 'fitter' / 'sublet_provider'), 'viewer' for read only, or NULL.
 CREATE FUNCTION pdc_mmt_private.actor_role_642()

@@ -50,6 +50,7 @@ test('tab, view, app hooks and migration are wired', () => {
   assert.match(sql, /expected_function_md5\) <> 241/);
   assert.match(sql, /'build_first'/);
   assert.match(sql, /pdc_sublet_line_ticks_439/);
+  assert.match(fs.readFileSync('supabase/migrations/20261028234500_r642b_mmt_tick_role.sql', 'utf8'), /'sublet_provider'/);
   assert.match(sql, /= 'PMB'/);
   assert.ok(fs.existsSync('supabase/rollbacks/20261028233000_r642_mmt_sublet.down.sql'));
 });
