@@ -125,6 +125,10 @@ BEGIN
       SELECT jsonb_agg(jsonb_build_object(
         'vehicle_id', v.id, 'line_key', r.line_key, 'po_number', r.po_number,
         'stock_number', v.stock_number, 'key_number', v.key_number,
+        -- Days at PMG: age from when the vehicle got its key number (r562 key assigned, r563 key time as fallback).
+        'key_at', coalesce(ka.assigned_at, aa.key_at),
+        'days_at_pmg', CASE WHEN coalesce(ka.assigned_at, aa.key_at) IS NULL THEN NULL ELSE
+          ((clock_timestamp() AT TIME ZONE 'Australia/Perth')::date - (coalesce(ka.assigned_at, aa.key_at) AT TIME ZONE 'Australia/Perth')::date) END,
         'customer', v.customer_name,
         'vehicle', coalesce(nullif(btrim(v.vehicle_description), ''), v.model),
         'job_card_number', v.job_card_number,
@@ -137,6 +141,8 @@ BEGIN
       FROM public.pdc_service_line_po_refs_439 r
       JOIN public.vehicles v ON v.id = r.vehicle_id
       LEFT JOIN pdc_mmt_private.builds b ON b.vehicle_id = r.vehicle_id AND b.line_key = r.line_key
+      LEFT JOIN public.pdc_vehicle_key_assigned_562 ka ON ka.vehicle_id = v.id
+      LEFT JOIN public.pdc_vehicle_pmb_arrival_age_563 aa ON aa.vehicle_id = v.id
       LEFT JOIN public.pdc_sublet_line_ticks_439 t ON t.vehicle_id = r.vehicle_id AND t.line_key = r.line_key
       WHERE r.active AND r.description ~* '\m(mmt|malaga)'
         AND v.deleted_at IS NULL AND v.visible_on_board

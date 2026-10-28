@@ -53,3 +53,11 @@ test('tab, view, app hooks and migration are wired', () => {
   assert.match(sql, /= 'PMB'/);
   assert.ok(fs.existsSync('supabase/rollbacks/20261028233000_r642_mmt_sublet.down.sql'));
 });
+
+test('days at PMG badge sits beside the key, from the key number date', () => {
+  const row = mmt.rowHtml({ ...lines[0], days_at_pmg: 9, key_at: '2026-10-19T02:00:00Z' }, true, new Set(), new Map());
+  assert.match(row, /K206<\/span><span class="mmt-days is-mid"[^>]*>9d</);
+  assert.equal(mmt.daysHtml({ days_at_pmg: null }), '');
+  assert.match(mmt.daysHtml({ days_at_pmg: 20 }), /is-old/);
+  assert.match(fs.readFileSync('supabase/migrations/20261028233000_r642_mmt_sublet.sql', 'utf8'), /pdc_vehicle_key_assigned_562/);
+});

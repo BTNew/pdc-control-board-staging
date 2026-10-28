@@ -57,6 +57,13 @@
     return `<label class="mmt-tick${on ? ' is-on' : ''}" title="${esc(title)}"><input type="checkbox" data-mmt-tick="${esc(kind)}" data-mmt-line="${esc(lineId(line))}"${on ? ' checked' : ''}${disabled ? ' disabled' : ''}><span>${kind === 'built' ? 'Built' : 'Complete'}</span></label>`;
   }
 
+  /** Days at PMG: whole days since the vehicle got its key number. */
+  function daysHtml(line) {
+    const n = Number(line?.days_at_pmg);
+    if (line?.days_at_pmg === null || line?.days_at_pmg === undefined || !Number.isFinite(n) || n < 0) return '';
+    const tone = n >= 14 ? ' is-old' : n >= 7 ? ' is-mid' : '';
+    return `<span class="mmt-days${tone}" title="Days at PMG since key number ${esc(ddmm(line.key_at))}">${n}d</span>`;
+  }
   /** One QC-style card: key badge and stock, vehicle, customer, PO and job line, then the two ticks. */
   function rowHtml(line, canTick, pendingSet, errors) {
     const id = lineId(line);
@@ -65,7 +72,7 @@
     const key = String(line.key_number ?? '').trim();
     const pill = line.complete ? '<span class="qc-phone-pill is-ready">Complete</span>' : line.built ? '<span class="qc-phone-pill is-built">Built</span>' : '<span class="qc-phone-pill">To build</span>';
     return `<article class="mmt-card is-${stage(line)}">`
-      + `<div class="mmt-card-top">${key ? `<span class="mmt-key-badge">K${esc(key)}</span>` : ''}<strong>${esc(line.stock_number || '—')}</strong>${pill}</div>`
+      + `<div class="mmt-card-top">${key ? `<span class="mmt-key-badge">K${esc(key)}</span>` : ''}${daysHtml(line)}<strong>${esc(line.stock_number || '—')}</strong>${pill}</div>`
       + `<div class="qc-phone-model">${esc(line.vehicle || 'Vehicle')}</div>`
       + `<div class="qc-phone-muted">${esc(line.customer || 'Customer unavailable')}</div>`
       + `<div class="mmt-card-po"><span>PO</span><strong>${esc(line.po_number || '—')}</strong></div>`
@@ -163,7 +170,7 @@
     });
   }
 
-  const api = { VERSION, FILTERS, stage, filterLines, counts, tickHtml, rowHtml, panelHtml, lineId };
+  const api = { VERSION, FILTERS, daysHtml, stage, filterLines, counts, tickHtml, rowHtml, panelHtml, lineId };
   if (typeof module === 'object' && module.exports) { module.exports = api; return; }
   root.PdcMmtSublet = Object.assign(api, {
     open() { wire(host()); render(); void load(); },

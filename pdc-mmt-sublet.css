@@ -13,6 +13,9 @@
 .mmt-card-top strong { font-size: 24px; letter-spacing: -.6px; overflow-wrap: anywhere; }
 .mmt-card-top .qc-phone-pill { margin-left: auto; }
 .mmt-key-badge { display: inline-block; padding: 3px 9px; border-radius: 8px; background: #172338; color: #fff; font-size: 22px; font-weight: 800; letter-spacing: -.4px; }
+.mmt-days { display: inline-block; padding: 4px 8px; border-radius: 8px; background: #edf3fb; color: #45688f; font-size: 15px; font-weight: 800; }
+.mmt-days.is-mid { background: #fff3dc; color: #8a5a00; }
+.mmt-days.is-old { background: #fde8e8; color: #a61b1b; }
 .qc-phone-pill.is-built { background: #fff3dc; color: #8a5a00; }
 .mmt-card-po { display: flex; align-items: baseline; gap: 8px; margin-top: 10px; padding-top: 12px; border-top: 1px solid #e8edf3; }
 .mmt-card-po span { color: #5c718b; font-size: 12px; font-weight: 700; letter-spacing: .5px; }
