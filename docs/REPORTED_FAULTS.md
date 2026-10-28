@@ -1,5 +1,9 @@
 # Reported faults
 
+## The clock must push, and resume must push
+
+r600 / F214 / sorts 370 and 371. A vehicle's own stoppage does not stop the clock from pushing the other bays. A running overrun steps 15 minutes ahead. A held lock skips that minute. Resume pushes the later planned jobs in that bay. Same-bay overlaps are cleared by the tick in this release. The cross-bay guard stays off. Pin count stays 241.
+
 ## Cross-bay overlap is switched off
 
 Craig, 28 Oct 2026 09:46 AWST. Dropping Key 460 still said the change would overlap a booking in another bay or station, including a booking pushed back, and to keep a 1-hour gap. He asked for that rule to be switched off for now and put back later. r599 / F213 / sort 369. `pdc_ops.workshop_guard_599.cross_bay_vehicle_guard` is false. Drop, resume, cascade push-back and the clock tick do not stop for a same-vehicle overlap in another bay, and they do not add the 1-hour gap. Jobs in the same bay still cannot overlap, and a drop onto a running job still places after it. Turn the column back to true to restore the rule. Staging only. Department 135 is not edited. Pin count stays 241.
