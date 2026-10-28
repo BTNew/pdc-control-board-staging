@@ -1,5 +1,23 @@
 # Reported faults
 
+## Revolution dry run counted every line as a new vehicle
+
+Craig, 28 Oct 2026, on the live Admin > Revolution uploads page. His BT Allocation file was 33 lines, all stock 13136535, quote 43925, dealer 37047. The dry run said new 33 and errors 1. Staging already has those 33 current lines in `pdc_sales_private.sales_accessory_lines`. Service as a Whole always showed archived 0. CW parts showed skipped instead of updated.
+
+The dry run called `dryRun` with the file hash and the clock, and no board. The comparison was against an empty list, so every line was new. The error was the more-than-15 sanity gate counting those lines as vehicles.
+
+### Fix
+
+r602 / F216 / sort 373. r601 / F215 / sort 372 is the cascade validate check, so this took the next free triple. Staging `cdsmnqxtyyoeoznmbidd` only. Production `vjdtsswhroyguxyfjdkt` was not touched. Apply stays off. `previewAllowsApply` stays false. Pin count stays 241. No new pin. Department 135 stays `fd05b9eef69498002ac06dd68e01cdff`. Kajel's rows stay `9be0883b1a555f48f3c1ba9fa111c891` and the apply stays `b62fb7c29ffd2a1629f214f696e5cb14`. Those two functions are not replaced.
+
+`public.pdc_revolution_board_602(text)` is a read-only security-definer snapshot, granted to `service_role` only. Broome deal items read current `sales_accessory_lines` for dealer 37047 (`superseded_receipt_id` is null), the same current line keys Kajel's import keeps. Karratha reads `karratha_sales_accessory_lines` for dealer 14450 the same way. Service as a Whole reads board vehicles and job cards that have a department 138 or 139 operation and no department 135 operation. CW parts reads open Tune jobs on a visible active 138 or 139 vehicle, matched on stock and repair order the way the parts import matches. The upload function loads that snapshot with the service role key and passes it into the dry run.
+
+BT and KTA count distinct stocks. A stock already on the current board is updated when a line key differs and unchanged when every current line key matches. The more-than-15 gate uses those vehicles, not the lines. The summary says so: `0 new, 1 vehicle/33 lines unchanged, errors 0` when the 33 lines are already current, or `0 new, 1 vehicle/33 lines updated, errors 0` when a current line key differs. On staging after the apply, stock 13136535 is one current vehicle with 33 line keys. The snapshot also returned 414 service vehicles, 497 service job cards, and 433 open parts jobs. Ledger `20261028021114` `r602_revolution_board`. The new check ran inside the apply and was green. The full `fault_regression_check` was not run: it renames a bay and a Navision apply may be running.
+
+### Check
+
+`revolution_board_602` (F216, sort 373). It goes red if the snapshot is not stable, if anyone other than the service role can call it, if it writes, if a deal vehicle has no current line keys, if an open parts job is marked closed, or if Kajel's two checksums or department 135 move.
+
 ## Revolution upload said Failed to fetch
 
 Craig, 28 Oct 2026 09:20 AWST, on the live Admin > Revolution uploads page. The browser said FAILED TO FETCH, and `Failed to execute 'fetch' on 'Window': Failed to read the 'headers' property from 'RequestInit': String contains non ISO-8859-1 code point.`

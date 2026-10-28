@@ -1,5 +1,5 @@
 /**
- * Staging-only dry run for a Revolution report upload (r591).
+ * Staging-only dry run for a Revolution report upload (r591, board compare r602).
  * Parses the file in this function. Does not call a model.
  * Does not call the import or apply functions, and does not write a ledger row.
  * Craig has not approved go-live.
@@ -51,12 +51,28 @@ Deno.serve(async (req) => {
   }
 
   const gate = await readGate(projectUrl, parsed.sha256);
-  const result = dryRun(parsed, { knownShas: gate.knownShas, now: new Date() });
+  const board = await readBoard(projectUrl, parsed.kind);
+  if (!board.ok) {
+    return json({
+      ok: false,
+      error: board.error,
+      apply_enabled: false,
+      preview_only: true,
+      go_live: false,
+      logged: false,
+      filename,
+      kind: parsed.kind,
+      uploader,
+      message: 'Craig has not approved go-live. This preview did not write the import tables.',
+    }, action === 'apply' ? 409 : 503);
+  }
+  const result = dryRun(parsed, { knownShas: gate.knownShas, now: new Date(), board: board.board });
   result.duplicate_file = result.duplicate_file || gate.duplicate === true;
   if (result.duplicate_file && !result.errors.some((error) => error.code === 'duplicate_file')) {
     result.errors.push({ code: 'duplicate_file', message: 'This file sha256 is already in the import ledger.' });
     result.ok = false;
     result.counts.errors = result.errors.length;
+    if (result.summary) result.summary = result.summary.replace(/errors \d+$/, `errors ${result.errors.length}`);
   }
   const body = {
     ...result,
@@ -115,6 +131,26 @@ async function readUpload(req: Request, filename: string) {
   const bytes = new Uint8Array(await req.arrayBuffer());
   if (!bytes.length) throw new Error('The upload was empty.');
   return { bytes, filename };
+}
+
+async function readBoard(projectUrl: string, kind: string) {
+  const service = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';
+  if (!service) return { ok: false, error: 'The current board could not be read.' };
+  const response = await fetch(`${projectUrl}/rest/v1/rpc/pdc_revolution_board_602`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${service}`,
+      apikey: service,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ p_kind: kind }),
+  });
+  if (!response.ok) return { ok: false, error: 'The current board could not be read.' };
+  const payload = await response.json();
+  if (!payload || payload.ok !== true || !Array.isArray(payload.vehicles) || !Array.isArray(payload.jobs)) {
+    return { ok: false, error: 'The current board could not be read.' };
+  }
+  return { ok: true, board: { vehicles: payload.vehicles, jobs: payload.jobs } };
 }
 
 async function readGate(projectUrl: string, sha256: string) {
