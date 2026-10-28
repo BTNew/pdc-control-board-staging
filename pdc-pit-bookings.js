@@ -6,12 +6,14 @@
  *   Wangara or Wades. Drag a booked chip to another day to move it.
  * - Vehicle Locations gets a Pit column left of Parts ETA: the date, the place and a day counter.
  *   Ticked Back turns it green with a tick.
+ * r630 (F245): dropping on the calendar opens one box for the time (07:00 to 17:00, half hours; mouse wheel or arrow
+ *   keys) and the place, then saves. One calendar for PMB, Wangara and Wades. Writes go to set_pdc_pit_booking_630.
  * Reads get_pdc_pit_board_604 (board readers). Writes set_pdc_pit_booking_604 (controllers and
  * administrators). Nothing here touches imports, bookings in the planner or vehicle locations.
  */
 (function (root) {
   'use strict';
-  const VERSION = '2026.10.28.r618';
+  const VERSION = '2026.10.28.r630';
   const PROJECT = 'cdsmnqxtyyoeoznmbidd';
   const PLACES = Object.freeze(['PMB', 'Wangara', 'Wades']);
   const DAY_MS = 86400000;
@@ -59,6 +61,17 @@
   // r622 (F237): dd/mm, the same date style as the Parts ETA cell.
   const ddmm = iso => { const d = isoDate(iso); return d ? `${d.slice(8, 10)}/${d.slice(5, 7)}` : ''; };
 
+  // r630 (F245): pit times are half-hour slots. The box offers 07:00 to 17:00.
+  const TIME_SLOTS = Object.freeze(Array.from({ length: 21 }, (_, i) => `${String(7 + Math.floor(i / 2)).padStart(2, '0')}:${i % 2 ? '30' : '00'}`));
+  const hhmm = value => { const m = /^(\d{2}):(\d{2})/.exec(String(value || '')); return m ? `${m[1]}:${m[2]}` : ''; };
+  /** 07:30 -> 7:30am, 13:00 -> 1:00pm. */
+  function timeLabel(value) {
+    const t = hhmm(value);
+    if (!t) return '';
+    const h = Number(t.slice(0, 2));
+    return `${h % 12 || 12}:${t.slice(3)}${h < 12 ? 'am' : 'pm'}`;
+  }
+
   /** The Pit cell for a Vehicle Locations row. A dash unless a pit date is booked. */
   function cellHtml(entry, today) {
     const date = isoDate(entry?.pit_date);
@@ -69,14 +82,14 @@
     const place = PLACES.includes(entry.pit_location) ? entry.pit_location : '';
     if (entry.back) {
       const when = entry.back_at ? ` Ticked back ${String(entry.back_at).slice(0, 10)}.` : '';
-      return `<span class="pdc-pit-chip is-back" data-pdc-pit-cell title="${esc(`Pitted ${shortDate(date)}${place ? ` at ${place}` : ''}.${when}`)}"><span aria-hidden="true">✓</span> ${esc(ddmm(date))}</span>`;
+      return `<span class="pdc-pit-chip is-back" data-pdc-pit-cell title="${esc(`Pitted ${shortDate(date)}${hhmm(entry.pit_time) ? ` ${timeLabel(entry.pit_time)}` : ''}${place ? ` at ${place}` : ''}.${when}`)}"><span aria-hidden="true">✓</span> ${esc(ddmm(date))}</span>`;
     }
     const days = daysUntil(date, today);
     const tone = days === null ? '' : days < 0 ? ' is-over' : days === 0 ? ' is-today' : days <= 2 ? ' is-soon' : '';
     // r622 (F237): the same words as the Parts ETA cell ("14/12 · 9 days"); the place moves to the hover.
     const counter = days === null ? '' : days > 0 ? `${days} day${days === 1 ? '' : 's'}` : days === 0 ? 'today' : `${-days} day${days === -1 ? '' : 's'} overdue`;
     const title = days === null ? '' : days > 0 ? `Pit booked in ${days} day${days === 1 ? '' : 's'}` : days === 0 ? 'Pit booked today' : `Pit date was ${-days} day${days === -1 ? '' : 's'} ago. Not ticked back yet.`;
-    return `<span class="pdc-pit-chip${tone}" data-pdc-pit-cell title="${esc(`${title}.${place ? ` ${place}.` : ''}`)}">${esc(ddmm(date))}${counter ? ` · ${esc(counter)}` : ''}</span>`;
+    return `<span class="pdc-pit-chip${tone}" data-pdc-pit-cell title="${esc(`${title}.${hhmm(entry.pit_time) ? ` ${timeLabel(entry.pit_time)}.` : ''}${place ? ` ${place}.` : ''}`)}">${esc(ddmm(date))}${counter ? ` · ${esc(counter)}` : ''}</span>`;
   }
 
   /** Monday-first weeks covering the month of `monthIso` (YYYY-MM-01). */
@@ -129,7 +142,7 @@
   }
 
   /** The panel above the table on the PIT tile: the list, then the calendar. */
-  function panelHtml(board, { filter = 'open', month = '', place = 'PMB', message = '', search = null } = {}) {
+  function panelHtml(board, { filter = 'open', month = '', message = '', search = null } = {}) {
     const today = board.today;
     const canEdit = board.canEdit;
     const shownMonth = monthStart(month || today);
@@ -143,7 +156,7 @@
       const placeSelect = canEdit && booked
         ? `<select data-pit-place-for="${id}" aria-label="Pit place">${PLACES.map(p => `<option${p === v.pit_location ? ' selected' : ''}>${p}</option>`).join('')}</select>`
         : esc(v.pit_location || '');
-      // r611 (F225): every row has a Done tick. On an unbooked vehicle it books today at the picked place and marks it done.
+      // r611 (F225): every row has a Done tick. r630: on an unbooked vehicle it asks the time and place, books today and marks it done.
       const backBox = `<label class="pdc-pit-back" title="${booked ? 'Pitted and back' : 'Pitted already: books today and marks it done'}"><input type="checkbox" data-pit-back="${id}"${v.back ? ' checked' : ''}${canEdit ? '' : ' disabled'}> Done</label>`;
       const clear = canEdit && booked ? `<button type="button" class="small-button" data-pit-clear="${id}" title="Remove this pit booking">Clear</button>` : '';
       return `<tr class="pdc-pit-row${v.back ? ' is-back' : ''}"${drag}>
@@ -158,13 +171,16 @@
     const byDay = new Map();
     board.vehicles.filter(v => hasKey(v) && searchMatches(v, search)).forEach(v => { const d = isoDate(v.pit_date); if (d) byDay.set(d, [...(byDay.get(d) || []), v]); });
     const cells = monthGrid(shownMonth).map(day => {
-      const chips = (byDay.get(day.iso) || []).map(v => `<span class="pdc-pit-cal-chip pdc-pit-at-${esc(String(v.pit_location || '').toLowerCase())}${v.back ? ' is-back' : ''}"${canEdit ? ` draggable="true" data-pit-drag="${esc(v.vehicle_id)}"` : ''} title="${esc(`${v.stock_number} · ${v.vehicle || ''} · ${v.pit_location}${v.back ? ' · back' : ''}`)}">${v.back ? '✓ ' : ''}${esc(v.key_number ? `K${v.key_number}` : v.stock_number)} · ${esc(v.pit_location || '')}</span>`).join('');
+      // r630 (F245): one calendar for all three places, in time order. Click a chip to change its time or place.
+      const dayList = (byDay.get(day.iso) || []).slice().sort((a, b) => (hhmm(a.pit_time) || '99').localeCompare(hhmm(b.pit_time) || '99'));
+      const chips = dayList.map(v => `<span class="pdc-pit-cal-chip pdc-pit-at-${esc(String(v.pit_location || '').toLowerCase())}${v.back ? ' is-back' : ''}"${canEdit ? ` draggable="true" data-pit-drag="${esc(v.vehicle_id)}" data-pit-edit="${esc(v.vehicle_id)}" role="button" tabindex="0"` : ''} title="${esc(`${v.stock_number} · ${v.vehicle || ''} · ${hhmm(v.pit_time) ? `${timeLabel(v.pit_time)} · ` : ''}${v.pit_location}${v.back ? ' · back' : ''}${canEdit ? ' · click to change' : ''}`)}">${v.back ? '✓ ' : ''}${hhmm(v.pit_time) ? `<b>${esc(hhmm(v.pit_time))}</b> ` : ''}${esc(v.key_number ? `K${v.key_number}` : v.stock_number)} · ${esc(v.pit_location || '')}</span>`).join('');
       const cls = ['pdc-pit-day', day.inMonth ? '' : 'is-out', day.iso === today ? 'is-today' : '', day.iso < today ? 'is-past' : ''].filter(Boolean).join(' ');
       return `<div class="${cls}"${canEdit ? ` data-pit-day="${day.iso}"` : ''}><span class="pdc-pit-daynum">${Number(day.iso.slice(8, 10))}</span>${chips}</div>`;
     }).join('');
 
+    // r630 (F245): no "Drop books at" picker; the box that opens on drop asks the time and place.
     const placePick = canEdit
-      ? `<div class="pdc-pit-place" role="radiogroup" aria-label="Place for new pit bookings"><span>Drop books at</span>${PLACES.map(p => `<button type="button" role="radio" aria-checked="${p === place}" class="${p === place ? 'active' : ''}" data-pit-place="${p}">${p}</button>`).join('')}</div>`
+      ? `<div class="pdc-pit-legend" aria-label="Places">${PLACES.map(p => `<span class="pdc-pit-cal-chip pdc-pit-at-${p.toLowerCase()}">${p}</span>`).join('')}</div>`
       : '<p class="pdc-pit-readonly">View only. Controllers and administrators book pits.</p>';
 
     return `<section class="pdc-pit-panel" data-pdc-pit-panel aria-label="Pit bookings">
@@ -175,8 +191,25 @@
       <div class="pdc-pit-list-wrap"><table class="pdc-pit-list"><thead><tr><th></th><th>Key</th><th>Stock</th><th>Job Card</th><th>Vehicle</th><th>Location</th><th>Pit line</th><th>Pit</th><th>Place</th><th>Done</th><th></th></tr></thead><tbody>${listRows}</tbody></table></div>
       <div class="pdc-pit-cal-head"><button type="button" class="small-button" data-pit-month="-1" aria-label="Previous month">‹</button><h3>${LONG_MONTHS[Number(shownMonth.slice(5, 7)) - 1]} ${shownMonth.slice(0, 4)}</h3><button type="button" class="small-button" data-pit-month="1" aria-label="Next month">›</button><button type="button" class="small-button" data-pit-month="0">Today</button>${placePick}</div>
       <div class="pdc-pit-cal">${WEEKDAYS.map(d => `<div class="pdc-pit-wd">${d}</div>`).join('')}${cells}</div>
-      ${canEdit ? '<p class="pdc-pit-hint">Drag a vehicle from the list onto a day. Drag a booked chip to move it.</p>' : ''}
+      ${canEdit ? '<p class="pdc-pit-hint">Drag a vehicle from the list onto a day, then pick the time and place. Drag a booked chip to move it; click it to change the time or place.</p>' : ''}
     </section>`;
+  }
+
+  /** r630 (F245): the box that opens on drop. Pick a time and a place, then Save. */
+  function dialogHtml({ entry = {}, date = '', time = '', place = '', back = false, booked = false } = {}) {
+    const pickTime = TIME_SLOTS.includes(hhmm(time)) ? hhmm(time) : TIME_SLOTS[0];
+    const pickPlace = PLACES.includes(place) ? place : PLACES[0];
+    const who = [entry.key_number ? `Key ${entry.key_number}` : '', entry.stock_number, entry.vehicle].filter(Boolean).join(' · ');
+    return `<div class="pdc-pit-dlg-back" data-pit-dlg-back><div class="pdc-pit-dlg" role="dialog" aria-modal="true" aria-label="Book pit">
+      <h3>${back ? 'Pitted' : booked ? 'Pit booking' : 'Book pit'} · ${esc(shortDate(date))}</h3>
+      <p class="pdc-pit-dlg-sub">${esc(who)}</p>
+      <label class="pdc-pit-dlg-label" id="pdc-pit-time-label">Time</label>
+      <div class="pdc-pit-times" role="listbox" tabindex="0" aria-labelledby="pdc-pit-time-label" data-pit-times>${TIME_SLOTS.map(t => `<button type="button" role="option" data-pit-time="${t}" aria-selected="${t === pickTime}">${timeLabel(t)}</button>`).join('')}</div>
+      <label class="pdc-pit-dlg-label">Place</label>
+      <div class="pdc-pit-places" role="radiogroup" aria-label="Place">${PLACES.map((p, i) => `<button type="button" role="radio" data-pit-dlg-place="${p}" aria-checked="${p === pickPlace}" title="Key ${i + 1}">${p}</button>`).join('')}</div>
+      <div class="pdc-pit-dlg-actions">${booked ? '<button type="button" class="pdc-pit-dlg-remove" data-pit-dlg-remove>Remove</button>' : ''}<button type="button" data-pit-dlg-cancel>Cancel</button><button type="button" class="pdc-pit-dlg-save" data-pit-dlg-save>Save</button></div>
+      <p class="pdc-pit-dlg-keys">Mouse wheel or ↑ ↓ for the time · 1 2 3 for the place · Enter saves · Esc cancels</p>
+    </div></div>`;
   }
 
   const CSS = `
@@ -198,6 +231,26 @@
 .pdc-pit-place span { font-size: 12px; color: #475569; margin-right: 2px; }
 .pdc-pit-msg { margin: 0; font-size: 12px; color: #9a3412; }
 .pdc-pit-search { margin: 0; font-size: 12px; font-weight: 600; color: #1d4ed8; }
+.pdc-pit-legend { margin-left: auto; display: inline-flex; gap: 4px; }
+.pdc-pit-cal-chip[data-pit-edit] { cursor: pointer; }
+.pdc-pit-dlg-back { position: fixed; inset: 0; background: rgba(15, 23, 42, .35); z-index: 10000; display: flex; align-items: center; justify-content: center; padding: 16px; }
+.pdc-pit-dlg { background: #fff; border-radius: 10px; box-shadow: 0 12px 40px rgba(15, 23, 42, .3); width: min(360px, 100%); padding: 14px 16px; font-size: 13px; color: #0f172a; }
+.pdc-pit-dlg h3 { margin: 0 0 2px; font-size: 16px; }
+.pdc-pit-dlg .pdc-pit-dlg-sub { margin: 0 0 10px; color: #475569; font-size: 12px; }
+.pdc-pit-dlg label.pdc-pit-dlg-label { display: block; font-weight: 600; font-size: 12px; margin: 8px 0 4px; color: #334155; }
+.pdc-pit-times { height: 176px; overflow-y: auto; border: 1px solid #cbd5e1; border-radius: 6px; padding: 3px; outline: none; scroll-snap-type: y proximity; }
+.pdc-pit-times:focus { border-color: #2563eb; box-shadow: 0 0 0 2px #bfdbfe; }
+.pdc-pit-times button { display: block; width: 100%; text-align: left; border: 0; background: none; padding: 5px 10px; border-radius: 4px; font-size: 14px; cursor: pointer; scroll-snap-align: center; }
+.pdc-pit-times button:hover { background: #f1f5f9; }
+.pdc-pit-times button[aria-selected="true"] { background: #1e293b; color: #fff; font-weight: 700; }
+.pdc-pit-places { display: flex; gap: 6px; }
+.pdc-pit-places button { flex: 1; border: 1px solid #cbd5e1; background: #fff; border-radius: 6px; padding: 7px 4px; font-size: 13px; cursor: pointer; }
+.pdc-pit-places button[aria-checked="true"] { background: #1e293b; border-color: #1e293b; color: #fff; font-weight: 700; }
+.pdc-pit-dlg-actions { display: flex; gap: 6px; margin-top: 12px; align-items: center; }
+.pdc-pit-dlg-actions .pdc-pit-dlg-save { margin-left: auto; background: #2563eb; color: #fff; border: 0; border-radius: 6px; padding: 7px 16px; font-weight: 700; cursor: pointer; }
+.pdc-pit-dlg-actions button { border: 1px solid #cbd5e1; background: #fff; border-radius: 6px; padding: 6px 10px; cursor: pointer; }
+.pdc-pit-dlg-actions .pdc-pit-dlg-remove { color: #b91c1c; border-color: #fecaca; }
+.pdc-pit-dlg-keys { margin: 8px 0 0; font-size: 11px; color: #64748b; }
 .pdc-pit-list-wrap { max-height: 300px; overflow: auto; border: 1px solid #e2e8f0; border-radius: 6px; }
 .pdc-pit-list { width: 100%; border-collapse: collapse; font-size: 12px; }
 .pdc-pit-list th { position: sticky; top: 0; background: #f8fafc; text-align: left; font-weight: 600; padding: 4px 6px; border-bottom: 1px solid #e2e8f0; }
@@ -229,7 +282,7 @@
 @media (max-width: 720px) { .pdc-pit-day { min-height: 46px; } .pdc-pit-cal-chip { font-size: 9.5px; } }
 `;
 
-  const api = { VERSION, PLACES, searchActive, searchMatches, daysUntil, counterText, shortDate, indexBoard, cellHtml, monthGrid, shiftMonth, filterVehicles, panelHtml, CSS };
+  const api = { VERSION, PLACES, TIME_SLOTS, timeLabel, dialogHtml, searchActive, searchMatches, daysUntil, counterText, shortDate, indexBoard, cellHtml, monthGrid, shiftMonth, filterVehicles, panelHtml, CSS };
   if (typeof module !== 'undefined') module.exports = api;
   if (typeof window === 'undefined' || window.PDC_SUPABASE_CONFIG?.projectRef !== PROJECT || window.PDC_PIT_BOOKINGS) return;
 
@@ -246,7 +299,7 @@
   let board = indexBoard(null);
   let loaded = false;
   let loading = null;
-  const ui = { filter: 'open', month: '', place: 'PMB', message: '', search: null, host: null };
+  const ui = { filter: 'open', month: '', lastPlace: 'PMB', lastTime: '07:00', message: '', search: null, host: null };
 
   function rerender() { try { if (typeof refreshAllViews === 'function') refreshAllViews(); } catch (_) { /* next render */ } }
   function load() {
@@ -268,15 +321,71 @@
   async function save(vehicleId, changes) {
     const entry = board.byKey.get(vehicleId);
     if (!entry) return;
-    const next = { date: entry.pit_date || null, place: entry.pit_location || null, back: Boolean(entry.back), ...changes };
+    const next = { date: entry.pit_date || null, time: hhmm(entry.pit_time) || null, place: entry.pit_location || null, back: Boolean(entry.back), ...changes };
     try {
-      const result = await rpc('set_pdc_pit_booking_604', { p_vehicle_id: vehicleId, p_pit_date: next.date, p_pit_location: next.date ? next.place : null, p_back: next.date ? next.back : false, p_expected_version: Number(entry.booking_version || 0) });
+      // r630 (F245): the writer that also keeps the time.
+      const result = await rpc('set_pdc_pit_booking_630', { p_vehicle_id: vehicleId, p_pit_date: next.date, p_pit_time: next.date ? (next.time || null) : null, p_pit_location: next.date ? next.place : null, p_back: next.date ? next.back : false, p_expected_version: Number(entry.booking_version || 0) });
       ui.message = result?.ok ? '' : (result?.message || 'The pit booking was not saved.');
     } catch (error) {
       ui.message = `The pit booking was not saved. ${error.message || ''}`.trim();
     }
     await load();
     paintPanel();
+  }
+
+  /** r630 (F245): open the time and place box. Resolves when it closes; onCancel runs if it was not saved. */
+  function openDialog(vehicleId, { date, back = false, onCancel = null } = {}) {
+    const entry = board.byKey.get(vehicleId);
+    if (!entry || !isoDate(date)) return;
+    document.querySelector('[data-pit-dlg-back]')?.remove();
+    const booked = Boolean(isoDate(entry.pit_date));
+    let time = hhmm(entry.pit_time) || ui.lastTime;
+    let place = entry.pit_location || ui.lastPlace;
+    document.body.insertAdjacentHTML('beforeend', dialogHtml({ entry, date, time, place, back, booked }));
+    const wrap = document.querySelector('[data-pit-dlg-back]');
+    const list = wrap.querySelector('[data-pit-times]');
+    const opener = document.activeElement;
+    const show = () => {
+      list.querySelectorAll('[data-pit-time]').forEach(b => b.setAttribute('aria-selected', String(b.dataset.pitTime === time)));
+      wrap.querySelectorAll('[data-pit-dlg-place]').forEach(b => b.setAttribute('aria-checked', String(b.dataset.pitDlgPlace === place)));
+      list.querySelector(`[data-pit-time="${time}"]`)?.scrollIntoView({ block: 'center' });
+    };
+    if (!TIME_SLOTS.includes(time)) time = TIME_SLOTS[0];
+    if (!PLACES.includes(place)) place = PLACES[0];
+    const step = delta => { const i = TIME_SLOTS.indexOf(time); time = TIME_SLOTS[Math.max(0, Math.min(TIME_SLOTS.length - 1, (i < 0 ? 0 : i) + delta))]; show(); };
+    let saved = false;
+    const close = () => { wrap.remove(); document.removeEventListener('keydown', onKey, true); if (!saved && typeof onCancel === 'function') onCancel(); try { opener?.focus?.(); } catch (_) { /* gone */ } };
+    const commit = () => {
+      saved = true; ui.lastTime = time; ui.lastPlace = place; close();
+      save(vehicleId, { date, time, place, back: back || (booked && date === entry.pit_date ? Boolean(entry.back) : false) });
+    };
+    function onKey(event) {
+      if (event.key === 'Escape') { event.preventDefault(); close(); }
+      else if (event.key === 'Enter') { event.preventDefault(); commit(); }
+      else if (event.key === 'ArrowDown' || event.key === 'ArrowUp') { event.preventDefault(); step(event.key === 'ArrowDown' ? 1 : -1); }
+      else if (['1', '2', '3'].includes(event.key)) { event.preventDefault(); place = PLACES[Number(event.key) - 1]; show(); }
+    }
+    document.addEventListener('keydown', onKey, true);
+    // Mouse wheel over the times moves one half hour per notch.
+    let wheelAt = 0;
+    list.addEventListener('wheel', event => {
+      event.preventDefault();
+      const now = Date.now();
+      if (now - wheelAt < 60 && Math.abs(event.deltaY) < 40) return; // trackpads send many small events
+      wheelAt = now;
+      step(event.deltaY > 0 ? 1 : -1);
+    }, { passive: false });
+    list.querySelectorAll('[data-pit-time]').forEach(b => {
+      b.addEventListener('click', () => { time = b.dataset.pitTime; show(); });
+      b.addEventListener('dblclick', () => { time = b.dataset.pitTime; commit(); });
+    });
+    wrap.querySelectorAll('[data-pit-dlg-place]').forEach(b => b.addEventListener('click', () => { place = b.dataset.pitDlgPlace; show(); }));
+    wrap.querySelector('[data-pit-dlg-save]').addEventListener('click', commit);
+    wrap.querySelector('[data-pit-dlg-cancel]').addEventListener('click', close);
+    wrap.querySelector('[data-pit-dlg-remove]')?.addEventListener('click', () => { saved = true; close(); save(vehicleId, { date: null, time: null, place: null, back: false }); });
+    wrap.addEventListener('mousedown', event => { if (event.target === wrap) close(); });
+    show();
+    list.focus();
   }
 
   function bindPanel(panel) {
@@ -287,11 +396,10 @@
       ui.month = delta ? shiftMonth(monthStart(ui.month || board.today), delta) : '';
       paintPanel();
     }));
-    panel.querySelectorAll('[data-pit-place]').forEach(b => b.addEventListener('click', () => { ui.place = b.dataset.pitPlace; paintPanel(); }));
     panel.querySelectorAll('[data-pit-place-for]').forEach(s => s.addEventListener('change', () => save(s.dataset.pitPlaceFor, { place: s.value })));
     panel.querySelectorAll('[data-pit-back]').forEach(c => c.addEventListener('change', () => {
       const entry = board.byKey.get(c.dataset.pitBack);
-      if (c.checked && entry && !isoDate(entry.pit_date)) save(c.dataset.pitBack, { date: board.today, place: ui.place, back: true });
+      if (c.checked && entry && !isoDate(entry.pit_date)) openDialog(c.dataset.pitBack, { date: board.today, back: true, onCancel: () => { c.checked = false; } });
       else save(c.dataset.pitBack, { back: c.checked });
     }));
     panel.querySelectorAll('[data-pit-clear]').forEach(b => b.addEventListener('click', () => save(b.dataset.pitClear, { date: null, place: null, back: false })));
@@ -300,6 +408,11 @@
       event.dataTransfer.setData('text/plain', el.dataset.pitDrag);
       event.dataTransfer.effectAllowed = 'move';
     }));
+    panel.querySelectorAll('[data-pit-edit]').forEach(chip => {
+      const open = () => { const entry = board.byKey.get(chip.dataset.pitEdit); if (entry) openDialog(chip.dataset.pitEdit, { date: entry.pit_date }); };
+      chip.addEventListener('click', open);
+      chip.addEventListener('keydown', event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); open(); } });
+    });
     panel.querySelectorAll('[data-pit-day]').forEach(day => {
       day.addEventListener('dragover', event => { if (event.dataTransfer.types.includes('application/x-pdc-pit-vehicle')) { event.preventDefault(); day.classList.add('is-drop'); } });
       day.addEventListener('dragleave', () => day.classList.remove('is-drop'));
@@ -309,8 +422,8 @@
         const vid = event.dataTransfer.getData('application/x-pdc-pit-vehicle');
         const entry = board.byKey.get(vid);
         if (!entry) return;
-        // A booked vehicle keeps its place when moved; a new booking takes the place picked above.
-        save(vid, { date: day.dataset.pitDay, place: entry.pit_location || ui.place, back: false });
+        // r630 (F245): ask the time and place, then save. A moved booking starts on its own time and place.
+        openDialog(vid, { date: day.dataset.pitDay });
       });
     });
   }

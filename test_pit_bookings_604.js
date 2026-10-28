@@ -74,7 +74,9 @@ test('panel: list rows drag, booked chips sit on their day, places are PMB / Wan
   assert.match(html, /data-pdc-pit-panel/);
   assert.equal((html.match(/<tr class="pdc-pit-row/g) || []).length, 4);
   assert.match(html, /data-pit-day="2026-10-31"[^>]*>[\s\S]*?K360 · Wangara/);
-  assert.match(html, /data-pit-place="Wades"[^>]*>Wades|aria-checked="true" class="active" data-pit-place="Wades"/);
+  // r630 (F245): the "Drop books at" picker is gone; the drop box asks the place. The legend still shows all three.
+  assert.doesNotMatch(html, /data-pit-place="/);
+  assert.match(html, /pdc-pit-legend[\s\S]*PMB[\s\S]*Wangara[\s\S]*Wades/);
   assert.deepEqual([...pit.PLACES], ['PMB', 'Wangara', 'Wades']);
   assert.match(html, /data-pit-back="d4" checked/);
   assert.match(html, /data-pit-back="a1"/, 'r611 (F225): unbooked vehicles have a Done tick too');
