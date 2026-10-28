@@ -421,8 +421,9 @@ function pdcWorkDestination(vehicle = {}, def = {}) {
   if (!stage || !WORKSHOP_PLANNER_ROUTE_BY_STAGE[stage]) return null;
   const canonicalId = vehicleWorkshopDetailCanonicalId(vehicle);
   const state = canonicalId ? app?.vehicleWorkshopDetailCache?.get(canonicalId) : null;
+  // r661 (F271): a queued job has no bay, so the pill says Not booked.
   const bookings = vehicleWorkshopBookingsForStage(state?.status === 'ready' ? state.detail?.bookings : [], stage)
-    .filter(booking => !['completed', 'deleted', 'cancelled'].includes(cleanNavisionText(booking.status).toLowerCase()));
+    .filter(booking => !['completed', 'deleted', 'cancelled', 'queued'].includes(cleanNavisionText(booking.status).toLowerCase()));
   const booking = bookings[0];
   if (!booking) return null;
   const dateKey = vehicleWorkshopBookingDateKey(booking);

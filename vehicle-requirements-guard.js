@@ -5,7 +5,8 @@ const REQUIREMENT_KEYS = Object.freeze([
   'tyre', 'pitInspection', 'sublet', 'parts',
 ]);
 
-const ACTIVE_BOOKING_STATUSES = new Set(['queued', 'planned', 'started']);
+// r661 (F271): only a job placed in a bay counts as booked (orange !). Queued jobs never have a bay, so they stay a red dot.
+const ACTIVE_BOOKING_STATUSES = new Set(['planned', 'started']);
 const STOPPAGE_BOOKING_STATUS = 'stoppage';
 
 const WORKSHOP_STAGE_BY_WORK_KEY = Object.freeze({

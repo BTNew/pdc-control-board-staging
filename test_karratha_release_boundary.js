@@ -55,6 +55,8 @@ test('all frozen native files outside declared boundary adaptations retain origi
     // r572: open 138/139 job cards stack on every PMG board view (F186). Department 135 keeps these frozen copies.
     else if (item.file === 'pdc-stacked-jobcards.js') assert.equal(sha(Buffer.from(native.toString('utf8').replace(/\r\n/g,'\n'))), item.baseline_sha256, item.file);
     else if (item.file === 'pdc-stacked-jobcards.css') assert.equal(sha(Buffer.from(native.toString('utf8').replace(/\r\n/g,'\n'))), 'aa7e9bcc40a8a86b18fd0f91023de0b82fea03c7106e70fcbe550c30d3f5b0c3', item.file);
+    // r661: only a job placed in a bay shows as booked on the PMG station icons (F271). Department 135 keeps its frozen copy.
+    else if (item.file === 'vehicle-requirements-guard.js') assert.equal(sha(Buffer.from(native.toString('utf8').replace(/\r\n/g,'\n'))), item.baseline_sha256, item.file);
     else assert.deepEqual(native,fs.readFileSync(path.join(original,item.file)),item.file);
   }
 });
@@ -305,7 +307,8 @@ const approvedRootImportPatch = Object.freeze({
   // r590: the QC sign-off button stays visible and names what is still outstanding (F204). Department 135 keeps its frozen app.js.
   // r593: a recent key is listed in New to PMB and stays in the PMB bucket. No department tick (F207). Department 135 keeps its frozen app.js.
   // r591: Admin > Revolution uploads is administrators only (F205). Department 135 is not tagged.
-  "app.js": "17e7e9874f04d1b43a6ffbab6e167cc97c2205d95552578c247ed437f92e5784",
+  "app.js": "091c1b2b75c3f9419b31384cb4932827920b7246f74088a04f625679bc02c1fc",
+  "vehicle-requirements-guard.js": "7462e178c839df0ce1bd2509b838dab61fd739172f20fd0c34a419e011052658",
   // r464: a booking that runs past the day divider is one bar (joined per-day pieces, display only; F77). The Karratha copy stays frozen.
   // r465: overview bar labels show Key · JC and the customer only (Stock and the vehicle description stay in the hover title); the customer span is classed for the Running layout (F78).
   // r467: Day / Week / Month zoom on the overview timeline (display only; F80).
@@ -455,7 +458,7 @@ const approvedRootImportPatch = Object.freeze({
   // r604: index.html adds r604=2026.10.28.r604 on canonical-entry.js (pit bookings, F218). Department 135 is not tagged.
   // r616: pdc-auth.js, pdc-bay-manager.js and canonical-entry.js carry r616=2026.10.28.r616 (fitter sessions send only Fitters bay requests, F231). Department 135 is not tagged.
   // r642: Sublet · MMT nav and view, pdc-mmt-sublet.css/js, r642 on app.js and pdc-staff-usage.js (F257). Department 135 is not tagged.
-  "index.html": "43f2e64e85a0f0b1d0179b29e4567799ce2155614dd3490e60e6babf3e004aab",
+  "index.html": "f3cdfdfa24083e35518bb9255ad0e0a4ff028941cd24fbc1ddd9dc79f9d72898",
   "pdc-conversions.js": "0a99e7a5306f15e434b293a3ca9a318ffad4b78eb814c27144d75ff98821d810",
   // r401: Pit tick and read RPCs (set_pdc_pit_line_tick_401, get_pdc_pit_line_ticks_401).
   // r414: readQcPhotoReceipt (get_pdc_qc_photo_receipt_414) for the QC page (F30).
