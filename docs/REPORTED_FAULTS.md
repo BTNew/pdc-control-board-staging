@@ -389,3 +389,15 @@ Only `planned` or `started` (a job placed in a bay) is booked, orange !. Queued 
 ### How to re-test
 
 Open 13047149 on the PMB board. Hoist shows orange !, Fitting, Electrical, Tint and Tyre show red dots.
+
+## F281: PMB keys not checked (r672)
+
+Reported by Craig, 28 Oct 2026 20:27 AWST: if any vehicle in the PMB bucket has key 0, no key or a duplicate key, flash the PMB bucket red.
+
+### Fix
+
+The PMB tile on Vehicle Locations flashes red and reads "Check N keys". Hover lists the stocks: no key, key 0, and each duplicate key with its stocks.
+
+### How to re-test
+
+Vehicle Locations: clear a PMB vehicle's key (or give two PMB vehicles the same key). PMB tile flashes red. Fix the key and it stops.

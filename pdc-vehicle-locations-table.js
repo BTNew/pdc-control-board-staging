@@ -365,7 +365,22 @@
     try { storage?.setItem(storageKey(userId), view === VIEWS.table ? VIEWS.table : VIEWS.dropdown); return true; } catch (_) { return false; }
   }
 
-  const api = { VERSION, VIEWS, DROPDOWN_VIEW_ENABLED, JOURNEY, TILE, STORAGE_PREFIX, topLevelElements, splitCard, tableRowHtml, journeyOrder, storageKey, readView, writeView,
+  // r672 (F281): PMB key check. Any PMB vehicle with no key, key 0 or a key shared with another PMB vehicle flashes the PMB tile red.
+  function pmbKeyAlert(items) {
+    const missing = [], zero = [], byKey = new Map();
+    for (const { key, stock } of items || []) {
+      const k = String(key ?? '').replace(/\s+/g, '').toUpperCase();
+      if (!k) missing.push(stock);
+      else if (/^0+$/.test(k)) zero.push(stock);
+      else byKey.set(k, [...(byKey.get(k) || []), stock]);
+    }
+    const dups = [...byKey].filter(([, stocks]) => stocks.length > 1).map(([key, stocks]) => ({ key, stocks }));
+    const parts = [missing.length && `no key: ${missing.join(', ')}`, zero.length && `key 0: ${zero.join(', ')}`,
+      ...dups.map(d => `key ${d.key} on ${d.stocks.join(', ')}`)].filter(Boolean);
+    return { alert: parts.length > 0, count: missing.length + zero.length + dups.reduce((n, d) => n + d.stocks.length, 0), missing, zero, dups, text: parts.join(' · ') };
+  }
+
+  const api = { VERSION, VIEWS, pmbKeyAlert, DROPDOWN_VIEW_ENABLED, JOURNEY, TILE, STORAGE_PREFIX, topLevelElements, splitCard, tableRowHtml, journeyOrder, storageKey, readView, writeView,
     STOPPAGES, searchScope, departmentElsewhere, locationSearchSummaryLabel, COLUMNS, COLUMN_MAX, COLUMN_STORAGE_PREFIX, SEL_WIDTH, extractPartsLocation, extractPartsEta, comparePartsLocation, columnStorageKey, sanitizeWidths, readWidths, writeWidths, resetWidths, widthStyle, layoutWidths };
   if (typeof module === 'object' && module.exports) module.exports = api;
   if (!root || !root.document || typeof root.renderIncomingDashboardBoard !== 'function' || root.PDC_VEHICLE_LOCATIONS_TABLE) {
@@ -387,7 +402,7 @@
     if (doc.querySelector('link[data-pdc-vehicle-locations-table]')) return;
     const link = doc.createElement('link');
     link.rel = 'stylesheet';
-    link.href = `pdc-vehicle-locations-table.css?vehicle-locations-table=${VERSION}&r622=2026.10.28.r622`; // r622 (F237): new Parts ETA and Pit cell styles
+    link.href = `pdc-vehicle-locations-table.css?vehicle-locations-table=${VERSION}&r622=2026.10.28.r622&r672=2026.10.28.r672`; // r672 (F281) red PMB key alert; r622 (F237): new Parts ETA and Pit cell styles
     link.dataset.pdcVehicleLocationsTable = '1';
     doc.head.appendChild(link);
   }
@@ -723,8 +738,13 @@
       const hint = found ? ' · contains the search result' : held ? ' · your tile before searching; it comes back when you clear the search' : '';
       const holdWaiting = key === 'newpmb' && filteredRows.some(vehicle => typeof root.pmbBodybuilderHoldOpen === 'function' && root.pmbBodybuilderHoldOpen(vehicle));
       const alerting = holdWaiting && !loading ? ' is-alerting' : '';
-      return `<button type="button" class="vlt-tile ${esc(tone)}${alerting}${active ? ' active' : ''}${found ? ' vlt-found' : ''}${held ? ' vlt-held' : ''}" data-vlt-tile="${esc(key)}" aria-pressed="${active}" title="${esc((title || caption) + hint)}"><span>${esc(label)}</span><strong>${loading ? '…' : count}</strong><small>${esc(caption)}</small></button>`;
+      const keyAlert = key === 'pmb' && !loading && pmbKeys.alert ? ' is-key-alert' : '';
+      const keyHint = keyAlert ? ` · CHECK KEYS: ${pmbKeys.text}` : '';
+      return `<button type="button" class="vlt-tile ${esc(tone)}${alerting}${keyAlert}${active ? ' active' : ''}${found ? ' vlt-found' : ''}${held ? ' vlt-held' : ''}" data-vlt-tile="${esc(key)}" aria-pressed="${active}" title="${esc((title || caption) + hint + keyHint)}"><span>${esc(label)}</span><strong>${loading ? '…' : count}</strong><small>${esc(keyAlert ? `Check ${pmbKeys.count} key${pmbKeys.count === 1 ? '' : 's'}` : caption)}</small></button>`;
     };
+    const keyCell = vehicle => { try { return (root.vehicleIdentityCells(vehicle) || []).find(cell => cell?.label === 'Key')?.value ?? ''; } catch (_) { return root.vehicleKeyNumber?.(vehicle) || ''; } };
+    const stockOf = vehicle => String((typeof root.displayStockNumber === 'function' && root.displayStockNumber(vehicle)) || vehicle.stockNumber || vehicle.stockNo || vehicle.stock_number || vehicle.stock || root.vehicleKey(vehicle) || '').trim();
+    const pmbKeys = pmbKeyAlert(rows.filter(vehicle => displayBuckets(vehicle).includes('pmb')).map(vehicle => ({ key: keyCell(vehicle), stock: stockOf(vehicle) })));
     const defFor = key => defs.find(def => def.key === key) || {};
     const tilesHtml = `<div class="vlt-tiles" role="toolbar" aria-label="Filter Vehicle Locations by location">${
       tile('', 'All vehicles', new Set(entries.map(entry => entry.key)).size, 'Every active vehicle', 'all', !scope.bucket && !scope.stoppages, 'Show every vehicle')}${
