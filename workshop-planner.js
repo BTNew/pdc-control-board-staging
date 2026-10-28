@@ -1396,8 +1396,9 @@ function workshopDescribeSharedActionError(result) {
     // its own vehicle's next booking, the server names both; say so plainly instead of blaming the dropped vehicle.
     const pushed = typeof workshopPushedBookingLabel === 'function' ? workshopPushedBookingLabel(result) : '';
     if (pushed && detail) return `Booking here would push ${pushed} back onto its own booking (${detail}). No changes were saved. Drop this vehicle after that job, use Best slot, or move the affected booking first.`;
-    if (detail) return `This move conflicts with ${detail}. No conflicting bookings were saved. Keep at least 1 hour between this vehicle’s bookings. Use Best slot or move the affected later booking.`;
-    return 'This change would overlap a vehicle’s booking in another bay or station, including any booking pushed back by the change. No conflicting bookings were saved. Use Best slot to find a time with the 1-hour buffer, or move the affected later booking.';
+    // r599 (F213): Craig switched the cross-bay overlap and the 1-hour gap off. Same-bay overlap still stops a drop.
+    if (detail) return `This vehicle is also booked then (${detail}). The cross-bay overlap rule is switched off. Refresh and drag it again.`;
+    return 'This vehicle is also booked in another bay then. The cross-bay overlap rule is switched off. Refresh and drag it again.';
   }
   if (error === 'sublet_away') {
     return 'This vehicle is away on Sublet on that date. Record its actual return or choose a date after it is back.';
