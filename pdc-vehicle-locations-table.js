@@ -63,6 +63,7 @@
  */
 (function vehicleLocationsTableModule(root) {
   'use strict';
+  const KEY_SEARCH_WAIT_MS = 700; // r613 (F228)
   const VERSION = '2026.10.28.r593'; // r476 (F89) widths, r475 (F88) Parts ETA column, r481 (F94) search across tiles, r485 (F98) table only, r557 (F171) New to PMB tile, r562 (F176) key-number gate, r563 (F177) arrival age, r566 (F180) planner search boxes, r593 (F207) New to PMB view (cache-busts this module)
   // r485 (F98): the one switch for the hidden Drop-down view. false = Table view only (Craig 22 Oct). true = r481 behaviour.
   const DROPDOWN_VIEW_ENABLED = false;
@@ -465,7 +466,11 @@
       panel.prepend(keyLabel, textLabel, legacy);
     }
     const queue = () => { if (typeof root.queueIncomingDashboardRender === 'function') root.queueIncomingDashboardRender(); else root.renderIncomingDashboardBoard(); };
-    keyLabel.querySelector('input').addEventListener('input', queue);
+    // r613 (F228): wait until typing stops before searching the key number, so 432 is not opened as 4. Enter searches now.
+    let keyTimer = 0;
+    const keyInput = keyLabel.querySelector('input');
+    keyInput.addEventListener('input', () => { clearTimeout(keyTimer); keyTimer = setTimeout(queue, KEY_SEARCH_WAIT_MS); });
+    keyInput.addEventListener('keydown', event => { if (event.key === 'Enter') { clearTimeout(keyTimer); queue(); } });
     textLabel.querySelector('input').addEventListener('input', queue);
     const clear = doc.getElementById('incoming-clear-filters');
     if (clear && !clear.dataset.vltDualSearchClear) {

@@ -216,7 +216,7 @@ const approvedRootImportPatch = Object.freeze({
   // r573: the same loader adds r573=2026.10.27.r573 (Place as STOPPAGE, F187). Department 135 is not tagged.
   // r595: the loader adds r595=2026.10.28.r595 on pdc-parts-stoppage.js. The slide-out keeps vehicle-slideout=2026.10.28.r588 and adds r595=2026.10.28.r595 (Parts ETA is set in the side panel; F209). Department 135 is not tagged.
   // r604: canonical-entry.js loads pdc-pit-bookings.js beside the table and tags the table r604 (Pit column, F218). Department 135 is not tagged.
-  "canonical-entry.js": "5eb8362675272e4b0a054739ec84ac1b7b6f2eff27af94e5e8e10787639d5960",
+  "canonical-entry.js": "a33f9ddcc515d8b47a1a0b2d7052e915500117f00c40821f1f40385057ff4058",
   "pdc-workshop-vehicle-search.js": "d0be4a60c5ca2213ba71d4cd31cb7019736db3d7e0470d22b3fa88243e56eb4c",
   // Owner-authorised PMG fitter read recovery, 13 October 2026.
   // Coaster and HiAce conversions: one Start / Done tick per section in a
@@ -301,7 +301,7 @@ const approvedRootImportPatch = Object.freeze({
   // r590: the QC sign-off button stays visible and names what is still outstanding (F204). Department 135 keeps its frozen app.js.
   // r593: a recent key is listed in New to PMB and stays in the PMB bucket. No department tick (F207). Department 135 keeps its frozen app.js.
   // r591: Admin > Revolution uploads is administrators only (F205). Department 135 is not tagged.
-  "app.js": "9d7f1dd765f3f9ffb6418a6775705396afee8f63a9242685ce65be89c0f347d0",
+  "app.js": "bfbc3759e73f2449a44493166a6abce91a6c98c445659f8f7fea58611175afbf",
   // r464: a booking that runs past the day divider is one bar (joined per-day pieces, display only; F77). The Karratha copy stays frozen.
   // r465: overview bar labels show Key · JC and the customer only (Stock and the vehicle description stay in the hover title); the customer span is classed for the Running layout (F78).
   // r467: Day / Week / Month zoom on the overview timeline (display only; F80).
@@ -449,7 +449,7 @@ const approvedRootImportPatch = Object.freeze({
   // r602: index.html cache-busts pdc-revolution-upload.js so the dry run compares the current board (F216). Department 135 is not tagged.
   // r601: index.html adds r601=2026.10.28.r601 on app.js (cascade text, cross-bay guard off, F212 to F215). Department 135 is not tagged.
   // r604: index.html adds r604=2026.10.28.r604 on canonical-entry.js (pit bookings, F218). Department 135 is not tagged.
-  "index.html": "0dccdfe10d7e4af7acc76642d10d32a2ca72165058bce045280fc144a162e874",
+  "index.html": "f10a2fdf0fb790bea311ddd684fce493fb05e8468bc972f1494933d15953d38a",
   "pdc-conversions.js": "0a99e7a5306f15e434b293a3ca9a318ffad4b78eb814c27144d75ff98821d810",
   // r401: Pit tick and read RPCs (set_pdc_pit_line_tick_401, get_pdc_pit_line_ticks_401).
   // r414: readQcPhotoReceipt (get_pdc_qc_photo_receipt_414) for the QC page (F30).
