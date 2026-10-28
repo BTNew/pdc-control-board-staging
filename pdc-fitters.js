@@ -610,7 +610,7 @@
     const panel=stopOpen&&stopFrom===line.line_identity?stopPanelHtml():'';
     // r493: a section bar pauses (amber) whenever the job clock is not counting, as bay items already did.
     if(line.conversion) return conversionTicksHtml(line, index, {editable, disabled, booking:selected, paused:detail?.status!=='started'||clock.tone!=='running', noteDrafts:conversionNotes, open:!conversionClosed.has(`${selected}|${line.line_identity}`), pauseControl, pauseDisabled})+panel;
-    return fitterLineCardHtml(line, index, {editable, disabled, note, open: !!draft, paused: clock.tone!=='running', jobSeconds: Number.isFinite(clock.seconds)?clock.seconds:NaN, pauseControl, pauseDisabled, handoffTargets: detail?.handoff_targets, stageCode: detail?.stage_code})+panel;
+    return fitterLineCardHtml(line, index, {editable, disabled, note, open: !!draft, paused: clock.tone!=='running', jobSeconds: Number.isFinite(clock.seconds)?clock.seconds:NaN, pauseControl, pauseDisabled, stageCode: detail?.stage_code})+panel; // r678 (F288): no "Send this line" / move-to-bay picker on the iPad; Later is the only way to leave an item
   }
   // r493: started items show amber Paused while the job clock is held
   // (stoppage, break, closure or end of day, waiting allocation).
