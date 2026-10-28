@@ -11,7 +11,7 @@
  */
 (function (root) {
   'use strict';
-  const VERSION = '2026.10.28.r604';
+  const VERSION = '2026.10.28.r611';
   const PROJECT = 'cdsmnqxtyyoeoznmbidd';
   const PLACES = Object.freeze(['PMB', 'Wangara', 'Wades']);
   const DAY_MS = 86400000;
@@ -92,9 +92,12 @@
     return toIso(Date.UTC(y + Math.floor(m / 12), ((m % 12) + 12) % 12, 1));
   }
 
-  const FILTERS = Object.freeze({ open: 'Not booked', booked: 'Booked', back: 'Back', all: 'All' });
+  const FILTERS = Object.freeze({ open: 'Not booked', booked: 'Booked', back: 'Done', all: 'All' });
+  // r611 (F225): only vehicles with a key number are listed (no key means not physically here yet).
+  const hasKey = v => String(v?.key_number ?? '').trim() !== '' && String(v.key_number).trim() !== '0';
   function filterVehicles(vehicles, filter) {
     return vehicles.filter(v => {
+      if (!hasKey(v)) return false;
       const booked = Boolean(isoDate(v.pit_date));
       if (filter === 'open') return v.needs_pit && !booked;
       if (filter === 'booked') return booked && !v.back;
@@ -117,9 +120,8 @@
       const placeSelect = canEdit && booked
         ? `<select data-pit-place-for="${id}" aria-label="Pit place">${PLACES.map(p => `<option${p === v.pit_location ? ' selected' : ''}>${p}</option>`).join('')}</select>`
         : esc(v.pit_location || '');
-      const backBox = booked
-        ? `<label class="pdc-pit-back"><input type="checkbox" data-pit-back="${id}"${v.back ? ' checked' : ''}${canEdit ? '' : ' disabled'}> Back</label>`
-        : '';
+      // r611 (F225): every row has a Done tick. On an unbooked vehicle it books today at the picked place and marks it done.
+      const backBox = `<label class="pdc-pit-back" title="${booked ? 'Pitted and back' : 'Pitted already: books today and marks it done'}"><input type="checkbox" data-pit-back="${id}"${v.back ? ' checked' : ''}${canEdit ? '' : ' disabled'}> Done</label>`;
       const clear = canEdit && booked ? `<button type="button" class="small-button" data-pit-clear="${id}" title="Remove this pit booking">Clear</button>` : '';
       return `<tr class="pdc-pit-row${v.back ? ' is-back' : ''}"${drag}>
         <td class="pdc-pit-grip">${canEdit ? '<span aria-hidden="true">⠿</span>' : ''}</td>
@@ -131,7 +133,7 @@
     }).join('') || `<tr><td colspan="11" class="pdc-pit-empty">No vehicles under ${esc(FILTERS[filter] || 'this filter')}.</td></tr>`;
 
     const byDay = new Map();
-    board.vehicles.forEach(v => { const d = isoDate(v.pit_date); if (d) byDay.set(d, [...(byDay.get(d) || []), v]); });
+    board.vehicles.filter(hasKey).forEach(v => { const d = isoDate(v.pit_date); if (d) byDay.set(d, [...(byDay.get(d) || []), v]); });
     const cells = monthGrid(shownMonth).map(day => {
       const chips = (byDay.get(day.iso) || []).map(v => `<span class="pdc-pit-cal-chip pdc-pit-at-${esc(String(v.pit_location || '').toLowerCase())}${v.back ? ' is-back' : ''}"${canEdit ? ` draggable="true" data-pit-drag="${esc(v.vehicle_id)}"` : ''} title="${esc(`${v.stock_number} · ${v.vehicle || ''} · ${v.pit_location}${v.back ? ' · back' : ''}`)}">${v.back ? '✓ ' : ''}${esc(v.key_number ? `K${v.key_number}` : v.stock_number)} · ${esc(v.pit_location || '')}</span>`).join('');
       const cls = ['pdc-pit-day', day.inMonth ? '' : 'is-out', day.iso === today ? 'is-today' : '', day.iso < today ? 'is-past' : ''].filter(Boolean).join(' ');
@@ -146,7 +148,7 @@
       <div class="pdc-pit-head"><h2>Vehicles that need pitting</h2>
         <div class="pdc-pit-filters" role="toolbar">${Object.entries(FILTERS).map(([key, label]) => `<button type="button" class="${key === filter ? 'active' : ''}" data-pit-filter="${key}">${label} <b>${counts[key]}</b></button>`).join('')}</div>
         ${message ? `<p class="pdc-pit-msg" role="status">${esc(message)}</p>` : ''}</div>
-      <div class="pdc-pit-list-wrap"><table class="pdc-pit-list"><thead><tr><th></th><th>Key</th><th>Stock</th><th>Job Card</th><th>Vehicle</th><th>Location</th><th>Pit line</th><th>Pit</th><th>Place</th><th></th><th></th></tr></thead><tbody>${listRows}</tbody></table></div>
+      <div class="pdc-pit-list-wrap"><table class="pdc-pit-list"><thead><tr><th></th><th>Key</th><th>Stock</th><th>Job Card</th><th>Vehicle</th><th>Location</th><th>Pit line</th><th>Pit</th><th>Place</th><th>Done</th><th></th></tr></thead><tbody>${listRows}</tbody></table></div>
       <div class="pdc-pit-cal-head"><button type="button" class="small-button" data-pit-month="-1" aria-label="Previous month">‹</button><h3>${LONG_MONTHS[Number(shownMonth.slice(5, 7)) - 1]} ${shownMonth.slice(0, 4)}</h3><button type="button" class="small-button" data-pit-month="1" aria-label="Next month">›</button><button type="button" class="small-button" data-pit-month="0">Today</button>${placePick}</div>
       <div class="pdc-pit-cal">${WEEKDAYS.map(d => `<div class="pdc-pit-wd">${d}</div>`).join('')}${cells}</div>
       ${canEdit ? '<p class="pdc-pit-hint">Drag a vehicle from the list onto a day. Drag a booked chip to move it.</p>' : ''}
@@ -260,7 +262,11 @@
     }));
     panel.querySelectorAll('[data-pit-place]').forEach(b => b.addEventListener('click', () => { ui.place = b.dataset.pitPlace; paintPanel(); }));
     panel.querySelectorAll('[data-pit-place-for]').forEach(s => s.addEventListener('change', () => save(s.dataset.pitPlaceFor, { place: s.value })));
-    panel.querySelectorAll('[data-pit-back]').forEach(c => c.addEventListener('change', () => save(c.dataset.pitBack, { back: c.checked })));
+    panel.querySelectorAll('[data-pit-back]').forEach(c => c.addEventListener('change', () => {
+      const entry = board.byKey.get(c.dataset.pitBack);
+      if (c.checked && entry && !isoDate(entry.pit_date)) save(c.dataset.pitBack, { date: board.today, place: ui.place, back: true });
+      else save(c.dataset.pitBack, { back: c.checked });
+    }));
     panel.querySelectorAll('[data-pit-clear]').forEach(b => b.addEventListener('click', () => save(b.dataset.pitClear, { date: null, place: null, back: false })));
     panel.querySelectorAll('[data-pit-drag]').forEach(el => el.addEventListener('dragstart', event => {
       event.dataTransfer.setData('application/x-pdc-pit-vehicle', el.dataset.pitDrag);
