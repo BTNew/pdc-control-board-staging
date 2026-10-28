@@ -139,7 +139,7 @@ SELECT src.prosrc LIKE '%r597 (F211)%'
   AND strpos(helper.prosrc, 'not (b.status=''queued'' and b.bay_id is null)') = 0
   AND strpos(mv.prosrc, 'if v_block is null then v_result:=jsonb_build_object(''ok'',false,''error'',''vehicle_overlap'')') = 0
   AND mv.prosrc LIKE '%b.bay_id is not null and b.id is distinct from p_booking_id%'
-  AND pg_get_constraintdef('public.workshop_bookings_active_vehicle_no_overlap'::regclass) LIKE '%bay_id IS NOT NULL%'
+  AND (SELECT pg_get_constraintdef(oid) FROM pg_constraint WHERE conname='workshop_bookings_active_vehicle_no_overlap' AND conrelid='public.workshop_bookings'::regclass) LIKE '%bay_id IS NOT NULL%'
   AS ok,
   'hoist open '||public.workshop_vehicle_stage_estimated_hours('7a64124b-ab39-4069-a6c0-b756b2dc580f'::uuid, 'HOIST')::text AS detail
 FROM pg_proc src
