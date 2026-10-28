@@ -292,7 +292,7 @@ const approvedRootImportPatch = Object.freeze({
   // r592: r592=2026.10.28.r592 on both workshop-planner.js loads, both workshop-shared-actions.js loads, and the workshop-data-service.js loads (F206). Department 135 is not tagged.
   // r594: r594=2026.10.28.r594 on both workshop-planner.js loads and on app.js (unticked station hours, F208). Department 135 is not tagged.
   // r590: the QC sign-off button stays visible and names what is still outstanding (F204). Department 135 keeps its frozen app.js.
-  "app.js": "2562c72cbb1a915e8d50121beefb041c01d62747a1ef002df32837ce34f50145",
+  "app.js": "fc3d9b16f1bdf2c9805b798328078c17bf9b730e94e6da2f84c63d2046851a46",
   // r464: a booking that runs past the day divider is one bar (joined per-day pieces, display only; F77). The Karratha copy stays frozen.
   // r465: overview bar labels show Key · JC and the customer only (Stock and the vehicle description stay in the hover title); the customer span is classed for the Running layout (F78).
   // r467: Day / Week / Month zoom on the overview timeline (display only; F80).

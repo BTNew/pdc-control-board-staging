@@ -32,7 +32,7 @@ assert.match(service, /\^\[a-f0-9\]\{64\}\$/);
 const start = app.indexOf('function qcPageReceiptLineApply');
 const end = app.indexOf('async function qcPageAwaitOperationSnapshot', start);
 assert.ok(start >= 0 && end > start);
-const context = { qcPageOperationLines: vehicle => vehicle.lines };
+const context = { qcPageOperationLines: vehicle => vehicle.lines, qcPageSignoffBlockers: new Map() };
 vm.createContext(context);
 vm.runInContext(`${app.slice(start, end)} this.applyReceipt = qcPageReceiptLineApply;`, context);
 const vehicle = { __emailVehicleVersion: 3, lines: [{ lineIdentity: 'source:11111111-1111-1111-1111-111111111111', completed: false, lineVersion: 0 }] };
