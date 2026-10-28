@@ -77,7 +77,7 @@
     transit: ['In transit (IT)', 'To WA / Kewdale', 'transit-it', 'IT'],
     yardhold: ['Yard Hold', 'Release to PMB', 'yardhold', 'YH'],
     nonnavision: ['Non-Navision', 'No Navision updates', 'unconfirmed', 'NON-NAV'],
-    newpmb: ['New to PMB', 'Key under 4 days', 'newpmb', 'NEW'],
+    newpmb: ['New to PMB', 'Key under 24 hours', 'newpmb', 'NEW'],
     pmb: ['PMB', 'Work still active', 'transit', 'PMB'],
     qc: ['QC', 'Awaiting QC sign-off', 'hold', 'QC'],
     pit: ['PIT', 'Dept of Transport', 'production', 'PIT'],

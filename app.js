@@ -204,7 +204,7 @@ const VEHICLE_LOCATION_BUCKET_DEFS = Object.freeze([
   { key: 'rft', label: 'RFT', hint: 'Vehicles signed off by QC and ready for transport' },
   { key: 'qc', label: 'QC', hint: 'All required station jobs complete · awaiting named QC sign-off' },
   { key: 'pit', label: 'PIT', hint: 'At the Department of Transport for inspection' },
-  { key: 'newpmb', label: 'New to PMB', hint: 'Key number under 4 days · also listed in PMB' },
+  { key: 'newpmb', label: 'New to PMB', hint: 'Key number under 24 hours · also listed in PMB' },
   { key: 'pmb', label: 'PMB', hint: 'Vehicles at Perth Motor Bodies with work still active' },
   { key: 'yardhold', label: 'YARD HOLD', hint: 'Navision Yard Hold vehicles — release to PMB from here' },
   { key: 'nonnavision', label: 'NON-NAVISION VEHICLES', hint: 'No Navision location or ETA updates · move to PMB when the vehicle arrives' },
@@ -705,9 +705,13 @@ function pmbKeyAssignedTimestamp(vehicle = {}) {
 
 // r593 (F207): the New to PMB view uses the stored key-assignment instant only.
 // There is no fallback to the board arrival or the Tune import. No row means not new.
+// r679 (F289, Craig 29 Oct): New to PMB lists a key number for its first 24 hours only.
+// The old stored window (list_new_to_pmb_window_586) no longer exists, so the board always used 4 days.
 function newToPmbWindowDays() {
-  const days = Number(typeof app === 'undefined' ? 4 : app.newToPmbWindowDays);
-  return Number.isInteger(days) && days >= 1 && days <= 30 ? days : 4;
+  return 1;
+}
+function newToPmbWindowLabel() {
+  return '24 hours';
 }
 
 function pmbKeyIsNew(vehicle = {}) {
@@ -726,8 +730,7 @@ function pmbBodybuilderHoldOpen(vehicle = {}) {
 
 function pmbNewTagHtml(vehicle = {}) {
   if (!pmbKeyIsNew(vehicle)) return '';
-  const days = newToPmbWindowDays();
-  return `<span class="badge pmb-new-tag" title="This key number is under ${days} days old. Display only. It does not change booking, eligibility, stations or QC.">New to PMB</span>`;
+  return `<span class="badge pmb-new-tag" title="This key number is under ${newToPmbWindowLabel()} old. Display only. It does not change booking, eligibility, stations or QC.">New to PMB</span>`;
 }
 
 function pmbArrivalAgeRow(vehicle = {}) {
@@ -8867,6 +8870,7 @@ function openPmbArrivalBayBooking(vehicle = {}, station = '', label = '') {
 }
 
 function ensureNewToPmbWindow() {
+  return; // r679 (F289): fixed 24-hour window; the stored-window RPC no longer exists (it was a 404 every minute).
   const client = typeof window === 'object' ? window.PDC_SUPABASE : null;
   if (!client || typeof client.rpc !== 'function' || !window.PDC_AUTH_CONTEXT) return;
   if (app.newToPmbWindowLoading) return;
@@ -10288,7 +10292,7 @@ function renderIncomingDashboardBoardContent() {
       : '';
     const alerting = def.key === 'newpmb' && holdCount > 0;
     const hint = def.key === 'newpmb'
-      ? `Key number under ${newToPmbWindowDays()} days · also in PMB${holdCount ? ` · ${holdCount} waiting for To PMB` : ''}`
+      ? `Key number under ${newToPmbWindowLabel()} · also in PMB${holdCount ? ` · ${holdCount} waiting for To PMB` : ''}`
       : def.hint;
     const countLabel = def.key === 'newpmb' ? newCount : vehicles.length;
     return `<details class="incoming-bucket incoming-${escapeHtml(def.key)}${alerting ? ' is-alerting' : ''}" ${def.open ? 'open' : ''}>
