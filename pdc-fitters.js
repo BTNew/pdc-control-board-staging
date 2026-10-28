@@ -651,7 +651,15 @@
     pendingAction=retry?service.retryAction:action;
     saving=true; message=''; render();
     try {
-      const result=retry?await service.retry():await service.command(body);
+      let result;
+      try { result=retry?await service.retry():await service.command(body); }
+      catch(first) {
+        // r610 (F224): Done on an item that was never started starts it and ticks it in one tap,
+        // instead of refusing with "Press Start on this item first".
+        if(retry || action!=='line' || completed!==true || first.code!=='item_not_started') throw first;
+        const started=await service.command({...body,p_action:'item_start',p_completed:null,p_note:null});
+        result=await service.command({...body,p_expected_version:started?.version??body.p_expected_version});
+      }
       if(typeof root.CustomEvent==='function'&&typeof root.dispatchEvent==='function') {
         root.dispatchEvent(new root.CustomEvent('pdc-fitter-workshop-saved',{detail:{
           bookingId:result.booking_id||detail?.booking_id,stageCode:detail?.stage_code,
