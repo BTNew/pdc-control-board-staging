@@ -1,11 +1,12 @@
 -- r591 (F205) / sort 362. Staging cdsmnqxtyyoeoznmbidd only. Production vjdtsswhroyguxyfjdkt is not a target.
 -- Admin Upload preview. The parser lives in the edge function. This migration does not import a report.
 -- Kajel's rows function 9be0883b1a555f48f3c1ba9fa111c891 and apply function b62fb7c29ffd2a1629f214f696e5cb14 stay byte-identical.
--- Rechecked 28 Oct 2026: r588 / F202 is the merged side-panel tick grid (#573) and added no check.
--- r589 / F203 / sort 361 is the Parts ETA preview (#571). r590 / F204 is the QC sign-off preview.
--- r592 / F206 / sort 360 is the hoist preview (#572). This release keeps r591 / F205 / sort 362.
+-- Rechecked 28 Oct 2026 08:38 AWST after #570 merged.
+-- Live ledger: r592 / F206 / sort 360, r590 / F204 / sort 361, r593 / F207 / sort 363, r594 / F208 / sort 364.
+-- Sort 362 / F205 / r591 is the free hole. r589 / F203 stays with #571. r584 / F198 / sort 356 stays with #498.
 -- Pin count stays 241. No new pin. Department 135 stays fd05b9eef69498002ac06dd68e01cdff.
--- Apply stays refused until Craig approves go-live. The seen table is created empty and nothing in this migration writes a row to it.
+-- Craig approved the page go-live. This does not switch Kajel off. The apply function still refuses to write import tables.
+-- The seen table is created empty and nothing in this migration writes a row to it.
 -- Undo: supabase/rollbacks/20261028080000_r591_revolution_upload.down.sql
 SET LOCAL lock_timeout = '8s';
 DO $g$

@@ -12,7 +12,7 @@ r591 / F205 / sort 362. The ledger already has r592 / F206 / sort 360, r590 / F2
 
 The edge function names the report from its title and headers, refuses the wrong report, and parses the rows. A dry run counts new, updated, archived and skipped, plus one hold list. Each held line has one reason: closed-vehicle conflict, identity changed, identity restore, staff-lock, status 99, duplicate line, or carried-over not-sent. The SQL apply raises until the switch-over. More than 15 new vehicles or archives needs an administrator confirm. Service keeps departments 138 and 139 only. A status 99 line with no live board vehicle is held. Broome Sales `37047` and Karratha Sales `14450` are not changed by the PMB archive rule. A vehicle with an open job card is not archived.
 
-Up `supabase/migrations/20261028080000_r591_revolution_upload.sql` file md5 `b3d57dc7d65976f7bf9f4739db22e9a0`. Down `supabase/rollbacks/20261028080000_r591_revolution_upload.down.sql` file md5 `5d7ae37ce1165e4bf2a6dfc43986e896`. The comparison is in `docs/revolution-upload-591.md`. 6,533 sent lines match with 0 field diffs. The 333 holds match Kajel's three hold files with 0 diffs.
+Up `supabase/migrations/20261028080000_r591_revolution_upload.sql` file md5 `ce3c83acf2c296c9594661dc828f14e6`. Down `supabase/rollbacks/20261028080000_r591_revolution_upload.down.sql` file md5 `5d7ae37ce1165e4bf2a6dfc43986e896`. The comparison is in `docs/revolution-upload-591.md`. 6,533 sent lines match with 0 field diffs. The 333 holds match Kajel's three hold files with 0 diffs.
 
 Later: a status 80 vehicle moving to QC with every item ticked green, and pulling the same reports from the pdc@ inbox.
 
