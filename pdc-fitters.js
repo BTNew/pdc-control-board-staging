@@ -17,8 +17,23 @@
     style.textContent = '.fitter-done-heading{margin-top:14px;color:#1f7a3a}'
       + '.fitter-todo-list{gap:6px}'
       + '.fitter-todo-list .fitter-line{padding:6px 10px;border-radius:8px;display:flex;flex-wrap:wrap;align-items:center;gap:2px 16px}'
-      + '.fitter-todo-list .fitter-line>.fitter-line-check{flex:1 1 280px}'
-      + '.fitter-todo-list .fitter-line>*:not(.fitter-line-check):not(.fitter-item-ticks):not(.fitter-notes){flex-basis:100%}'
+      // r623 (F238): one row per item: name, Start, Done, Later, note. The label stays a label (tap the name or Done).
+      + '.fitter-done-cap{display:none}'
+      + '.fitter-todo-list .fitter-line>.fitter-line-check{display:contents}'
+      + '.fitter-todo-list .fitter-line-check>span{order:1;flex:1 1 240px;min-width:0}'
+      + '.fitter-todo-list .fitter-item-ticks{order:2}'
+      + '.fitter-todo-list .fitter-line-check>input{order:3;margin:0 0 0 6px}'
+      + '.fitter-todo-list .fitter-done-cap{order:4;display:inline;font-size:16px;cursor:pointer;margin-left:-8px}'
+      + '.fitter-todo-list .fitter-later{order:5}'
+      + '.fitter-todo-list .fitter-notes{order:6}'
+      + '.fitter-todo-list .fitter-line>*:not(.fitter-line-check):not(.fitter-item-ticks):not(.fitter-notes):not(.fitter-later){order:7;flex-basis:100%}'
+      + '.fitter-todo-list .fitter-line>.fitter-later[open],.fitter-todo-list .fitter-line>.fitter-later.is-set{flex-basis:100%}'
+      + '.fitter-later summary{cursor:pointer;font-weight:700;color:#92400e;list-style:none;border:1px solid #d6b98a;border-radius:6px;padding:3px 10px}'
+      + '.fitter-later-form{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}'
+      + '.fitter-later-form select,.fitter-later-form input{font:inherit;padding:6px 8px;border:1px solid #aab7c5;border-radius:5px}'
+      + '.fitter-later-form input{flex:1 1 180px}'
+      + '.fitter-later.is-set{display:flex;align-items:center;gap:10px;background:#fffbeb;border:1px solid #f0c674;border-radius:6px;padding:4px 10px;color:#78350f;font-size:14px}'
+      + '.fitter-line.is-later{background:#fffdf5}'
       + '.fitter-todo-list .fitter-line>.fitter-notes[open]{flex-basis:100%}'
       + '.fitter-todo-list .fitter-item-ticks .conv-bar{flex-basis:100%}'
       + '.fitter-todo-list .fitter-line-check{min-height:0;gap:10px;align-items:center}'
@@ -375,6 +390,7 @@
       resetItem:body => { invalidateReads(); return rpc('reset_fitter_item_timing', body, true); },
       sendHandoff:body => { invalidateReads(); return rpc('handoff_operation_line_583', body, true); },
       undoHandoff:body => { invalidateReads(); return rpc('undo_line_handoff_583', body, true); },
+      setLater:body => { invalidateReads(); return rpc('set_line_later_623', body, true); },
       listHandoffs:vehicleId => rpc('list_line_handoffs_583', {p_vehicle_id:vehicleId || null}, false),
       invalidate() { generation++; retry = null; rosterCache = null; rosterRequest = null; invalidateReads(); },
       get busy() { return busy; }, get retryPending() { return Boolean(retry); },
@@ -466,6 +482,18 @@
       : m.running ? `${state.paused ? 'Paused · ' : ''}${m.over ? `In progress · over by ${itemDuration(m.elapsed - m.planned)}` : m.planned ? `In progress · ${itemDuration(m.elapsed)} of ${itemDuration(m.planned)}` : `In progress · ${itemDuration(m.elapsed)} · no allowance`}${line.item_stale ? ' · running too long, tick Done or ask the controller to reset' : ''}` : '';
     return `<div class="fitter-item-ticks"><label class="conv-tick"><input type="checkbox" data-fitter-item-start="${id}" ${m.running || m.done ? 'checked' : ''} ${state.disabled || m.done ? 'disabled' : ''}> Start</label>${status ? `<small class="fitter-item-status">${esc(status)}</small>` : m.needsStart && state.editable ? '<small class="fitter-item-hint">Press Start first</small>' : ''}${m.running ? itemPauseHtml(state, line.line_identity, line.description) : ''}</div>${bar}`;
   }
+  // r623 (F238): Later = can't be done in this booking. Stays outstanding for the station; this booking can be completed.
+  const LATER_REASONS = [['parts','Waiting on parts'],['time','Out of time'],['other_trade','Needs another trade'],['other','Other']];
+  function fitterLaterHtml(line, state) {
+    if (line.completed) return '';
+    const id = esc(line.line_identity);
+    if (line.later) {
+      const label = (LATER_REASONS.find(r => r[0] === line.later.reason) || ['', 'Later'])[1];
+      return `<div class="fitter-later is-set"><span>Later · ${esc(label)}${line.later.note ? ` · ${esc(line.later.note)}` : ''}</span>${state.editable ? `<button type="button" data-fitter-later-undo="${id}" ${state.disabled ? 'disabled' : ''}>Undo</button>` : ''}</div>`;
+    }
+    if (!state.editable) return '';
+    return `<details class="fitter-later"><summary>Later</summary><div class="fitter-later-form"><select data-fitter-later-reason aria-label="Why later">${LATER_REASONS.map(r => `<option value="${r[0]}">${r[1]}</option>`).join('')}</select><input type="text" data-fitter-later-note maxlength="300" placeholder="Note (optional)" aria-label="Later note"><button type="button" data-fitter-later-save="${id}" ${state.disabled ? 'disabled' : ''}>Save</button></div></details>`;
+  }
   function fitterLineCardHtml(line, index, state) {
     const sentAway = line.handoff?.sent_away === true && !line.completed;
     const disabled = state.disabled || sentAway, note = state.note, editable = state.editable, open = state.open;
@@ -473,8 +501,9 @@
     // r440: Done stays disabled until the item is started (existing Done items stay ticked and can still be unticked).
     const doneLocked = timed && m.needsStart;
     const cardState = {...state, disabled};
-    return `<article class="fitter-line${line.completed ? ' is-done' : ''}${sentAway ? ' is-sent' : ''}${line.handoff?.received_here && !line.completed ? ' is-received' : ''}${m.running ? ' is-running' : ''}${m.running && state.paused ? ' is-paused' : ''}${line.item_stale && m.running ? ' is-stale' : ''}${doneLocked ? ' needs-start' : ''}"><label class="fitter-line-check"${doneLocked && editable && !sentAway ? ' title="Press Start first"' : ''}><input type="checkbox" data-fitter-line="${esc(line.line_identity)}" aria-label="${esc(line.description)} done" ${line.completed ? 'checked' : ''} ${disabled || doneLocked ? 'disabled' : ''}><span><strong>${esc(line.description)}</strong><small>${esc(line.stage_code.replaceAll('_',' '))} · ${line.external_work ? 'Supplier work · internal labour not counted' : line.hours == null ? 'Hours need review' : `${esc(line.hours)} h`}${line.completed ? ' · Work completed' : ''}</small></span></label>
+    return `<article class="fitter-line${line.completed ? ' is-done' : ''}${sentAway ? ' is-sent' : ''}${line.handoff?.received_here && !line.completed ? ' is-received' : ''}${m.running ? ' is-running' : ''}${m.running && state.paused ? ' is-paused' : ''}${line.item_stale && m.running ? ' is-stale' : ''}${doneLocked ? ' needs-start' : ''}${line.later && !line.completed ? ' is-later' : ''}"><label class="fitter-line-check"${doneLocked && editable && !sentAway ? ' title="Press Start first"' : ''}><input type="checkbox" data-fitter-line="${esc(line.line_identity)}" aria-label="${esc(line.description)} done" ${line.completed ? 'checked' : ''} ${disabled || doneLocked ? 'disabled' : ''}><span><strong>${esc(line.description)}</strong><small>${esc(line.stage_code.replaceAll('_',' '))} · ${line.external_work ? 'Supplier work · internal labour not counted' : line.hours == null ? 'Hours need review' : `${esc(line.hours)} h`}${line.completed ? ' · Work completed' : ''}</small></span><b class="fitter-done-cap" aria-hidden="true">Done</b></label>
       ${timed && !sentAway ? fitterItemTicksHtml(line, cardState) : ''}
+      ${!sentAway ? fitterLaterHtml(line, cardState) : ''}
       ${fitterHandoffHtml(line, cardState)}
       ${line.scope_changed ? '<p class="fitter-warning">This item changed. Review the work before ticking it again.</p>' : ''}
       ${line.source_note ? `<p class="fitter-source-note">${esc(line.source_note)}</p>` : ''}
@@ -774,6 +803,16 @@
     } catch (e) { message=e.message; if(e.code!=='busy') connected=false; }
     finally { saving=false; pendingAction=''; if(!service.retryPending) await refresh(); else render(); }
   }
+  async function markLater(lineId, reason, note) {
+    if (saving || loading || !connected || !detail || !lineId) return;
+    loadGeneration++; refreshing=false; freezeTimer(); saving=true; pendingAction='later'; message=''; render();
+    try {
+      await service.setLater({p_booking_id:selected, p_line_identity:lineId, p_reason:reason || null, p_note:note || null});
+      message = reason ? 'Marked for later. It stays outstanding and does not block this booking.' : 'Back on this booking.';
+      connected=false;
+    } catch (e) { message=e.message; if(e.code!=='busy') connected=false; }
+    finally { saving=false; pendingAction=''; if(!service.retryPending) await refresh(); else render(); }
+  }
   function mountController(panel, vehicle) {
     const id = typeof root.pmbArrivalVehicleId === 'function' ? root.pmbArrivalVehicleId(vehicle) : String(vehicle?.id || vehicle?.__emailVehicleId || vehicle?.sharedVehicleId || '');
     const host = panel?.querySelector?.('.vso-body') || panel;
@@ -818,6 +857,8 @@
     on('[data-fitter-line]','change',e=>{ const n=e.currentTarget; const checked=n.checked; n.checked=!checked; void act('line',n.dataset.fitterLine,checked); });
     on('[data-fitter-handoff]','change',e=>{ const value=e.target.value; e.target.value=''; if(value) void sendLine(e.target.dataset.fitterHandoff, value); });
     on('[data-fitter-handoff-undo]','click',e=>{ void undoLine(e.currentTarget.dataset.fitterHandoffUndo); });
+    on('[data-fitter-later-save]','click',e=>{ const box=e.currentTarget.closest('.fitter-later'); void markLater(e.currentTarget.dataset.fitterLaterSave, box?.querySelector('[data-fitter-later-reason]')?.value || 'other', box?.querySelector('[data-fitter-later-note]')?.value || ''); });
+    on('[data-fitter-later-undo]','click',e=>{ void markLater(e.currentTarget.dataset.fitterLaterUndo, null, null); });
     on('[data-fitter-item-start]','change',e=>{ const n=e.currentTarget, checked=n.checked; n.checked=!checked; void act(checked?'item_start':'item_reset',n.dataset.fitterItemStart); });
     on('[data-fitter-note]','input',e=>{ const id=e.target.dataset.fitterNote, l=detail.lines.find(l=>l.line_identity===id); drafts.set(`${selected}:${id}`,{note:e.target.value,scope:l.scope_hash}); target.querySelector('[data-fitter-action="complete"]')?.setAttribute('disabled',''); });
     on('[data-fitter-save-note]','click',e=>{ const id=e.currentTarget.dataset.fitterSaveNote; void act('line',id,detail.lines.find(l=>l.line_identity===id).completed); });

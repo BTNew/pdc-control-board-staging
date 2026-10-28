@@ -22,12 +22,12 @@ test('To do first, Completed after as slim rows; card order kept', () => {
   assert.match(ctx.f([{ id: 'a' }], (l, i) => 'x'), /<h3>To do \(1\)/);
   assert.doesNotMatch(ctx.f([{ id: 'a' }], () => 'x'), /Completed/);
   assert.match(src, /\.fitter-done-list \.fitter-line>\*:not\(\.fitter-line-check\):not\(details\)\{display:none!important\}/);
-  assert.match(fs.readFileSync('index.html', 'utf8'), /pdc-fitters\.js\?[^"]*&amp;r621=2026\.10\.28\.r621(&amp;r622=2026\.10\.28\.r622)?"/);
+  assert.match(fs.readFileSync('index.html', 'utf8'), /pdc-fitters\.js\?[^"]*&amp;r621=2026\.10\.28\.r621(&amp;r622=2026\.10\.28\.r622)?(&amp;r623=2026\.10\.28\.r623)?"/);
 });
 
 test('r622 (F237): To do slimmer, Completed tight grid rows', () => {
   assert.match(src, /\.fitter-todo-list \.fitter-line\{padding:6px 10px;border-radius:8px;display:flex/);
   assert.match(src, /\.fitter-done-list\{display:grid;grid-template-columns:repeat\(auto-fill,minmax\(240px,1fr\)\)/);
   assert.match(src, /\.fitter-done-list \.fitter-line-check strong\{display:block;font-size:13px/);
-  assert.match(fs.readFileSync('index.html', 'utf8'), /pdc-fitters\.js\?[^"]*&amp;r622=2026\.10\.28\.r622"/);
+  assert.match(fs.readFileSync('index.html', 'utf8'), /pdc-fitters\.js\?[^"]*&amp;r622=2026\.10\.28\.r622(&amp;r623=2026\.10\.28\.r623)?"/);
 });
