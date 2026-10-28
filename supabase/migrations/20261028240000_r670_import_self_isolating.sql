@@ -1,4 +1,4 @@
--- r670 (F280) / sort 383. Staging cdsmnqxtyyoeoznmbidd only. Production vjdtsswhroyguxyfjdkt is not a target.
+-- r670 (F280) / sort 420. Staging cdsmnqxtyyoeoznmbidd only. Production vjdtsswhroyguxyfjdkt is not a target.
 -- Craig, 28 Oct 2026 19:24: "I want it fail proof." Kajel's preview job 60856d36 stopped at part 31 because the
 -- importer refused the whole part (ambiguous_existing_operation) without naming a line, and the job then failed.
 -- Now one bad stock never stops the run:
@@ -21,7 +21,7 @@ BEGIN
      OR (SELECT count(*) FROM public.pdc_staging_environment_sentinel WHERE singleton AND project_ref = 'cdsmnqxtyyoeoznmbidd') <> 1
      OR to_regclass('public.pdc_production_environment_sentinel') IS NOT NULL THEN RAISE EXCEPTION 'r670: staging only'; END IF;
   IF (SELECT count(*) FROM pdc_ops.expected_function_md5) <> 241 THEN RAISE EXCEPTION 'r670: pin count'; END IF;
-  IF EXISTS (SELECT 1 FROM pdc_ops.regression_checks WHERE sort_order = 383 OR fault_id = 'F280' OR added_in = 'r670' OR check_name = 'import_self_isolating_670') THEN RAISE EXCEPTION 'r670: sort 383 or F280 is taken'; END IF;
+  IF EXISTS (SELECT 1 FROM pdc_ops.regression_checks WHERE sort_order = 420 OR fault_id = 'F280' OR added_in = 'r670' OR check_name = 'import_self_isolating_670') THEN RAISE EXCEPTION 'r670: sort 420 or F280 is taken'; END IF;
   IF EXISTS (SELECT 1 FROM pdc_import_620.jobs WHERE status IN ('queued', 'running')) THEN RAISE EXCEPTION 'r670: an import job is running'; END IF;
 END $guard670$;
 
@@ -124,7 +124,7 @@ SELECT strpos((SELECT prosrc FROM pg_proc WHERE oid = to_regprocedure('pdc_impor
   AND strpos((SELECT prosrc FROM pg_proc WHERE oid = to_regprocedure('pdc_import_620.hold_stocks(uuid,integer,text[],text)')), 'INSERT INTO pdc_import_620.holds') = 0
   AND strpos((SELECT prosrc FROM pg_proc WHERE oid = to_regprocedure('pdc_import_620.apply_part(uuid,integer,boolean)')), 'public.pdc_pilbara_service_apply_v1(') > 0
  AS ok, 'import isolates bad stocks and carries on' AS detail
-$chk670$, true, 383, 'r670');
+$chk670$, true, 420, 'r670');
   EXECUTE (SELECT check_sql FROM pdc_ops.regression_checks WHERE check_name = 'import_self_isolating_670') INTO ok, detail;
   IF ok IS NOT TRUE THEN RAISE EXCEPTION 'r670: check red: %', detail; END IF;
 END $check670$;
