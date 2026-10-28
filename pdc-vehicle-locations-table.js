@@ -313,6 +313,19 @@
   // search and every other filter (department included), each with its bucket. `bucket` / `stoppages` are the tile the
   // person picked before searching (kept, never changed here). `pick` is a tile clicked during this search (null: none,
   // '' = All vehicles, STOPPAGES, or a bucket key). Without search text the person's own tile applies, exactly as before.
+  // r685 (F295, Craig 29 Oct): click a station heading (Tint, Elec ...) to show only vehicles that still need that station:
+  // required and not complete (red, orange/booked/ordered or STOPPAGE). Grey (not required) and green (done) are hidden.
+  function stationNeeds(vehicle, stationKey, deps = root) {
+    if (!stationKey) return true;
+    const def = (typeof deps.pdcJobDefsPartsFirst === 'function' ? deps.pdcJobDefsPartsFirst() : []).find(item => item.key === stationKey);
+    if (!def || typeof deps.pdcJobRequired !== 'function' || typeof deps.pdcJobComplete !== 'function') return true;
+    try { return Boolean(deps.pdcJobRequired(vehicle, def)) && !deps.pdcJobComplete(vehicle, def); } catch (_) { return true; }
+  }
+  function stationLabel(stationKey, deps = root) {
+    const def = (typeof deps.pdcJobDefsPartsFirst === 'function' ? deps.pdcJobDefsPartsFirst() : []).find(item => item.key === stationKey);
+    return def && typeof deps.pdcGridJobLabel === 'function' ? deps.pdcGridJobLabel(def) : (def?.label || stationKey);
+  }
+
   function searchScope({ entries = [], bucket = '', stoppages = false, needle = '', pick = null, order = [] } = {}) {
     const searching = Boolean(String(needle || '').trim());
     if (!searching) return { searching: false, bucket: bucket || '', stoppages: Boolean(stoppages), found: [], picked: false, held: '' };
@@ -380,7 +393,7 @@
     return { alert: parts.length > 0, count: missing.length + zero.length + dups.reduce((n, d) => n + d.stocks.length, 0), missing, zero, dups, text: parts.join(' · ') };
   }
 
-  const api = { VERSION, VIEWS, pmbKeyAlert, DROPDOWN_VIEW_ENABLED, JOURNEY, TILE, STORAGE_PREFIX, topLevelElements, splitCard, tableRowHtml, journeyOrder, storageKey, readView, writeView,
+  const api = { VERSION, VIEWS, pmbKeyAlert, stationNeeds, DROPDOWN_VIEW_ENABLED, JOURNEY, TILE, STORAGE_PREFIX, topLevelElements, splitCard, tableRowHtml, journeyOrder, storageKey, readView, writeView,
     STOPPAGES, searchScope, departmentElsewhere, locationSearchSummaryLabel, COLUMNS, COLUMN_MAX, COLUMN_STORAGE_PREFIX, SEL_WIDTH, extractPartsLocation, extractPartsEta, comparePartsLocation, columnStorageKey, sanitizeWidths, readWidths, writeWidths, resetWidths, widthStyle, layoutWidths };
   if (typeof module === 'object' && module.exports) module.exports = api;
   if (!root || !root.document || typeof root.renderIncomingDashboardBoard !== 'function' || root.PDC_VEHICLE_LOCATIONS_TABLE) {
@@ -390,7 +403,7 @@
 
   // ---------- Browser ----------
   const doc = root.document;
-  const state = { bucket: '', stoppages: false, openKey: '', view: DROPDOWN_VIEW_ENABLED ? VIEWS.dropdown : VIEWS.table, partsSort: '', widths: {}, search: { needle: '', pick: null } };
+  const state = { station: '', bucket: '', stoppages: false, openKey: '', view: DROPDOWN_VIEW_ENABLED ? VIEWS.dropdown : VIEWS.table, partsSort: '', widths: {}, search: { needle: '', pick: null } };
   let dualSearchReady = false;
   let drawerOpener = null; // r462: { open(key, bucket), refresh(key, bucket), close() } from pdc-vehicle-slideout.js
   const userId = () => root.PDC_AUTH_CONTEXT?.userId || '';
@@ -402,7 +415,7 @@
     if (doc.querySelector('link[data-pdc-vehicle-locations-table]')) return;
     const link = doc.createElement('link');
     link.rel = 'stylesheet';
-    link.href = `pdc-vehicle-locations-table.css?vehicle-locations-table=${VERSION}&r622=2026.10.28.r622&r672=2026.10.28.r672`; // r672 (F281) red PMB key alert; r622 (F237): new Parts ETA and Pit cell styles
+    link.href = `pdc-vehicle-locations-table.css?vehicle-locations-table=${VERSION}&r622=2026.10.28.r622&r672=2026.10.28.r672&r685=2026.10.29.r685`; // r672 (F281) red PMB key alert; r622 (F237): new Parts ETA and Pit cell styles
     link.dataset.pdcVehicleLocationsTable = '1';
     doc.head.appendChild(link);
   }
@@ -694,15 +707,17 @@
     const displayBuckets = vehicle => typeof root.vehicleLocationsDisplayBuckets === 'function'
       ? root.vehicleLocationsDisplayBuckets(vehicle)
       : [typeof root.vehicleLocationsDisplayBucket === 'function' ? root.vehicleLocationsDisplayBucket(vehicle) : root.incomingBucketForVehicle(vehicle)];
+    // r685 (F295): the station heading filter narrows the tiles and the table together.
+    const stationRows = state.station ? filteredRows.filter(vehicle => stationNeeds(vehicle, state.station)) : filteredRows;
     const counts = new Map();
-    filteredRows.forEach(vehicle => {
+    stationRows.forEach(vehicle => {
       displayBuckets(vehicle).forEach(bucket => {
         if (!rank.has(bucket)) return;
         if (bucket === 'newpmb' && typeof root.pmbKeyIsNew === 'function' && !root.pmbKeyIsNew(vehicle)) return;
         counts.set(bucket, (counts.get(bucket) || 0) + 1);
       });
     });
-    const entries = filteredRows.flatMap(vehicle => displayBuckets(vehicle)
+    const entries = stationRows.flatMap(vehicle => displayBuckets(vehicle)
       .filter(bucket => rank.has(bucket) && (!filters.bucket || filters.bucket === bucket))
       .map(bucket => ({ vehicle, bucket, key: root.vehicleKey(vehicle) })));
     if (state.bucket && !rank.has(state.bucket)) state.bucket = '';
@@ -722,7 +737,7 @@
     if (summary) {
       const workCount = Array.isArray(filters.work) ? filters.work.length : (filters.work ? 1 : 0);
       const active = [filters.department && `Department ${filters.department}`, filters.search && `search “${filters.search}”`, filters.status,
-        filters.bucket && root.incomingBucketLabel(filters.bucket), filters.rep, workCount && `${workCount} work type${workCount === 1 ? '' : 's'}`,
+        filters.bucket && root.incomingBucketLabel(filters.bucket), filters.rep, state.station && `needs ${stationLabel(state.station)}`, workCount && `${workCount} work type${workCount === 1 ? '' : 's'}`,
         ...(scope.searching
           ? [scope.found.length ? `found in ${scope.found.map(tileName).join(', ')}` : 'no match in any tile', scope.picked && (scope.bucket || scope.stoppages) && `${tileName(scope.stoppages ? STOPPAGES : scope.bucket)} tile`,
             elsewhere.length && `also in ${elsewhere.map(group => departmentName(group.code)).join(', ')}`]
@@ -762,7 +777,8 @@
         ? `<span class="vlt-found-note">Found in ${esc(scope.found.map(tileName).join(', '))}</span>${scope.picked && (scope.bucket || scope.stoppages) ? ` · ${esc(tileName(scope.stoppages ? STOPPAGES : scope.bucket))} only · click All vehicles to see every match` : scope.bucket === 'pit' ? ' · PIT only · the pit list above is searched too · click a tile to see the match there' : ' · showing every tile while you search'}${heldNote}`
         : `No match in any tile${filters.department ? ` in ${esc(departmentName(filters.department))}` : ''}${heldNote}`)
       : state.bucket ? `${esc(TILE[state.bucket]?.[0] || state.bucket)} only · click All vehicles to clear`
-        : state.stoppages ? 'STOPPAGES only · click All vehicles to clear' : 'Click a tile to filter · click a vehicle to open it';
+        : state.stoppages ? 'STOPPAGES only · click All vehicles to clear' : 'Click a tile or a station heading to filter · click a vehicle to open it';
+    const stationNote = state.station ? ` · <span class="vlt-station-note">Needs ${esc(stationLabel(state.station))} only</span> <button type="button" class="vlt-station-clear" data-vlt-station-clear>Show all stations</button>` : '';
     const bodyHtml = shown.map(entry => tableRowHtml(entry.card,
       entry.bucket, { key: entry.key, openKey: state.openKey, bucketLabel: root.incomingBucketLabel(entry.bucket) })).join('')
       || `<tr><td colspan="12" class="vlt-empty">${loading ? 'Loading vehicles…' : scope.searching
@@ -772,7 +788,7 @@
     const ageReport = typeof root.pmbArrivalAgeReportHtml === 'function' ? root.pmbArrivalAgeReportHtml(rows) : '';
     host.innerHTML = `${tilesHtml}${ageReport}${elsewhereHtml(elsewhere)}
       <section class="vlt-panel" aria-label="Vehicle locations table">
-        <div class="vlt-panel-header"><h2>Vehicle locations</h2><p>${filterNote}</p>${root.workStatusLegendHtml()}<button type="button" class="vlt-reset-cols" data-vlt-reset-cols${Object.keys(state.widths).length ? '' : ' disabled'} title="Put every column back to its standard width">Reset columns</button></div>
+        <div class="vlt-panel-header"><h2>Vehicle locations</h2><p>${filterNote}${stationNote}</p>${root.workStatusLegendHtml()}<button type="button" class="vlt-reset-cols" data-vlt-reset-cols${Object.keys(state.widths).length ? '' : ' disabled'} title="Put every column back to its standard width">Reset columns</button></div>
         <div class="vlt-table-wrap"><table class="vlt-table${Object.keys(state.widths).length ? ' has-custom-widths' : ''}${/data-select-stock/.test(bodyHtml) ? ' has-select' : ''}">
           <colgroup><col class="c-sel"><col class="c-key"><col class="c-stock"><col class="c-job"><col class="c-cust"><col class="c-unit"><col class="c-ploc"><col class="c-pit"><col class="c-eta"><col class="c-work"><col class="c-age"><col class="c-status"><col class="c-action"></colgroup>
           <thead><tr><th class="c-sel"></th><th class="c-key">${heading('Key', 'key')}${grip('key')}</th><th class="c-stock">${heading('Stock', 'stock')}${grip('stock')}</th><th class="c-job">${heading('Job Card', 'jobcard')}${grip('job')}</th><th class="c-cust">${heading('Customer', 'customer')}${grip('cust')}</th><th class="c-unit">${heading('Vehicle', 'vehicle')}${grip('unit')}</th><th class="c-ploc">${partsHeading}${grip('ploc')}</th><th class="c-pit"><span title="Pit booking: date, place and days to go. Green tick once it is back.">Pit</span>${grip('pit')}</th><th class="c-eta"><span title="Parts ETA. A typed date wins over the parts-staff email. Overdue dates are red. Hover for the note and who last checked.">Parts ETA</span>${grip('eta')}</th><th class="c-work">${grip('work')}</th><th class="c-age">${heading('Age / ETA', 'age')}${grip('age')}</th><th class="c-status">Status${grip('status')}</th><th class="c-action">Booking${grip('action')}</th></tr></thead>
@@ -781,7 +797,22 @@
     const holder = doc.createElement('div');
     holder.innerHTML = root.productionGridHeaderHtml('incoming-production-grid-header', { actionLabel: 'Booking', incomingSort: sort });
     const stations = holder.querySelector('.pdc-grid-stations-heading');
-    if (stations) host.querySelector('thead th.c-work').append(stations);
+    if (stations) {
+      // r685 (F295): each station heading toggles the "needs this station" filter.
+      stations.querySelectorAll('.pdc-grid-station-heading').forEach(heading => {
+        const key = ([...heading.classList].find(cls => cls.startsWith('pdc-grid-station-') && cls !== 'pdc-grid-station-heading') || '').slice('pdc-grid-station-'.length);
+        if (!key) return;
+        const label = stationLabel(key);
+        const on = state.station === key;
+        heading.dataset.vltStation = key;
+        heading.setAttribute('role', 'button');
+        heading.setAttribute('tabindex', '0');
+        heading.setAttribute('aria-pressed', String(on));
+        heading.title = on ? `Showing only vehicles that need ${label}. Click to show all.` : `Show only vehicles that need ${label}`;
+        heading.classList.toggle('vlt-station-active', on);
+      });
+      host.querySelector('thead th.c-work').append(stations);
+    }
     applyWidths(host); // r476: flex / select-column widths for this screen, before the first paint
     observeHostWidth(host);
     if (keepDrawer) host.append(keepDrawer);
@@ -845,6 +876,18 @@
       renderTable();
       host.querySelector('thead [data-vlt-sort="parts-location"]')?.focus({ preventScroll: true });
     });
+    const toggleStation = key => {
+      state.station = state.station === key ? '' : key;
+      const wrap = host.querySelector('.vlt-table-wrap');
+      if (wrap) wrap.scrollTop = 0;
+      renderTable();
+      host.querySelector(`[data-vlt-station="${key}"]`)?.focus({ preventScroll: true });
+    };
+    host.querySelectorAll('thead [data-vlt-station]').forEach(heading => {
+      heading.addEventListener('click', event => { event.preventDefault(); event.stopPropagation(); toggleStation(heading.dataset.vltStation); });
+      heading.addEventListener('keydown', event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); toggleStation(heading.dataset.vltStation); } });
+    });
+    host.querySelector('[data-vlt-station-clear]')?.addEventListener('click', event => { event.preventDefault(); state.station = ''; renderTable(); });
     host.querySelector('[data-vlt-reset-cols]')?.addEventListener('click', event => { event.preventDefault(); resetColumns(); });
     bindColumnResize(host);
     const body = host.querySelector('tbody');
