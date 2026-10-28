@@ -310,7 +310,7 @@ const approvedRootImportPatch = Object.freeze({
   // r509: control board comment matches the 14-bay fabrication count (live check F122 sort 294). The hidden Karratha copy stays frozen.
   // r549: Control Board bay rows prefer display_name (F163). The Karratha copy stays frozen.
   // r572: a control-board bay card lists every open job card (F186). Department 135 keeps the frozen copy.
-  "control-board-overview.js": "f90c227ca72c1e1264d80a045f247b6fe6a4166b61ad816e20b65eb7793da7c9",
+  "control-board-overview.js": "44f2f3925850c19f6afd2ae45b37a4344a13f20d47b8193f2b7885684c104d86",
   "deployment-manifest.json": "1dc3bc539884bba81076059861c3621db90cca8a721eb8d6cfef81da99454b46",
   // Live board defers its startup scripts and drops the empty and assessment tags.
   // app.js?v= keeps backup-status=2026.10.19.01, hoist-corrections=2026.10.19.02,
@@ -449,7 +449,7 @@ const approvedRootImportPatch = Object.freeze({
   // r602: index.html cache-busts pdc-revolution-upload.js so the dry run compares the current board (F216). Department 135 is not tagged.
   // r601: index.html adds r601=2026.10.28.r601 on app.js (cascade text, cross-bay guard off, F212 to F215). Department 135 is not tagged.
   // r604: index.html adds r604=2026.10.28.r604 on canonical-entry.js (pit bookings, F218). Department 135 is not tagged.
-  "index.html": "aaa81caa83ab54c2771b60ef3459aab8688943fb342fd51ca5c99deebc18dd41",
+  "index.html": "3c16ae2680253392c7ce3868701eef6b0959091d0c1e97dda921c4bd55cc844c",
   "pdc-conversions.js": "0a99e7a5306f15e434b293a3ca9a318ffad4b78eb814c27144d75ff98821d810",
   // r401: Pit tick and read RPCs (set_pdc_pit_line_tick_401, get_pdc_pit_line_ticks_401).
   // r414: readQcPhotoReceipt (get_pdc_qc_photo_receipt_414) for the QC page (F30).
