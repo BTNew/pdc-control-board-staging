@@ -148,7 +148,7 @@
         document.head.appendChild(history);
       }
       const table = document.createElement('script');
-      table.src = 'pdc-vehicle-locations-table.js?vehicle-locations-table=2026.10.22.r461&r462=2026.10.22.r462&r463=2026.10.22.r463&r476=2026.10.22.r476&r475=2026.10.22.r475&r481=2026.10.22.r481&r485=2026.10.22.r485&r557=2026.10.27.r557&r562=2026.10.27.r562&r563=2026.10.27.r563&r567=2026.10.27.r567&r566=2026.10.27.r566&r593=2026.10.28.r593&r604=2026.10.28.r604'; // r604 (F218): Pit column; r476 (F89): bunched-up columns; r475 (F88): Parts ETA column; r481 (F94): search shows matches from every tile; r485 (F98): Table view only; r557 (F171): New to PMB tile; r562 (F176): key-number gate; r563 (F177): arrival age; r567 (F181): typed Parts ETA; r566: planner search boxes; r593 (F207): New to PMB view
+      table.src = 'pdc-vehicle-locations-table.js?vehicle-locations-table=2026.10.22.r461&r462=2026.10.22.r462&r463=2026.10.22.r463&r476=2026.10.22.r476&r475=2026.10.22.r475&r481=2026.10.22.r481&r485=2026.10.22.r485&r557=2026.10.27.r557&r562=2026.10.27.r562&r563=2026.10.27.r563&r567=2026.10.27.r567&r566=2026.10.27.r566&r593=2026.10.28.r593&r604=2026.10.28.r604&r613=2026.10.28.r613'; // r613 (F228): key search waits for typing to stop; r604 (F218): Pit column; r476 (F89): bunched-up columns; r475 (F88): Parts ETA column; r481 (F94): search shows matches from every tile; r485 (F98): Table view only; r557 (F171): New to PMB tile; r562 (F176): key-number gate; r563 (F177): arrival age; r567 (F181): typed Parts ETA; r566: planner search boxes; r593 (F207): New to PMB view
       table.dataset.pdcVehicleLocationsTable = '1';
       table.onload = loadVehicleSlideout;
       document.head.appendChild(table);
