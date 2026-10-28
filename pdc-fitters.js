@@ -1,6 +1,29 @@
 /* Fitter workflow. The database is the authority for assignments, lifecycle and progress. */
 (function (root) {
   'use strict';
+  // r621 (F236): items split into To do and Completed; completed items show as one slim row (tick + name).
+  const FITTER_BACKGROUND_REFRESH_MS = 300000;
+  function fitterLinesByDoneHtml(lines, card) {
+    if (!lines.length) return '<h3>Items for this bay</h3><div class="fitter-lines"><p class="fitter-empty">No approved operation lines for this bay. Ask the controller to review the vehicle.</p></div>';
+    const todo = [], done = [];
+    lines.forEach((l, i) => (l.completed ? done : todo).push(card(l, i)));
+    return `<h3>To do (${todo.length})</h3><div class="fitter-lines">${todo.join('') || '<p class="fitter-empty">Every item for this bay is completed.</p>'}</div>`
+      + (done.length ? `<h3 class="fitter-done-heading">Completed (${done.length})</h3><div class="fitter-lines fitter-done-list">${done.join('')}</div>` : '');
+  }
+  if (typeof document !== 'undefined' && !document.getElementById('fitter-done-slim-621')) {
+    const style = document.createElement('style');
+    style.id = 'fitter-done-slim-621';
+    style.textContent = '.fitter-done-heading{margin-top:18px;color:#1f7a3a}'
+      + '.fitter-done-list{gap:4px}'
+      + '.fitter-done-list .fitter-line{padding:4px 10px;min-height:0;box-shadow:none}'
+      + '.fitter-done-list .fitter-line>*:not(.fitter-line-check):not(details){display:none!important}'
+      + '.fitter-done-list .fitter-line-check{margin:0;padding:2px 0;min-height:0}'
+      + '.fitter-done-list .fitter-line-check strong{font-size:.95rem;font-weight:600}'
+      + '.fitter-done-list .fitter-line-check small{display:none}'
+      + '.fitter-done-list .conv-list>:not(summary){display:none!important}';
+    (document.head || document.documentElement).appendChild(style);
+  }
+
   const PROJECT = 'cdsmnqxtyyoeoznmbidd';
   const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   // r564 (F178): same key tag field as Vehicle Locations and the planner (vehicles.key_number).
@@ -568,7 +591,7 @@
       <div class="fitter-actions">${['planned','queued'].includes(detail.status) ? `<button class="fitter-primary" data-fitter-action="start" ${locked||!connected||!service.canWrite()?'disabled':''}>${(saving||loading)&&pendingAction==='start'?'Starting job…':'Start job'}</button><p>Start this job first. Its other unstarted bookings and affected queues move later where needed.</p>` : detail.status==='stoppage' ? `<button class="fitter-primary" data-fitter-action="resume" ${locked||!connected||!service.canWrite()?'disabled':''}>${(saving||loading)&&pendingAction==='resume'?'Resuming job…':'Resume job'}</button>` : detail.status==='started' ? `<button data-fitter-stop ${locked||!editable?'disabled':''}>Pause · parts / other stoppage</button>` : ''}</div>
       ${stopOpen&&!own.some(l=>l.line_identity===stopFrom) ? stopPanelHtml() : ''}
       ${detail.progress.unknown_hours ? '<p class="fitter-warning">Some items need approved hours. Ask the controller to review these before completing the bay job.</p>' : ''}
-      <h3>Items for this bay</h3><div class="fitter-lines">${own.map((l,i)=>lineCard(l,i,editable)).join('') || '<p class="fitter-empty">No approved operation lines for this bay. Ask the controller to review the vehicle.</p>'}</div>
+      ${fitterLinesByDoneHtml(own, (l,i)=>lineCard(l,i,editable))}
       ${sent.length ? `<section class="fitter-sent" aria-label="Sent to another department"><h3>Sent to another department</h3><p>These lines stay outstanding for the department you sent them to. They do not block this bay.</p><div class="fitter-lines">${sent.map((l,i)=>lineCard(l,own.length+i,editable)).join('')}</div></section>` : ''}
       ${detail.supplier_lines?.length && root.PdcBusWorkflow ? `<section class="fitter-supplier-checks"><h3>Supplier work — physically check the vehicle</h3><p>Check fitted work yourself. A supplier report alone does not complete these lines.</p>${root.PdcBusWorkflow.supplierHtml(detail.supplier_lines,{vehicleId:detail.vehicle_id || job.vehicle_id,editable:editable&&!locked,controller:false,bookingId:selected,technicianId:mechanic})}</section>` : ''}
       ${nextJobHtml(flow,locked,editable)}
@@ -807,7 +830,8 @@
   root.addEventListener('online',()=>{if(active())void refresh();});
   root.addEventListener('focus',()=>{if(active()&&!targetBeingEdited())void refresh({background:true});});
   doc.addEventListener('visibilitychange',()=>{if(!doc.hidden)void checkForUpdate();if(!doc.hidden&&active()&&!targetBeingEdited())void refresh({background:true});});
-  setInterval(()=>{if(active()&&!doc.hidden&&!targetBeingEdited())void refresh({background:true});},10000);
+  // r621 (F236): background refresh every 5 minutes (was 10 s); focus, wake and the Refresh button still refresh now.
+  setInterval(()=>{if(active()&&!doc.hidden&&!targetBeingEdited())void refresh({background:true});},FITTER_BACKGROUND_REFRESH_MS);
   setInterval(updateTimer,1000);
   function unsavedWork() { return saving || loading || drafts.size > 0 || conversionNotes.size > 0 || service.retryPending || busPending() || root.PdcConversions?.hasDrafts() || root.PdcBusWorkflow?.hasDrafts() || targetBeingEdited(); }
   function updateNow() {

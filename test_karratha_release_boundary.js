@@ -234,7 +234,7 @@ const approvedRootImportPatch = Object.freeze({
   // r564: Fitters bay shows Key N beside stock (F178). Department 135 keeps the frozen fitter script.
   // r568: a Bus 4x4 bay can start or finish another component's line items (F182). Department 135 keeps the frozen fitter script.
   // r583: each bay line can be sent to another department (F197). Department 135 keeps its frozen pdc-fitters.js.
-  "pdc-fitters.js": "88485dd65bb10c1df34a78ef82f6f210a4fa4a9fd11634de0c063cc19f2b59a8",
+  "pdc-fitters.js": "bf4a221838d122540d25e532c2879c8aad90026c6105249e32421d1c2a6dd9d1",
   // Deliberate live-board change, 19 October 2026. Department 135 stays parked.
   // app.js keeps Setup backup polling, hoist-corrections=2026.10.19.02,
   // planner-followup=2026.10.19.01, and the Vehicle Locations summary that
@@ -452,7 +452,7 @@ const approvedRootImportPatch = Object.freeze({
   // r601: index.html adds r601=2026.10.28.r601 on app.js (cascade text, cross-bay guard off, F212 to F215). Department 135 is not tagged.
   // r604: index.html adds r604=2026.10.28.r604 on canonical-entry.js (pit bookings, F218). Department 135 is not tagged.
   // r616: pdc-auth.js, pdc-bay-manager.js and canonical-entry.js carry r616=2026.10.28.r616 (fitter sessions send only Fitters bay requests, F231). Department 135 is not tagged.
-  "index.html": "daa57f05d0fe2d42cf6b19e79c7be65ec28c774ee94ac90e894cb369bfa1b58a",
+  "index.html": "668db5d839ccd90aff8e0d279a469a9b508652aeaed44d8fafe82718641d3930",
   "pdc-conversions.js": "0a99e7a5306f15e434b293a3ca9a318ffad4b78eb814c27144d75ff98821d810",
   // r401: Pit tick and read RPCs (set_pdc_pit_line_tick_401, get_pdc_pit_line_ticks_401).
   // r414: readQcPhotoReceipt (get_pdc_qc_photo_receipt_414) for the QC page (F30).

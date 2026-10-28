@@ -75,7 +75,7 @@ function screen(){
 
 test('fitter bay screen: Pause on the running-too-long item opens the stoppage panel under it; Resume then shows on the item',async()=>{
   const f=screen();await f.open();
-  const items=f.html.slice(f.html.indexOf('Items for this bay'));
+  const items=f.html.slice(f.html.indexOf('To do ('));
   assert.match(items,/Demo bar fit[\s\S]*running too long[\s\S]*data-fitter-pause="line-a"[^>]*>Pause<\/button>/);
   assert.match(f.html,/data-fitter-stop >Pause · parts \/ other stoppage<\/button>/);
   assert.doesNotMatch(f.html,/fitter-stop-panel/);
