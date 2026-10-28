@@ -213,7 +213,8 @@ const approvedRootImportPatch = Object.freeze({
   // r593: the table loader also carries r593=2026.10.28.r593 (New to PMB view, F207). Department 135 is not tagged.
   // r575: pdc-key-number.js cache bust r575=2026.10.27.r575 (F189). Department 135 is not tagged.
   // r573: the same loader adds r573=2026.10.27.r573 (Place as STOPPAGE, F187). Department 135 is not tagged.
-  "canonical-entry.js": "92940fa0f16fa9b2e719f896c70c9571df8f3a017136e3a960f4d26f0c41e050",
+  // r595: the loader adds r595=2026.10.28.r595 on pdc-parts-stoppage.js. The slide-out keeps vehicle-slideout=2026.10.28.r588 and adds r595=2026.10.28.r595 (Parts ETA is set in the side panel; F209). Department 135 is not tagged.
+  "canonical-entry.js": "de86417534b745b77da82e6b3fa65e7f6876eaa90f5fc468aa2a62b1255492c1",
   "pdc-workshop-vehicle-search.js": "d0be4a60c5ca2213ba71d4cd31cb7019736db3d7e0470d22b3fa88243e56eb4c",
   // Owner-authorised PMG fitter read recovery, 13 October 2026.
   // Coaster and HiAce conversions: one Start / Done tick per section in a
@@ -439,9 +440,9 @@ const approvedRootImportPatch = Object.freeze({
   // r583: index.html adds r583=2026.10.27.r583 on pdc-fitters.js and pdc-fitters.css (send a line to another department, F197). Department 135 is not tagged.
   // r592: index.html adds r592=2026.10.28.r592 on app.js and workshop-data-service.js (F206). Department 135 is not tagged.
   // r590: index.html adds r590=2026.10.28.r590 on app.js and pdc-email-vehicle-location-service.js (QC sign-off wording, F204). Department 135 is not tagged.
-  // r593: index.html adds r593=2026.10.28.r593 on app.js and styles.css (New to PMB view, F207). Department 135 is not tagged.
+  // r595: index.html adds r595=2026.10.28.r595 on canonical-entry.js (Parts ETA is set in the side panel, F209). Department 135 is not tagged.
   // r591: Revolution uploads nav, view, stylesheet and script (F205). Department 135 is not tagged.
-  "index.html": "757ad251fc0f6a9a163dfaeb44ee13915b9fb1e5706e483c98c5b445314cf0c9",
+  "index.html": "94d5be4c62608394f2c44d9177f6032c287ac0c66e3808e0e2b8c8e5e1e900b9",
   "pdc-conversions.js": "0a99e7a5306f15e434b293a3ca9a318ffad4b78eb814c27144d75ff98821d810",
   // r401: Pit tick and read RPCs (set_pdc_pit_line_tick_401, get_pdc_pit_line_ticks_401).
   // r414: readQcPhotoReceipt (get_pdc_qc_photo_receipt_414) for the QC page (F30).

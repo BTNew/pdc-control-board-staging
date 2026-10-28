@@ -116,11 +116,12 @@
       document.head.appendChild(keyNumber);
     };
     // r567 (F181): typed parts ETA and stoppage note. Loads after the key number and before the table, so the
-    // table can lift the editor into the Parts ETA column. A missing script still opens the table.
+    // table can lift the read-only date into the Parts ETA column. r586 (F200): the date is set in the side panel.
+    // A missing script still opens the table.
     const loadPartsStoppage = () => {
       if (document.querySelector('script[data-pdc-parts-stoppage]')) return;
       const stoppage = document.createElement('script');
-      stoppage.src = 'pdc-parts-stoppage.js?r567=2026.10.27.r567&r573=2026.10.27.r573';
+      stoppage.src = 'pdc-parts-stoppage.js?r567=2026.10.27.r567&r573=2026.10.27.r573&r595=2026.10.28.r595';
       stoppage.dataset.pdcPartsStoppage = '1';
       stoppage.onload = loadVehicleLocationsTable;
       stoppage.onerror = loadVehicleLocationsTable;
@@ -142,7 +143,7 @@
     const loadVehicleSlideout = () => {
       if (document.querySelector('script[data-pdc-vehicle-slideout]')) return;
       const slideout = document.createElement('script');
-      slideout.src = 'pdc-vehicle-slideout.js?vehicle-slideout=2026.10.28.r588'; // r588 (F202): operation-line grid; r578 (F192): green complete tick; r560 (F174): More details; r565 (F179): chip edit
+      slideout.src = 'pdc-vehicle-slideout.js?vehicle-slideout=2026.10.28.r588&r595=2026.10.28.r595'; // r588 (F202): five-column grid cache-bust stays; r595 (F209): panel opens once; r578 (F192): green complete tick; r560 (F174): More details; r565 (F179): chip edit
       slideout.dataset.pdcVehicleSlideout = '1';
       document.head.appendChild(slideout);
     };

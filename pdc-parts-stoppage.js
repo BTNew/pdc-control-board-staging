@@ -1,6 +1,5 @@
 /* © 2026 Specialise Pty Ltd ATFT Specialise Trust (ABN 33 539 964 819). All rights reserved. Proprietary and confidential: no copying, modification, distribution, resale or commercial use without written permission. See LICENSE. */
 /* r564 (F178): a parts ETA and a short stoppage note typed on the vehicle.
- * The Vehicle Locations Parts ETA cell and the side panel's Parts ETA area use the same editor.
  * A typed date wins over the parts-staff email. The email chip's detail and the JITA date stay visible
  * as the source they came from. Parts (importer), workshop controllers (operator) and administrators edit.
  * Everyone else reads. The editor is not drawn until get_pdc_parts_stoppage_board_564 exists, so a board
@@ -8,12 +7,14 @@
  * One date per vehicle. A GP chip on a PD line is a sublet purchase order, not the DMS part line, so
  * there is no per-order date here.
  * Loads after the key number and before the Vehicle Locations table. styles.css and app.js are untouched.
- * r573 (F187): the same form can place that date as a vehicle STOPPAGE. The planner lists it
+ * r573 (F187): the form can place that date as a vehicle STOPPAGE. The planner lists it
  * in the Stoppage section. Clearing the date, or leaving the tick off, lifts it. Blue, not orange.
+ * r595 (F209): the Vehicle Locations Parts ETA cell is read-only. The date is set only in the
+ * vehicle side panel. That section offers Place as STOPPAGE without rebuilding the board.
  */
 (() => {
   'use strict';
-  const VERSION = '2026.10.27.r564';
+  const VERSION = '2026.10.28.r595';
   const PROJECT = 'cdsmnqxtyyoeoznmbidd';
   const BOARD_RPC = 'get_pdc_parts_stoppage_board_564';
   const SET_RPC = 'set_pdc_parts_stoppage_564';
@@ -87,26 +88,28 @@
       checked && `Last checked ${checked}${who ? ` by ${who}` : ''}`,
       email && manualDate && email !== manualDate ? `Email ${ddmmyy(email)} is kept` : ''
     ].filter(Boolean).join(' · ');
-    if (state.editing && state.canEdit) {
-      return `<div class="pdc-parts-stoppage-slot" data-parts-eta="${esc(shown)}" data-pdc-stoppage-slot="${vid}">`
-        + `<form class="pdc-parts-stoppage-form" data-pdc-stoppage-form="${vid}">`
-        + `<input type="date" data-pdc-stoppage-date="${vid}" value="${esc(state.draftEta ?? manualDate)}" aria-label="Parts ETA date" />`
-        + `<input type="text" maxlength="180" data-pdc-stoppage-note="${vid}" value="${esc(state.draftNote ?? note)}" placeholder="Waiting on (part)" aria-label="Parts stoppage note" />`
-        + `<button type="submit">Save</button>`
-        + `<button type="button" data-pdc-stoppage-clear="${vid}">Clear</button>`
-        + `<button type="button" data-pdc-stoppage-checked="${vid}">Checked</button>`
-        + `<button type="button" data-pdc-stoppage-cancel="${vid}">Cancel</button>`
-        + `<label class="pdc-parts-stoppage-place"><input type="checkbox" data-pdc-stoppage-place="${vid}"${state.placed ? ' checked' : ''}/> Place as STOPPAGE</label>`
-        + `<small class="pdc-parts-stoppage-msg" role="status">${esc(state.message || 'A typed date wins over the email. Tick Place as STOPPAGE to hold the vehicle until that date.')}</small>`
-        + `</form></div>`;
-    }
-    const label = shown ? `${ddmm(shown)}${left.text ? ` · ${left.text}` : ''}` : (state.canEdit ? 'Set ETA' : '—');
-    const open = state.canEdit
-      ? `<button type="button" class="pdc-parts-stoppage-open is-${left.state || 'empty'}" data-pdc-stoppage-edit="${vid}" title="${esc(title)}">${esc(label)}${note ? `<small class="pdc-parts-stoppage-note">${esc(clip(note))}</small>` : ''}</button>`
-      : `<span class="pdc-parts-stoppage-open is-${left.state || 'empty'}" title="${esc(title)}">${esc(label)}${note ? `<small class="pdc-parts-stoppage-note">${esc(clip(note))}</small>` : ''}</span>`;
+    // r595: the table lifts this slot. It is a date, never a button and never a form.
+    const label = shown ? `${ddmm(shown)}${left.text ? ` · ${left.text}` : ''}` : '—';
+    const open = `<span class="pdc-parts-stoppage-open is-${left.state || 'empty'}" title="${esc(title)}">${esc(label)}${note ? `<small class="pdc-parts-stoppage-note">${esc(clip(note))}</small>` : ''}</span>`;
     const secondary = email && manualDate && email !== manualDate ? `<small class="pdc-parts-stoppage-email">Email ${esc(ddmm(email))}</small>` : '';
     const placed = state.placed ? `<small class="pdc-parts-stoppage-placed">STOPPAGE</small>` : '';
     return `<div class="pdc-parts-stoppage-slot" data-parts-eta="${esc(shown)}" data-pdc-stoppage-slot="${vid}">${open}${placed}${secondary}</div>`;
+  }
+
+  function editorHtml(state) {
+    const vid = esc(state.vehicleId || '');
+    const manualDate = iso(state.manual?.eta_date);
+    const note = clean(state.manual?.note);
+    return `<form class="pdc-parts-stoppage-form" data-pdc-stoppage-form="${vid}">`
+      + `<input type="date" data-pdc-stoppage-date="${vid}" value="${esc(state.draftEta ?? manualDate)}" aria-label="Parts ETA date" />`
+      + `<input type="text" maxlength="180" data-pdc-stoppage-note="${vid}" value="${esc(state.draftNote ?? note)}" placeholder="Waiting on (part)" aria-label="Parts stoppage note" />`
+      + `<button type="submit">Save</button>`
+      + `<button type="button" data-pdc-stoppage-clear="${vid}">Clear</button>`
+      + `<button type="button" data-pdc-stoppage-checked="${vid}">Checked</button>`
+      + `<button type="button" data-pdc-stoppage-cancel="${vid}">Cancel</button>`
+      + `<label class="pdc-parts-stoppage-place"><input type="checkbox" data-pdc-stoppage-place="${vid}"${state.placed ? ' checked' : ''}/> Place as STOPPAGE</label>`
+      + `<small class="pdc-parts-stoppage-msg" role="status">${esc(state.message || 'A typed date wins over the email. Tick Place as STOPPAGE to hold the vehicle until that date.')}</small>`
+      + `</form>`;
   }
 
   function historyHtml(history) {
@@ -131,14 +134,18 @@
     if (email) lines.push(`<small class="pdc-parts-stoppage-email">Email ${esc(ddmmyy(email))} · parts staff email${manualDate ? ' (kept)' : ''}</small>`);
     if (jita) lines.push(`<small class="pdc-parts-stoppage-jita">JITA ETA ${esc(ddmmyy(jita))} · JITA paste</small>`);
     if (checked) lines.push(`<small class="pdc-parts-stoppage-checked">Last checked ${esc(checked)}${who ? ` · ${esc(who)}` : ''}</small>`);
-    const form = state.editing && state.canEdit ? slotHtml({ ...state, emailEta: '' }).replace(/^<div class="pdc-parts-stoppage-slot"[^>]*>/, '').replace(/<\/div>$/, '') : '';
+    const form = state.editing && state.canEdit ? editorHtml(state) : '';
     const button = !state.editing && state.canEdit
       ? `<button type="button" data-pdc-stoppage-edit="${vid}">${manualDate || email || clean(state.manual?.note) ? 'Change' : 'Set date'}</button>`
       : '';
+    const placeNow = !state.editing && state.canEdit
+      ? `<label class="pdc-parts-stoppage-place"><input type="checkbox" data-pdc-stoppage-place-now="${vid}"${state.placed ? ' checked' : ''}/> Place as STOPPAGE</label>`
+      : '';
+    const badge = state.placed && !state.editing ? `<small class="pdc-parts-stoppage-placed">STOPPAGE</small>` : '';
     const read = !state.editing ? `<strong class="pdc-parts-stoppage-read is-${countdown(shownEta(state.manual, email), state.today).state || 'empty'}">${esc(shownEta(state.manual, email) ? ddmmyy(shownEta(state.manual, email)) : 'No date')}</strong> `
       + (clean(state.manual?.note) ? `<span class="pdc-parts-stoppage-note">${esc(clean(state.manual.note))}</span>` : '') : '';
     return `<div class="tune-service-location-job pdc-parts-stoppage-detail" data-pdc-stoppage-detail="${vid}"><b>Parts ETA</b>`
-      + `<span class="pdc-parts-stoppage-lead">${read}${button}${form}</span>`
+      + `<span class="pdc-parts-stoppage-lead">${read}${badge}${button}${placeNow}${form}</span>`
       + lines.join('')
       + `<button type="button" data-pdc-stoppage-history="${vid}">History</button>`
       + (state.history ? historyHtml(state.history) : '')
@@ -166,7 +173,7 @@
     return -1;
   }
 
-  /** Put the cell editor on the summary (the table lifts it) and the same editor in the detail grid (the side panel). */
+  /** Put the read-only date on the summary (the table lifts it) and the editor in the detail grid (the side panel). */
   function decorateCard(html, state) {
     const text = String(html || '');
     if (!state?.vehicleId || text.includes('data-pdc-stoppage-slot=') || text.includes('data-pdc-stoppage-detail=')) return text;
@@ -241,7 +248,7 @@
 
   const api = {
     VERSION, BOARD_RPC, SET_RPC, HISTORY_RPC, JITA_RPC, PLACE_RPC, PLACE_BOARD_RPC,
-    shownEta, countdown, daysUntil, perthToday, slotHtml, detailHtml, decorateCard, historyHtml,
+    shownEta, countdown, daysUntil, perthToday, slotHtml, editorHtml, detailHtml, decorateCard, historyHtml,
     manualWarning, manualBookAllWarning, clip, hasManual, emailFromHtml, placePayload, placeMessage, plannerSectionHtml
   };
   if (typeof module !== 'undefined') module.exports = api;
@@ -294,8 +301,86 @@
       draftNote: st.draftNote
     };
   }
-  function rerender() {
-    try { if (typeof refreshAllViews === 'function') refreshAllViews(); } catch (_) { /* next paint */ }
+  function emailFor(vehicle) {
+    try { return iso(window.PDC_PARTS_ETA?.entryFor?.(vehicle)?.latest_eta); } catch (_) { return ''; }
+  }
+  function withEmail(vehicle) {
+    const state = stateFor(vehicle);
+    return state.emailEta ? state : { ...state, emailEta: emailFor(vehicle) };
+  }
+  function findVehicle(vid) {
+    const rows = typeof vehicleLocationsScreenRows === 'function' ? vehicleLocationsScreenRows() : [];
+    return rows.find(row => vehicleId(row) === vid) || null;
+  }
+  function replaceOuter(node, html) {
+    if (!node?.parentNode) return;
+    const holder = document.createElement('div');
+    holder.innerHTML = html;
+    const next = holder.children?.[0];
+    if (next) node.replaceWith(next);
+  }
+  function rememberPlaced(vid, placed, want) {
+    if (want !== true || placed?.ok !== true) { placedById.delete(vid); return; }
+    const prev = placedById.get(vid) || {};
+    const vehicle = findVehicle(vid);
+    const manual = byId.get(vid);
+    placedById.set(vid, {
+      ...prev,
+      vehicle_id: vid,
+      stock_number: clean(placed.stock_number || prev.stock_number || vehicle?.stock_number || vehicle?.stock || ''),
+      key_number: clean(placed.key_number || prev.key_number || vehicle?.key_number || ''),
+      eta_date: iso(placed.eta_date || prev.eta_date || manual?.eta_date),
+      note: clean(placed.note != null ? placed.note : (prev.note || manual?.note || '')),
+      reason: clean(placed.reason || prev.reason || ''),
+      set_by_actor: clean(placed.set_by_actor || prev.set_by_actor || ''),
+      booking_id: placed.booking_id || prev.booking_id || ''
+    });
+  }
+  function paintPlanner() {
+    const section = document.querySelector('.workshop-parts-stoppage');
+    if (section) replaceOuter(section, plannerSectionHtml([...placedById.values()]));
+  }
+  function paint(vid) {
+    const vehicle = findVehicle(vid);
+    const state = vehicle ? withEmail(vehicle) : {
+      vehicleId: vid, canEdit, editing: Boolean(ui.get(vid)?.editing), message: ui.get(vid)?.message || '',
+      history: ui.get(vid)?.history, manual: byId.get(vid) || null, placed: placedById.has(vid),
+      jitaEta: jitaById.get(vid) || '', today: today(), draftEta: ui.get(vid)?.draftEta, draftNote: ui.get(vid)?.draftNote, emailEta: ''
+    };
+    const detail = detailHtml(state);
+    const slot = slotHtml(state);
+    document.querySelectorAll(`[data-pdc-stoppage-detail="${vid}"]`).forEach(node => replaceOuter(node, detail));
+    document.querySelectorAll(`[data-pdc-stoppage-slot="${vid}"]`).forEach(node => replaceOuter(node, slot));
+    paintPlanner();
+  }
+  function paintVisible() {
+    const host = document.getElementById('vlt-table-host');
+    const rows = typeof vehicleLocationsScreenRows === 'function' ? vehicleLocationsScreenRows() : [];
+    const keyOf = typeof vehicleKey === 'function' ? vehicleKey : null;
+    if (host && keyOf) {
+      host.querySelectorAll('tr[data-vlt-key]').forEach(tr => {
+        const vehicle = rows.find(row => keyOf(row) === (tr.getAttribute('data-vlt-key') || ''));
+        if (!vehicle) return;
+        const state = withEmail(vehicle);
+        if (!state.vehicleId || (!state.canEdit && !hasManual(state.manual) && !state.placed)) return;
+        const cell = tr.querySelector('td.c-eta');
+        if (!cell) return;
+        const slot = slotHtml(state);
+        const existing = cell.querySelector('[data-pdc-stoppage-slot]');
+        if (existing) { if (existing.outerHTML !== slot) replaceOuter(existing, slot); return; }
+        const chip = cell.querySelector('.pdc-parts-eta');
+        if (chip) replaceOuter(chip, slot);
+        else cell.insertAdjacentHTML('afterbegin', slot);
+      });
+    }
+    document.querySelectorAll('[data-pdc-stoppage-detail]').forEach(node => {
+      const vid = node.getAttribute('data-pdc-stoppage-detail') || '';
+      if (UUID.test(vid)) paint(vid);
+    });
+  }
+  function rerender(vid) {
+    if (vid && UUID.test(String(vid))) paint(vid);
+    else paintVisible();
   }
   function install() {
     if (installed) return;
@@ -455,7 +540,7 @@
           : result?.code === 'vehicle_not_found' ? 'This vehicle is not on the board.'
           : `Not saved (${result?.code || 'error'}).`;
         ui.set(vid, { ...st, editing: true, message: text, draftEta: current.eta, draftNote: current.note });
-        rerender();
+        rerender(vid);
         return;
       }
       byId.set(vid, {
@@ -472,6 +557,7 @@
         try {
           const placed = await rpc(PLACE_RPC, { p_vehicle_id: vid, p_eta: follow.p_eta || null, p_note: follow.p_note || '', p_place: follow.p_place === true });
           if (placed?.ok === true) {
+            rememberPlaced(vid, placed, follow.p_place === true);
             extra = follow.p_place ? ' Placed as STOPPAGE.' : ' STOPPAGE lifted.';
           } else extra = ` ${placeMessage(placed)}`;
         } catch (error) {
@@ -479,24 +565,41 @@
             ? ' Place as STOPPAGE is not on this database yet. The date was saved.'
             : ` Stoppage was not changed: ${error.message || error}`;
         }
-        try {
-          const board = await rpc(PLACE_BOARD_RPC, {});
-          if (board && Array.isArray(board.vehicles)) indexPlaced(board);
-        } catch (_) { /* keep the last Stoppage list */ }
       }
       ui.set(vid, { editing: false, message: (result.changed === false ? 'No change.' : 'Saved.') + extra, history: null });
-      rerender();
+      rerender(vid);
     } catch (error) {
       ui.set(vid, { ...st, editing: true, message: `Not saved: ${error.message || error}`, draftEta: current.eta, draftNote: current.note });
-      rerender();
+      rerender(vid);
     }
+  }
+  async function placeNow(vid, want) {
+    const st = ui.get(vid) || {};
+    const manual = byId.get(vid);
+    const eta = iso(manual?.eta_date);
+    if (want && !eta) {
+      ui.set(vid, { ...st, editing: true, message: 'Set a parts ETA before placing a STOPPAGE.' });
+      paint(vid);
+      return;
+    }
+    if (!want && !placedById.has(vid)) { paint(vid); return; }
+    try {
+      const placed = await rpc(PLACE_RPC, { p_vehicle_id: vid, p_eta: eta || null, p_note: clean(manual?.note), p_place: want === true });
+      if (placed?.ok === true) {
+        rememberPlaced(vid, placed, want === true);
+        ui.set(vid, { ...st, editing: false, message: want ? 'Placed as STOPPAGE.' : 'STOPPAGE lifted.', history: null });
+      } else ui.set(vid, { ...st, message: placeMessage(placed) });
+    } catch (error) {
+      ui.set(vid, { ...st, message: error?.status === 404 ? 'Place as STOPPAGE is not on this database yet.' : `Stoppage was not changed: ${error.message || error}` });
+    }
+    paint(vid);
   }
   async function showHistory(vid) {
     const st = ui.get(vid) || {};
     try {
       const data = await rpc(HISTORY_RPC, { p_vehicle_id: vid });
       ui.set(vid, { ...st, history: Array.isArray(data?.history) ? data.history : [] });
-      rerender();
+      rerender(vid);
     } catch (_) { /* leave the cell as it is */ }
   }
 
@@ -504,13 +607,13 @@
   style.textContent = [
     '.pdc-parts-stoppage-slot{display:flex;flex-direction:column;align-items:flex-start;gap:2px;max-width:100%;min-width:0}',
     '.pdc-parts-stoppage-open{font:inherit;font-size:11px;font-weight:700;line-height:1.15;text-align:left;padding:2px 5px;border-radius:4px;border:1px solid #bae6fd;background:#e0f2fe;color:#075985;max-width:100%}',
-    'button.pdc-parts-stoppage-open{cursor:pointer}',
+    'span.pdc-parts-stoppage-open{cursor:default}',
     '.pdc-parts-stoppage-open.is-due{background:#fef3c7;border-color:#fcd34d;color:#92400e}',
     '.pdc-parts-stoppage-open.is-overdue,.pdc-parts-stoppage-read.is-overdue{background:#fee2e2;border-color:#fca5a5;color:#b91c1c}',
     '.pdc-parts-stoppage-open.is-empty{background:#f8fafc;border-color:#cbd5e1;color:#334155;font-weight:650}',
     '.pdc-parts-stoppage-note{display:block;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:550;font-size:10px}',
     '.pdc-parts-stoppage-email,.pdc-parts-stoppage-jita,.pdc-parts-stoppage-checked,.pdc-parts-stoppage-scope{display:block;color:#64748b;font-size:10.5px}',
-    '.pdc-parts-stoppage-detail{grid-column:1/-1}',
+    '.incoming-vehicle-detail-grid > .pdc-parts-stoppage-detail{grid-column:1/-1}',
     '.pdc-parts-stoppage-detail .pdc-parts-stoppage-lead{display:flex;flex-wrap:wrap;gap:6px;align-items:center}',
     '.pdc-parts-stoppage-form{display:flex;flex-wrap:wrap;gap:4px;align-items:center}',
     '.pdc-parts-stoppage-form input[type="date"]{font:inherit;font-size:12px}',
@@ -528,7 +631,7 @@
   document.head.appendChild(style);
 
   for (const type of ['mousedown', 'pointerdown', 'touchstart', 'dblclick']) {
-    document.addEventListener(type, event => { if (event.target?.closest?.('.pdc-parts-stoppage-slot, .pdc-parts-stoppage-detail')) event.stopPropagation(); }, true);
+    document.addEventListener(type, event => { if (event.target?.closest?.('.pdc-parts-stoppage-detail, .pdc-parts-stoppage-form')) event.stopPropagation(); }, true);
   }
   document.addEventListener('click', event => {
     const el = event.target?.closest?.('[data-pdc-stoppage-edit],[data-pdc-stoppage-cancel],[data-pdc-stoppage-clear],[data-pdc-stoppage-checked],[data-pdc-stoppage-history]');
@@ -538,11 +641,18 @@
     const vid = idKey(el.dataset.pdcStoppageEdit || el.dataset.pdcStoppageCancel || el.dataset.pdcStoppageClear || el.dataset.pdcStoppageChecked || el.dataset.pdcStoppageHistory);
     if (!UUID.test(vid)) return;
     const st = ui.get(vid) || {};
-    if (el.dataset.pdcStoppageEdit) { if (!canEdit) return; ui.set(vid, { ...st, editing: true, message: '', draftEta: undefined, draftNote: undefined }); rerender(); }
-    else if (el.dataset.pdcStoppageCancel) { ui.set(vid, { ...st, editing: false, message: '' }); rerender(); }
+    if (el.dataset.pdcStoppageEdit) { if (!canEdit) return; ui.set(vid, { ...st, editing: true, message: '', draftEta: undefined, draftNote: undefined }); rerender(vid); }
+    else if (el.dataset.pdcStoppageCancel) { ui.set(vid, { ...st, editing: false, message: '' }); rerender(vid); }
     else if (el.dataset.pdcStoppageClear) save(vid, 'clear');
     else if (el.dataset.pdcStoppageChecked) save(vid, 'check');
     else showHistory(vid);
+  }, true);
+  document.addEventListener('change', event => {
+    const box = event.target?.closest?.('[data-pdc-stoppage-place-now]');
+    if (!box) return;
+    event.stopPropagation();
+    const vid = idKey(box.dataset.pdcStoppagePlaceNow);
+    if (UUID.test(vid)) placeNow(vid, box.checked === true);
   }, true);
   document.addEventListener('submit', event => {
     const form = event.target?.closest?.('[data-pdc-stoppage-form]');
