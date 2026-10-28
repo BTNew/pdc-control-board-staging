@@ -15559,7 +15559,8 @@ function vehicleWorkshopHoursBatchDraftValue(vehicleId = '', operationLineId = '
 
 function vehicleWorkshopHoursBatchRowsFromPage(page) {
   return [...(page?.querySelectorAll?.('[data-vehicle-workshop-hours-batch-input]') || [])].map(input => {
-    const raw = String(input.value ?? '').trim();
+    // r687 (F297, Craig 29 Oct): ".2" means 0.2 and "2." means 2, so short typing saves instead of "Enter valid hours".
+    const raw = String(input.value ?? '').trim().replace(/^\.(?=[0-9])/, '0.').replace(/^([0-9]+)\.$/, '$1');
     return {
       operationLineId: String(input.dataset.operationLineId || '').trim().toLowerCase(),
       adjustmentId: input.dataset.adjustmentId || null,
