@@ -80,7 +80,7 @@
     newpmb: ['New to PMB', 'Key under 4 days', 'newpmb', 'NEW'],
     pmb: ['PMB', 'Work still active', 'transit', 'PMB'],
     qc: ['QC', 'Awaiting QC sign-off', 'hold', 'QC'],
-    pit: ['PIT', 'Dept of Transport', 'production', 'PIT'],
+    pit: ['PIT', 'Pits booked today', 'production', 'PIT'], // r634 (F249): the number is today's pit bookings not ticked Done
     rft: ['RFT', 'Ready for transport', 'released', 'RFT'],
   });
   const STOPPAGES = '__stoppages';
@@ -637,6 +637,14 @@
     if (summary && !/· also in /.test(summary.textContent)) summary.textContent += ` · also in ${groups.map(group => departmentName(group.code)).join(', ')}`;
   }
 
+  // r634 (F249): the PIT tile shows how many pits are booked for today and not ticked Done yet (0 = no pits today).
+  function pitTodayCount() {
+    try {
+      const n = root.PDC_PIT_BOOKINGS?.todayCount?.();
+      return Number.isFinite(n) ? n : 0;
+    } catch (_) { return 0; }
+  }
+
   function renderTable() {
     const host = ensureHost();
     if (!host) return;
@@ -728,7 +736,7 @@
     const defFor = key => defs.find(def => def.key === key) || {};
     const tilesHtml = `<div class="vlt-tiles" role="toolbar" aria-label="Filter Vehicle Locations by location">${
       tile('', 'All vehicles', new Set(entries.map(entry => entry.key)).size, 'Every active vehicle', 'all', !scope.bucket && !scope.stoppages, 'Show every vehicle')}${
-      order.map(key => tile(key, TILE[key]?.[0] || defFor(key).label || key, counts.get(key) || 0, TILE[key]?.[1] || '', TILE[key]?.[2] || 'unknown', !scope.stoppages && scope.bucket === key, defFor(key).hint)).join('')}${
+      order.map(key => tile(key, TILE[key]?.[0] || defFor(key).label || key, key === 'pit' ? pitTodayCount() : counts.get(key) || 0, TILE[key]?.[1] || '', TILE[key]?.[2] || 'unknown', !scope.stoppages && scope.bucket === key, defFor(key).hint)).join('')}${
       tile(STOPPAGES, 'STOPPAGES', priorityRows.length, 'Fix first', 'stoppage', scope.stoppages, 'STOPPAGES / Fix First — the same list as the drop-down view')}</div>`;
     const headingSort = state.partsSort ? {} : sort; // only one column shows as sorted
     const heading = (label, key) => root.incomingSortHeadingHtml(label, key, headingSort);

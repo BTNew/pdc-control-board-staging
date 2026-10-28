@@ -13,7 +13,7 @@
  */
 (function (root) {
   'use strict';
-  const VERSION = '2026.10.28.r632';
+  const VERSION = '2026.10.28.r634';
   const PROJECT = 'cdsmnqxtyyoeoznmbidd';
   const PLACES = Object.freeze(['PMB', 'Wangara', 'Wades', 'Welshpool']); // r632 (F247): Welshpool added
   const DAY_MS = 86400000;
@@ -139,6 +139,12 @@
       if (filter === 'back') return booked && v.back;
       return true;
     });
+  }
+
+  /** r634 (F249): pits booked for `today` and not ticked Done (keyed vehicles only, as listed). The PIT tile number. */
+  function todayCount(vehicles, today) {
+    const day = isoDate(today);
+    return day ? vehicles.filter(v => hasKey(v) && isoDate(v.pit_date) === day && !v.back).length : 0;
   }
 
   /** The panel above the table on the PIT tile: the list, then the calendar. */
@@ -283,7 +289,7 @@
 @media (max-width: 720px) { .pdc-pit-day { min-height: 46px; } .pdc-pit-cal-chip { font-size: 9.5px; } }
 `;
 
-  const api = { VERSION, PLACES, TIME_SLOTS, timeLabel, dialogHtml, searchActive, searchMatches, daysUntil, counterText, shortDate, indexBoard, cellHtml, monthGrid, shiftMonth, filterVehicles, panelHtml, CSS };
+  const api = { VERSION, PLACES, todayCount, TIME_SLOTS, timeLabel, dialogHtml, searchActive, searchMatches, daysUntil, counterText, shortDate, indexBoard, cellHtml, monthGrid, shiftMonth, filterVehicles, panelHtml, CSS };
   if (typeof module !== 'undefined') module.exports = api;
   if (typeof window === 'undefined' || window.PDC_SUPABASE_CONFIG?.projectRef !== PROJECT || window.PDC_PIT_BOOKINGS) return;
 
@@ -450,6 +456,7 @@
 
   window.PDC_PIT_BOOKINGS = Object.freeze({
     ...api,
+    todayCount: () => todayCount(board.vehicles, board.today),
     cell: rowKey => cellHtml(board.byKey.get(String(rowKey)) || board.byKey.get(stockKey(rowKey)), board.today),
     afterRender,
     load,
