@@ -6815,10 +6815,8 @@ function renderQualityControlPage() {
   const mobile = qcPageIsMobile();
   if (!vehicles.some(vehicle => qcPageVehicleKey(vehicle) === qcSelectedVehicleKey)) qcSelectedVehicleKey = mobile ? '' : qcPageVehicleKey(vehicles[0] || {});
   const selected = vehicles.find(vehicle => qcPageVehicleKey(vehicle) === qcSelectedVehicleKey) || null;
-  if (selected) {
-    void qcPageLoadStoredPhoto(qcPageVehicleKey(selected));
-    void qcPageLoadSignoffOutstanding(selected);
-  }
+  if (selected) void qcPageLoadStoredPhoto(qcPageVehicleKey(selected));
+  if (selected) void qcPageLoadSignoffOutstanding(selected);
   host.innerHTML = `<div class="qc-page-layout ${mobile ? selected ? 'is-mobile-detail' : 'is-mobile-list' : ''}">${qcPageNotice ? `<div class="qc-finalization-notice" role="status" aria-live="polite">${escapeHtml(qcPageNotice)}</div>` : ''}
     <section class="qc-queue" aria-labelledby="qc-queue-title"><div class="qc-queue-header"><div><h3 id="qc-queue-title">Vehicles requiring QC</h3><p>${vehicles.length} awaiting QC sign-off</p></div><span class="qc-queue-count">${vehicles.length}</span></div><div class="qc-vehicle-list">${vehicles.length ? vehicles.map(vehicle => qcPageVehicleCardHtml(vehicle, qcPageVehicleKey(vehicle) === qcSelectedVehicleKey)).join('') : '<div class="qc-empty-state"><strong>No vehicles require QC</strong><span>Vehicles appear here after all required workshop work is complete.</span></div>'}</div></section>
     <section class="qc-detail-host">${selected ? qcPageDetailHtml(selected) : '<div class="qc-empty-state qc-detail-empty"><strong>Select a vehicle</strong><span>Choose a QC vehicle to review its completed work and store the completion photo.</span></div>'}</section>
