@@ -77,13 +77,17 @@ if (typeof window !== 'undefined') (function () {
     const counts = payload.counts || {};
     const grid = document.createElement('div');
     grid.className = 'ru-counts';
-    for (const [label, value] of [
+    const cards = [
       ['New', counts.new || 0],
       ['Updated', counts.updated || 0],
+    ];
+    if (Number.isInteger(counts.unchanged)) cards.push(['Unchanged', counts.unchanged]);
+    cards.push(
       ['Archived', counts.archived || 0],
       ['Skipped', counts.skipped || 0],
       ['Errors', counts.errors || 0],
-    ]) {
+    );
+    for (const [label, value] of cards) {
       const card = document.createElement('div');
       card.className = 'ru-count';
       const name = document.createElement('span');
@@ -104,7 +108,7 @@ if (typeof window !== 'undefined') (function () {
       payload.duplicate_file ? 'This file is already in the ledger.' : '',
       payload.quiet_hours ? 'Quiet hours. Apply is refused around 07:00, 12:30 and 18:00 AWST.' : '',
     ].filter(Boolean);
-    notes.textContent = extra.join(' ') || 'No extra holds.';
+    notes.textContent = [payload.summary, ...extra].filter(Boolean).join(' ') || 'No extra holds.';
     host.append(notes);
     if (payload.errors?.length) {
       const list = document.createElement('ul');
@@ -162,7 +166,7 @@ if (typeof window !== 'undefined') (function () {
       kind: payload.kind || '',
       result: payload.error && !payload.md5
         ? payload.error
-        : `new ${counts.new || 0}, updated ${counts.updated || 0}, archived ${counts.archived || 0}, skipped ${counts.skipped || 0}, holds ${counts.holds || 0}, errors ${counts.errors || 0}`,
+        : payload.summary || `new ${counts.new || 0}, updated ${counts.updated || 0}, archived ${counts.archived || 0}, skipped ${counts.skipped || 0}, holds ${counts.holds || 0}, errors ${counts.errors || 0}`,
     });
   }
 
