@@ -11,10 +11,11 @@ const board = pit.indexBoard({ today: '2026-10-28', can_edit: true, vehicles: [
   { vehicle_id: 'c3', stock_number: '333', key_number: 506, vehicle: 'Prado', needs_pit: true, pit_date: '2026-10-30', pit_location: 'Wangara', booking_version: 1 },
 ] });
 
-test('time slots: 07:00 to 17:00 every half hour', () => {
-  assert.equal(pit.TIME_SLOTS.length, 21);
+test('time slots: 07:00 to 17:00 every quarter hour (r632)', () => {
+  assert.equal(pit.TIME_SLOTS.length, 41);
   assert.equal(pit.TIME_SLOTS[0], '07:00');
-  assert.equal(pit.TIME_SLOTS[1], '07:30');
+  assert.equal(pit.TIME_SLOTS[1], '07:15');
+  assert.equal(pit.TIME_SLOTS[3], '07:45');
   assert.equal(pit.TIME_SLOTS.at(-1), '17:00');
   assert.equal(pit.timeLabel('07:30'), '7:30am');
   assert.equal(pit.timeLabel('13:00:00'), '1:00pm');
@@ -25,7 +26,7 @@ test('box: time list and the three places, picked values selected', () => {
   const html = pit.dialogHtml({ entry: board.byKey.get('a1'), date: '2026-10-31', time: '13:00', place: 'Wades', booked: true });
   assert.match(html, /Pit booking · Sat 31 Oct/);
   assert.match(html, /Key 504 · 111 · Coaster/);
-  assert.equal((html.match(/data-pit-time="/g) || []).length, 21);
+  assert.equal((html.match(/data-pit-time="/g) || []).length, 41);
   assert.match(html, /data-pit-time="13:00" aria-selected="true">1:00pm/);
   assert.match(html, /data-pit-dlg-place="Wades" aria-checked="true"/);
   assert.match(html, /data-pit-dlg-remove/);
@@ -57,7 +58,7 @@ test('wiring: writes go to set_pdc_pit_booking_630; drop and Done open the box; 
   assert.match(src, /openDialog\(vid, \{ date: day\.dataset\.pitDay \}\)/);
   assert.match(src, /openDialog\(c\.dataset\.pitBack, \{ date: board\.today, back: true/);
   assert.match(src, /addEventListener\('wheel'/);
-  assert.match(fs.readFileSync('canonical-entry.js', 'utf8'), /pdc-pit-bookings\.js\?[^']*&r630=2026\.10\.28\.r630'/);
+  assert.match(fs.readFileSync('canonical-entry.js', 'utf8'), /pdc-pit-bookings\.js\?[^']*&r630=2026\.10\.28\.r630(?:&r632=2026\.10\.28\.r632)?'/);
   const sql = fs.readFileSync('supabase/migrations/20261028220000_r630_pit_time.sql', 'utf8');
   assert.match(sql, /r630: staging only/);
   assert.match(sql, /expected_function_md5\) <> 241/);

@@ -6,16 +6,16 @@
  *   Wangara or Wades. Drag a booked chip to another day to move it.
  * - Vehicle Locations gets a Pit column left of Parts ETA: the date, the place and a day counter.
  *   Ticked Back turns it green with a tick.
- * r630 (F245): dropping on the calendar opens one box for the time (07:00 to 17:00, half hours; mouse wheel or arrow
+ * r630 (F245): dropping on the calendar opens one box for the time (07:00 to 17:00; r632: quarter hours; mouse wheel or arrow
  *   keys) and the place, then saves. One calendar for PMB, Wangara and Wades. Writes go to set_pdc_pit_booking_630.
  * Reads get_pdc_pit_board_604 (board readers). Writes set_pdc_pit_booking_604 (controllers and
  * administrators). Nothing here touches imports, bookings in the planner or vehicle locations.
  */
 (function (root) {
   'use strict';
-  const VERSION = '2026.10.28.r630';
+  const VERSION = '2026.10.28.r632';
   const PROJECT = 'cdsmnqxtyyoeoznmbidd';
-  const PLACES = Object.freeze(['PMB', 'Wangara', 'Wades']);
+  const PLACES = Object.freeze(['PMB', 'Wangara', 'Wades', 'Welshpool']); // r632 (F247): Welshpool added
   const DAY_MS = 86400000;
   const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
   const LONG_MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
@@ -61,8 +61,8 @@
   // r622 (F237): dd/mm, the same date style as the Parts ETA cell.
   const ddmm = iso => { const d = isoDate(iso); return d ? `${d.slice(8, 10)}/${d.slice(5, 7)}` : ''; };
 
-  // r630 (F245): pit times are half-hour slots. The box offers 07:00 to 17:00.
-  const TIME_SLOTS = Object.freeze(Array.from({ length: 21 }, (_, i) => `${String(7 + Math.floor(i / 2)).padStart(2, '0')}:${i % 2 ? '30' : '00'}`));
+  // r630 (F245) pit times; r632 (F247): every quarter hour, 07:00 to 17:00.
+  const TIME_SLOTS = Object.freeze(Array.from({ length: 41 }, (_, i) => `${String(7 + Math.floor(i / 4)).padStart(2, '0')}:${String((i % 4) * 15).padStart(2, '0')}`));
   const hhmm = value => { const m = /^(\d{2}):(\d{2})/.exec(String(value || '')); return m ? `${m[1]}:${m[2]}` : ''; };
   /** 07:30 -> 7:30am, 13:00 -> 1:00pm. */
   function timeLabel(value) {
@@ -208,7 +208,7 @@
       <label class="pdc-pit-dlg-label">Place</label>
       <div class="pdc-pit-places" role="radiogroup" aria-label="Place">${PLACES.map((p, i) => `<button type="button" role="radio" data-pit-dlg-place="${p}" aria-checked="${p === pickPlace}" title="Key ${i + 1}">${p}</button>`).join('')}</div>
       <div class="pdc-pit-dlg-actions">${booked ? '<button type="button" class="pdc-pit-dlg-remove" data-pit-dlg-remove>Remove</button>' : ''}<button type="button" data-pit-dlg-cancel>Cancel</button><button type="button" class="pdc-pit-dlg-save" data-pit-dlg-save>Save</button></div>
-      <p class="pdc-pit-dlg-keys">Mouse wheel or ↑ ↓ for the time · 1 2 3 for the place · Enter saves · Esc cancels</p>
+      <p class="pdc-pit-dlg-keys">Mouse wheel or ↑ ↓ for the time · 1 2 3 4 for the place · Enter saves · Esc cancels</p>
     </div></div>`;
   }
 
@@ -244,7 +244,7 @@
 .pdc-pit-times button:hover { background: #f1f5f9; }
 .pdc-pit-times button[aria-selected="true"] { background: #1e293b; color: #fff; font-weight: 700; }
 .pdc-pit-places { display: flex; gap: 6px; }
-.pdc-pit-places button { flex: 1; border: 1px solid #cbd5e1; background: #fff; border-radius: 6px; padding: 7px 4px; font-size: 13px; cursor: pointer; }
+.pdc-pit-places button { flex: 1; min-width: 0; border: 1px solid #cbd5e1; background: #fff; border-radius: 6px; padding: 7px 4px; font-size: 13px; cursor: pointer; }
 .pdc-pit-places button[aria-checked="true"] { background: #1e293b; border-color: #1e293b; color: #fff; font-weight: 700; }
 .pdc-pit-dlg-actions { display: flex; gap: 6px; margin-top: 12px; align-items: center; }
 .pdc-pit-dlg-actions .pdc-pit-dlg-save { margin-left: auto; background: #2563eb; color: #fff; border: 0; border-radius: 6px; padding: 7px 16px; font-weight: 700; cursor: pointer; }
@@ -277,6 +277,7 @@
 .pdc-pit-cal-chip.pdc-pit-at-pmb { background: #e0e7ff; }
 .pdc-pit-cal-chip.pdc-pit-at-wangara { background: #fde68a; }
 .pdc-pit-cal-chip.pdc-pit-at-wades { background: #bae6fd; }
+.pdc-pit-cal-chip.pdc-pit-at-welshpool { background: #fbcfe8; }
 .pdc-pit-cal-chip.is-back { background: #dcfce7; color: #14532d; }
 .pdc-pit-hint, .pdc-pit-readonly { font-size: 11px; color: #64748b; margin: 6px 0 0; }
 @media (max-width: 720px) { .pdc-pit-day { min-height: 46px; } .pdc-pit-cal-chip { font-size: 9.5px; } }
@@ -363,10 +364,10 @@
       if (event.key === 'Escape') { event.preventDefault(); close(); }
       else if (event.key === 'Enter') { event.preventDefault(); commit(); }
       else if (event.key === 'ArrowDown' || event.key === 'ArrowUp') { event.preventDefault(); step(event.key === 'ArrowDown' ? 1 : -1); }
-      else if (['1', '2', '3'].includes(event.key)) { event.preventDefault(); place = PLACES[Number(event.key) - 1]; show(); }
+      else if (/^[1-9]$/.test(event.key) && PLACES[Number(event.key) - 1]) { event.preventDefault(); place = PLACES[Number(event.key) - 1]; show(); }
     }
     document.addEventListener('keydown', onKey, true);
-    // Mouse wheel over the times moves one half hour per notch.
+    // Mouse wheel over the times moves one step (15 minutes) per notch.
     let wheelAt = 0;
     list.addEventListener('wheel', event => {
       event.preventDefault();
