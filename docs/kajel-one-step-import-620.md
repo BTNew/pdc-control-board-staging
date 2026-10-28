@@ -13,7 +13,7 @@ Do not run `build-parts.py`, the part-NN `preview.sql` / `apply.sql`, `holdstock
 The database now partitions (by stock, max 180 rows), previews, holds, applies and archives itself, with the same
 md5 pins, advisory locks, LOCK TABLE, importer unban/re-ban, before/after snapshots and RAISEs as your apply.sql.
 
-### Call 1: submit
+### Call 1: submit (small files)
 ```sql
 SELECT pdc_import_620.submit_service_whole(
   '<all prepared rows as one JSON array>'::jsonb,   -- every row prepare-service.py would send (all parts together)
@@ -26,6 +26,15 @@ SELECT pdc_import_620.submit_service_whole(
 );
 ```
 Returns `job_id`, rows sent / held, partition count, new board vehicles.
+
+### Call 1 for a full file (r641): load in chunks
+The SQL endpoint refuses very large requests, so send the rows in chunks of about 1-2 MB (your compressed form is fine):
+```sql
+SELECT pdc_import_620.submit_begin('<workbook sha256>', '<envelope json>'::jsonb, 'preview');   -- -> job_id, status loading
+SELECT pdc_import_620.add_rows('<job_id>', '<chunk of rows>'::jsonb);                          -- repeat, in file order
+SELECT pdc_import_620.submit_finish('<job_id>');                                                -- holds, gate, partitions; queued
+```
+The envelope must include `filename` and `gmail_message_id`.
 `mode='apply'` with more than 15 new board vehicles comes back `held` straight away (sanity gate).
 
 ### The worker
