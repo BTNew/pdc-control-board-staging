@@ -52,7 +52,8 @@ BEGIN
           (SELECT min(r.row->>'repair_order_number') FROM pdc_import_620.job_rows r WHERE r.job_id = p_job AND r.stock_number = v_s), clock_timestamp())
         ON CONFLICT (vehicle_id) DO UPDATE SET status = 'pending', source_kind = excluded.source_kind, first_job_card = excluded.first_job_card,
           received_at = clock_timestamp(), approved_at = NULL, approved_by = NULL, approval_key = NULL, approval_hash = NULL, approval_receipt = NULL,
-          closed_at = NULL, closure_reason = NULL;
+          closed_at = NULL, closure_reason = NULL
+        WHERE pdc_new_vehicle_reviews.vehicle_id = excluded.vehicle_id;
       END IF;
     END IF;
   END LOOP;
