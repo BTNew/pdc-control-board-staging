@@ -6231,7 +6231,49 @@ function qcPageVehicleIsEligible(vehicle = {}) {
 
 function qcPageVehicles() {
   const rows = typeof pdcSheetVehicles === 'function' ? pdcSheetVehicles() : [];
-  return rows.filter(qcPageVehicleIsEligible);
+  const eligible = rows.filter(qcPageVehicleIsEligible);
+  return typeof qcPageSortByKeyNumber === 'function' ? qcPageSortByKeyNumber(eligible) : eligible; // r615 (F230)
+}
+
+const QC_KEY_BADGE_STYLE = 'display:inline-block;background:#0f172a;color:#fff;border-radius:6px;padding:1px 7px;margin-right:4px;font-weight:800;';
+// r615 (F230): QC lists lowest key number first; vehicles with no key go last.
+function qcPageKeySortValue(vehicle = {}) {
+  const n = Number.parseInt(String(vehicleKeyNumber(vehicle) || '').replace(/\D+/g, ''), 10);
+  return Number.isFinite(n) && n > 0 ? n : Number.POSITIVE_INFINITY;
+}
+function qcPageSortByKeyNumber(rows = []) {
+  return rows.map((row, index) => ({ row, index, key: qcPageKeySortValue(row) }))
+    .sort((a, b) => (a.key === b.key ? a.index - b.index : a.key < b.key ? -1 : 1))
+    .map(item => item.row);
+}
+
+// r615 (F230): the QC tablet/phone cards (pdc-qc-mobile.js is frozen) get a key badge after each render.
+function qcPageDecorateKeyNumbers(host = document.querySelector('#qc-page-host')) {
+  if (!host) return;
+  const cards = host.querySelectorAll('.qc-phone-vehicle[data-qc-open-vehicle]');
+  if (!cards.length) return;
+  const byKey = new Map(qcPageVehicles().map(row => [qcPageVehicleKey(row), row]));
+  cards.forEach(card => {
+    if (card.querySelector('.qc-key-badge')) return;
+    const keyNo = vehicleKeyNumber(byKey.get(card.dataset.qcOpenVehicle) || {});
+    const top = card.querySelector('.qc-phone-card-top strong');
+    if (!keyNo || !top) return;
+    const badge = document.createElement('b');
+    badge.className = 'qc-key-badge';
+    badge.style.cssText = QC_KEY_BADGE_STYLE;
+    badge.textContent = `K${keyNo}`;
+    top.prepend(badge, ' ');
+  });
+}
+if (typeof window !== 'undefined' && typeof MutationObserver === 'function' && typeof document !== 'undefined') {
+  const qcKeyObserverStart = () => {
+    const host = document.querySelector('#qc-page-host');
+    if (!host || host.dataset.qcKeyObserver) return;
+    host.dataset.qcKeyObserver = '1';
+    new MutationObserver(() => qcPageDecorateKeyNumbers(host)).observe(host, { childList: true });
+    qcPageDecorateKeyNumbers(host);
+  };
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', qcKeyObserverStart); else setTimeout(qcKeyObserverStart, 0);
 }
 
 function qcPageVehicleKey(vehicle = {}) {
@@ -6463,7 +6505,7 @@ function qcPageVehicleCardHtml(vehicle = {}, selected = false) {
   const allComplete = qcPageAllOperationLinesComplete(vehicle);
   const status = vehicle.pdcQcFixStatus === 'Pending QC fixes' ? 'Pending QC fixes' : allComplete ? 'Ready to sign off' : 'Work incomplete';
   return `<button class="qc-vehicle-card ${selected ? 'is-selected' : ''} ${allComplete ? 'is-ready' : 'needs-work'}" type="button" data-qc-open-vehicle="${escapeHtml(key)}" data-qc-vehicle-key="${escapeHtml(key)}" aria-pressed="${selected ? 'true' : 'false'}">
-    <span class="qc-vehicle-card-top"><strong>${escapeHtml(stock)}</strong><span class="qc-status-pill ${allComplete ? 'is-green' : 'is-warning'}">${escapeHtml(status)}</span></span>
+    <span class="qc-vehicle-card-top"><strong>${vehicleKeyNumber(vehicle) ? `<b class="qc-key-badge" style="${QC_KEY_BADGE_STYLE}">K${escapeHtml(vehicleKeyNumber(vehicle))}</b> ` : ''}${escapeHtml(stock)}</strong><span class="qc-status-pill ${allComplete ? 'is-green' : 'is-warning'}">${escapeHtml(status)}</span></span>
     <span class="qc-vehicle-card-unit">${escapeHtml(unit)}</span>
     <span class="qc-vehicle-card-meta"><span>${escapeHtml(vehicleCustomerName(vehicle) || vehicle.customerName || 'Customer unavailable')}</span><span>${escapeHtml(vehicleKeyNumber(vehicle) || 'No key')}</span><span>${escapeHtml(consultant)}</span></span>
   </button>`;
