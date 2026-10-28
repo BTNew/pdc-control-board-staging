@@ -1,5 +1,25 @@
 # Reported faults
 
+## r598 to r601 went live on the database but never reached the site
+
+Claude, 28 Oct 2026 10:45 AWST, taking over from Grok. The r598 to r601 SQL (place after a running job, cross-bay guard off, clock resume cascade, booking check follows the guard) was applied to staging, but PR #591 with the matching site text, migration files and undo files was never merged. The live planner still said "drag it again and choose OK" and asked for a 1-hour gap that no longer applies.
+
+Rebasing PR #591 onto main also broke 5 site tests. The `r601` cache tag was put first on the `workshop-planner.js` address, and four tests look for that address starting `?station-scope=`. The cross-bay conflict text changed but `test_workshop_vehicle_conflict_details.js` still asked for "at least 1 hour".
+
+### Fix
+
+r603 / F217. Front end and repo only. No SQL, no pin change (241), Department 135 untouched, Kajel untouched. New cache tags go at the end of a script address, never the front. A text change ships with its test change in the same commit.
+
+### Rules so it does not happen again
+
+1. A release is not done until the SQL is applied AND its PR is merged and published. Check `version.json` and the open PR list together.
+2. Run `node --test test_*.js` on the rebased branch before merging. Main must stay at 0 failures.
+3. Append cache tags; never insert them first.
+
+### Regression check
+
+`node --test test_*.js` (all 3,014 site tests, including `test_department138_installed_scope.js`, `test_paused_amber_493.js`, `test_planner_perth_timezone_406.js`, `test_pmb_bay_names_483.js` and `test_workshop_vehicle_conflict_details.js`).
+
 ## Revolution dry run counted every line as a new vehicle
 
 Craig, 28 Oct 2026, on the live Admin > Revolution uploads page. His BT Allocation file was 33 lines, all stock 13136535, quote 43925, dealer 37047. The dry run said new 33 and errors 1. Staging already has those 33 current lines in `pdc_sales_private.sales_accessory_lines`. Service as a Whole always showed archived 0. CW parts showed skipped instead of updated.
