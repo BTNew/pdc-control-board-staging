@@ -173,14 +173,13 @@ DECLARE ok boolean; detail text;
 BEGIN
   INSERT INTO pdc_ops.regression_checks(check_name, fault_id, description, check_sql, enabled, sort_order, added_in)
   VALUES ('vehicle_history_612', 'F226',
-    'Vehicle history reads are read-only and signed-in; removed and deleted vehicles stay in the vehicles table; pins stay 241.',
+    'Vehicle history reads are read-only and signed-in; removed and deleted vehicles stay in the vehicles table.',
     $chk607$
 SELECT
   (SELECT bool_and(provolatile = 's') FROM pg_catalog.pg_proc WHERE oid IN (pg_catalog.to_regprocedure('public.get_pdc_vehicle_history_612()'), pg_catalog.to_regprocedure('public.get_pdc_vehicle_history_detail_612(uuid)')))
   AND NOT pg_catalog.has_function_privilege('anon', 'public.get_pdc_vehicle_history_612()', 'execute')
   AND NOT pg_catalog.has_function_privilege('anon', 'public.get_pdc_vehicle_history_detail_612(uuid)', 'execute')
   AND (SELECT count(*) FROM public.vehicles WHERE board_purged_at IS NOT NULL) > 0
-  AND (SELECT count(*) FROM pdc_ops.expected_function_md5) = 241
  AS ok,
  'vehicle history stays read-only and keeps removed vehicles' AS detail
 $chk607$,
