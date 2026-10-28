@@ -258,6 +258,7 @@ test('the existing transfer action sends canonical ID/version and regroups only 
       renderAll: () => {},
     });
     ctx.window.confirm = () => true;
+    ctx.window.prompt = () => '16';
     ctx.window.alert = message => alerts.push(message);
     ctx.window.__vehicleLifecycleActions = { pmbTransferVehicle: async payload => {
       calls.push(JSON.parse(JSON.stringify(payload)));

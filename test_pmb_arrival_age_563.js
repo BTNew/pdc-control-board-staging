@@ -87,8 +87,8 @@ test('the earlier of the key and the Tune import is the PMB age', () => {
     ],
   }]]);
   const blocked = c.incomingVehicleDetailRow(keylessTune, 'newpmb', { workshopProjectionAvailable: false });
-  assert.match(blocked, /Key number needed/);
-  assert.match(blocked, /pmb-push-disabled/);
+  // r593: a non-bodybuilder acknowledgement is not a button. The age is still shown.
+  assert.doesNotMatch(blocked, /pmb-push-disabled/);
   assert.match(blocked, /21 days|Days since this vehicle first appeared in a Tune import/);
   const fromList = {
     id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa6',

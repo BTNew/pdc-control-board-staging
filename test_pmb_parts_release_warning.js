@@ -29,7 +29,7 @@ function context(row = vehicle(), accept = true) {
     vehicleLifecycleSharedModeActive: () => true,
     app: {}, renderAll() {}, refreshEmailVehicleLocations: async () => {},
     reconcileVehicleLifecycleServerResult(v, r) { Object.assign(v, r.vehicle); },
-    window: { confirm(message) { prompts.push(message); return accept; }, alert: m => alerts.push(m),
+    window: { confirm(message) { prompts.push(message); return accept; }, prompt: () => '146', alert: m => alerts.push(m),
       __vehicleLifecycleActions: { pmbTransferVehicle: async payload => {
         calls.push(JSON.parse(JSON.stringify(payload))); return { ok: true, vehicle: { pdcLocation: 'PMB' } };
       } } },

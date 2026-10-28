@@ -27,6 +27,59 @@ Before, a click on Set stored "editing" and painted nothing, because `refreshAll
 ### Check
 
 `parts_eta_panel_only_595` (F209, sort 365). It goes red if the manual save, the stoppage board, the email ETA, Kajel's two import functions or department 135 change, if Place as STOPPAGE is missing, if the pin count leaves 241, or if r595 inserts a pin.
+## Revolution report upload
+
+Craig approved the build on 28 Oct 2026 at 07:10 AWST and go-live on 28 Oct 2026 at 08:05 AWST. Staff upload a Revolution report on Admin > Revolution uploads. The server reads the file and shows what would change. No model is in the loop. Apply does not write the import tables. Kajel's imports keep running. Switching over needs a separate go-live. Production `vjdtsswhroyguxyfjdkt` was not touched. Staging `cdsmnqxtyyoeoznmbidd` only.
+
+Kajel's rows function stays `9be0883b1a555f48f3c1ba9fa111c891` and the apply function stays `b62fb7c29ffd2a1629f214f696e5cb14`.
+
+### Fix
+
+r591 / F205 / sort 362. The ledger already has r592 / F206 / sort 360, r590 / F204 / sort 361, r593 / F207 / sort 363 and r594 / F208 / sort 364. Sort 362 was the free hole. r589 / F203 stays with #571. r584 / F198 / sort 356 stays with #498. Pin count stays 241. No new pin. Department 135 stays `fd05b9eef69498002ac06dd68e01cdff`. The upload page uses blue (`#1d4ed8`, `#dbeafe`, `#2563eb`).
+
+The edge function names the report from its title and headers, refuses the wrong report, and parses the rows. A dry run counts new, updated, archived and skipped, plus one hold list. Each held line has one reason: closed-vehicle conflict, identity changed, identity restore, staff-lock, status 99, duplicate line, or carried-over not-sent. The SQL apply raises until the switch-over. More than 15 new vehicles or archives needs an administrator confirm. Service keeps departments 138 and 139 only. A status 99 line with no live board vehicle is held. Broome Sales `37047` and Karratha Sales `14450` are not changed by the PMB archive rule. A vehicle with an open job card is not archived.
+
+Up `supabase/migrations/20261028080000_r591_revolution_upload.sql` file md5 `ce3c83acf2c296c9594661dc828f14e6`. Down `supabase/rollbacks/20261028080000_r591_revolution_upload.down.sql` file md5 `5d7ae37ce1165e4bf2a6dfc43986e896`. Applied on staging as ledger `20261028004802` `r591_revolution_upload`. The new check is green. Pins stay 241. The seen table is empty. Kajel's two functions and department 135 are unchanged. The two clock checks were already red before this apply (lock timeouts at 07:24, 07:35 and 08:37). Ticks from 08:43 through 08:48 succeeded. No new red, so nothing was rolled back. The comparison is in `docs/revolution-upload-591.md`. 6,533 sent lines match with 0 field diffs. The 333 holds match Kajel's three hold files with 0 diffs.
+
+Later: a status 80 vehicle moving to QC with every item ticked green, and pulling the same reports from the pdc@ inbox.
+
+### Check
+
+`revolution_upload_591` (F205, sort 362). It goes red if apply is enabled, if the Kajel pins move, if department 135 moves, if a new pin is added for this upload, or if the sanity confirm stops being raised above 15.
+
+## New to PMB is a view, not an acknowledgement
+
+Craig, 28 Oct 2026, 06:01 AWST, clarified 06:03 AWST. Craig approved go-live at 08:05 AWST. This is for vehicles at Yard Hold and for non-division vehicles. When one arrives off a truck, staff tick To PMB and enter a key number, and it goes straight onto the board in the PMB bucket. Nobody approves or acknowledges it. New to PMB is a view only: it lists vehicles whose key number is under 4 days old, so people who log in can see what has arrived recently and make arrangements. Those vehicles appear in both places, the PMB bucket and the New to PMB list. The counter is display only.
+
+### What the key time is
+
+The time is `public.pdc_vehicle_key_assigned_562.assigned_at`, which r562 already stores. It is the earliest of the key audit, a vehicle audit event, the service key snapshot, or the clock when a blank key was first filled. This release does not invent a time. A vehicle with a key but no row in that table is not tagged. On the 20 open rows read at about 06:10 AWST, the stored sources were `service_snapshot`, `audit_events` and `assigned`. `service_snapshot` is a time already stored on that row, not a time made up for this view.
+
+### What happens to vehicles waiting for acknowledgement
+
+The apply closes the acknowledgement and leaves the location, the key and the bookings as they are. A read of the 20 open rows (no body-builder hold was open):
+
+Both the PMB bucket and the New to PMB view (key under 4 days, already at PMB), 15: IS51036977 key 637, 13073086 key 146, 13094165 key 139, 13073095 key 150, 13102818 key 205, 13047384 key 214, 13092999 key 10, 12728609 key 514, 1IJM275 key 16, 13032863 key 310, 13000608 key 329, 13073065 key 410, 13073072 key 280, 13073071 key 259, 13073070 key 333.
+
+PMB bucket only, key older than 4 days, 2: 13008249 key 238, 13070395 key 415.
+
+PMB bucket, no key and no assignment time, so not tagged, 2: 12660039 and 12662903. The one-time release flag lets those two close. A normal close still requires a key.
+
+Not shown in PMB, 1: 13017931 key 205 is already at RFT. Closing its acknowledgement does not change its location, and the key is older than 4 days so it is not tagged.
+
+A location of OD - Delivered To Bodybuilder still does not enter PMB by itself. It waits until someone presses To PMB. The acknowledgement after that press is gone.
+
+### Department booking
+
+The earlier department tick no longer gates booking and no longer removes the vehicle from one department's list. There is one shared New to PMB view and one PMB bucket. The booking functions are not replaced. A PMB card still has Ready for QC, To PIT, Open, book-all and the station controls. The bay dialog can still be called, but it is not offered as an acknowledgement step. A body-builder vehicle is not in the PMB bucket until To PMB. After that, if the key is under 4 days, it is in both places.
+
+### Fix
+
+r593 / F207 / sort 363. Craig approved go-live 28 Oct 2026 08:05 AWST. Applied on staging `cdsmnqxtyyoeoznmbidd` as ledger `20261028002119` `r593_new_to_pmb_view`. Production `vjdtsswhroyguxyfjdkt` was not touched. The required tip was r592 / F206 / sort 360. r589 / F203 / sort 361 stays with #571. r590 / F204 also names sort 361. r591 / F205 / sort 362 stays with #575. r584 / F198 / sort 356 stays with #498. The apply closed 20 open acknowledgements. None of them was a body-builder hold, so none stay open. Locations, keys and bookings were not moved. The new check is green: pins 241, window 4, stray open arrivals 0. Baseline was 130 checks and 2 reds (`clock_ticks_recent`, `clock_tick_latency_trend`), both already red from the 07:24 and 07:35 lock timeouts. Post-check was 131 checks and the same 2 reds. No new red, so nothing was rolled back. Ticks at 08:20, 08:21, 08:22 and 08:23 succeeded in under a second. Department 135 stays `fd05b9eef69498002ac06dd68e01cdff`. Public `fitter_job_command` stays `626ca8b23a2e5f02e2ca8f96a4533d6f`. Kajel rows stay `9be0883b1a555f48f3c1ba9fa111c891` and apply stays `b62fb7c29ffd2a1629f214f696e5cb14`. Up md5 `e1cccdb804201b859fe4d23e1694add8`. Down md5 `17117e1b891371252125ac94d68e3048`. The tag and the counter use blue (`#1d4ed8` / `#dbeafe`).
+
+### Check
+
+`new_to_pmb_view_593` (F207, sort 363). It goes red if a non-bodybuilder move opens an acknowledgement, if To PMB still waits for a department, if the day window is not 4, if a booking function is rewritten, if the pin count leaves 241, or if department 135 or the Kajel imports change.
 ## QC sign-off refused on stock 13047122
 
 Craig, 28 Oct 2026 07:00 AWST. He opened QC stock 13047122, ticked every item, and the screen would not sign off QC / RFT. His rule: once the vehicle has been through the workshop, every item is ticked, and every station icon is green, QC must be able to sign off. That includes a line or a station a workshop controller or an admin overrode to complete (#564). Craig, 28 Oct 2026 08:05 AWST: ignore the cut-off "and once" in his QC message. Sign-off is the end. No extra step follows it. The vehicle moves to RFT and stays there. Craig approved go-live 28 Oct 2026 08:08 AWST ("Go live #577").
@@ -137,7 +190,6 @@ After, five direct calls, median 220.0 ms: 928.9 ms (the rebuild), then 203.4, 2
 ### Check
 
 `board_snapshot_waiter_586` (F200, sort 358). It goes red if the blocking lock comes back, if a second call takes 2 seconds or more, or if the two payloads differ.
-
 ## Station snapshot and the sublet board were past 8 seconds
 
 Craig, 28 Oct 2026 05:18 AWST. Go live and optimise the board. Staging `cdsmnqxtyyoeoznmbidd` only. Production `vjdtsswhroyguxyfjdkt` was not touched.

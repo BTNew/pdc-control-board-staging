@@ -13807,6 +13807,8 @@ button.vehicle-workshop-line-number:focus-visible { position: relative; z-index:
 .badge.pmb-key-needed { background: #dbeafe; color: #1d4ed8; border: 1px solid #1d4ed8; }
 /* r574 (F188): a body-builder delivery waits in New to PMB. Same blue as the key badge. */
 .badge.pmb-bodybuilder-hold { background: #dbeafe; color: #1d4ed8; border: 1px solid #1d4ed8; }
+/* r593 (F207): New to PMB on a PMB card. Blue, display only. */
+.badge.pmb-new-tag { background: #dbeafe; color: #1d4ed8; border: 1px solid #1d4ed8; }
 button.pmb-push-disabled[disabled] { cursor: not-allowed; opacity: 0.7; }
 /* r563 (F177): a board-arrival age is grey. The key badge stays blue. */
 .badge.pmb-age-fallback { background: #e2e8f0; color: #334155; border: 1px solid #64748b; }
