@@ -445,7 +445,7 @@ const approvedRootImportPatch = Object.freeze({
   // r591: Revolution uploads nav, view, stylesheet and script (F205). Department 135 is not tagged.
   // r597: index.html adds r597=2026.10.28.r597 on app.js (unticked hours and cascade without a question, F211). Department 135 is not tagged.
   // r591: index.html cache-busts pdc-revolution-upload.js after the header fix (F205). Department 135 is not tagged.
-  "index.html": "e29684bb124ca4b44f66cb662e0835c2e72767b370b3b06bcd7ff999da65e729",
+  "index.html": "401b72888b4c87964cdcf310af74a36eb599d909379be85183d043f38149ab9a",
   "pdc-conversions.js": "0a99e7a5306f15e434b293a3ca9a318ffad4b78eb814c27144d75ff98821d810",
   // r401: Pit tick and read RPCs (set_pdc_pit_line_tick_401, get_pdc_pit_line_ticks_401).
   // r414: readQcPhotoReceipt (get_pdc_qc_photo_receipt_414) for the QC page (F30).
