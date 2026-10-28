@@ -69,7 +69,9 @@ test('r469: the planner says which booking the push would clash with',()=>{
   assert.match(msg,/^Booking here would push stock TESTSTOCK1 \(Fitting Bay 1\) back onto its own booking \(stock TESTSTOCK1 · Fabrication · Bay 1 · scheduled .*\(Perth time\)\)\. No changes were saved\. Drop this vehicle after that job, use Best slot, or move the affected booking first\.$/);
   // Without a pushed booking the existing messages are unchanged.
   const plain=planner.workshopDescribeSharedActionError({ok:false,error:'vehicle_overlap'});
-  assert.match(plain,/^This change would overlap a vehicle’s booking in another bay or station/);
+  assert.match(plain,/cross-bay overlap rule is switched off/);
+  assert.equal(plain.includes('1-hour buffer'), false);
   const named=planner.workshopDescribeSharedActionError({...result,pushed_booking:undefined,pushed_booking_id:undefined});
-  assert.match(named,/^This move conflicts with stock TESTSTOCK1 · Fabrication · Bay 1/);
+  assert.match(named,/cross-bay overlap rule is switched off/);
+  assert.match(named,/Fabrication/);
 });

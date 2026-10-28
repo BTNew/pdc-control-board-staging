@@ -1308,8 +1308,8 @@ const WORKSHOP_PLAIN_ERROR_MESSAGES = Object.freeze({
   // r424 (F38): push-back warning, bay re-order and its undo.
   later_bookings_warning: "This job would run into the same vehicle's next booking. No change was made. Drag it again and choose OK to push the later booking back.",
   later_bookings_not_confirmed: 'No change was made. The later bookings were not pushed back.',
-  // r592 (F206): a drop onto a running job or a stoppage asks to place this job after it.
-  place_after_running: 'A job is already running in this bay. No change was made. Drag it again and choose OK to place this job right after it. Later jobs in the bay move back.',
+  // r598 (F212): a drop onto a running job places itself after that job. There is no question.
+  place_after_running: 'The job is placed after the one already running in this bay. Later jobs in the bay move back.',
   place_after_not_confirmed: 'No change was made. The job was not placed after the one already running.',
   resequence_rejected: 'This re-order could not be saved because it would overlap another booking or break a booking rule. No change was made.',
   plan_changed: 'The bay changed while you were looking at the preview. No change was made. Drag the job again to see the new preview.',
@@ -1396,8 +1396,9 @@ function workshopDescribeSharedActionError(result) {
     // its own vehicle's next booking, the server names both; say so plainly instead of blaming the dropped vehicle.
     const pushed = typeof workshopPushedBookingLabel === 'function' ? workshopPushedBookingLabel(result) : '';
     if (pushed && detail) return `Booking here would push ${pushed} back onto its own booking (${detail}). No changes were saved. Drop this vehicle after that job, use Best slot, or move the affected booking first.`;
-    if (detail) return `This move conflicts with ${detail}. No conflicting bookings were saved. Keep at least 1 hour between this vehicle’s bookings. Use Best slot or move the affected later booking.`;
-    return 'This change would overlap a vehicle’s booking in another bay or station, including any booking pushed back by the change. No conflicting bookings were saved. Use Best slot to find a time with the 1-hour buffer, or move the affected later booking.';
+    // r599 (F213): Craig switched the cross-bay overlap and the 1-hour gap off. Same-bay overlap still stops a drop.
+    if (detail) return `This vehicle is also booked then (${detail}). The cross-bay overlap rule is switched off. Refresh and drag it again.`;
+    return 'This vehicle is also booked in another bay then. The cross-bay overlap rule is switched off. Refresh and drag it again.';
   }
   if (error === 'sublet_away') {
     return 'This vehicle is away on Sublet on that date. Record its actual return or choose a date after it is back.';

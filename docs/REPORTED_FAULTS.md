@@ -1,5 +1,25 @@
 # Reported faults
 
+## r598 to r601 went live on the database but never reached the site
+
+Claude, 28 Oct 2026 10:45 AWST, taking over from Grok. The r598 to r601 SQL (place after a running job, cross-bay guard off, clock resume cascade, booking check follows the guard) was applied to staging, but PR #591 with the matching site text, migration files and undo files was never merged. The live planner still said "drag it again and choose OK" and asked for a 1-hour gap that no longer applies.
+
+Rebasing PR #591 onto main also broke 5 site tests. The `r601` cache tag was put first on the `workshop-planner.js` address, and four tests look for that address starting `?station-scope=`. The cross-bay conflict text changed but `test_workshop_vehicle_conflict_details.js` still asked for "at least 1 hour".
+
+### Fix
+
+r603 / F217. Front end and repo only. No SQL, no pin change (241), Department 135 untouched, Kajel untouched. New cache tags go at the end of a script address, never the front. A text change ships with its test change in the same commit.
+
+### Rules so it does not happen again
+
+1. A release is not done until the SQL is applied AND its PR is merged and published. Check `version.json` and the open PR list together.
+2. Run `node --test test_*.js` on the rebased branch before merging. Main must stay at 0 failures.
+3. Append cache tags; never insert them first.
+
+### Regression check
+
+`node --test test_*.js` (all 3,014 site tests, including `test_department138_installed_scope.js`, `test_paused_amber_493.js`, `test_planner_perth_timezone_406.js`, `test_pmb_bay_names_483.js` and `test_workshop_vehicle_conflict_details.js`).
+
 ## Revolution dry run counted every line as a new vehicle
 
 Craig, 28 Oct 2026, on the live Admin > Revolution uploads page. His BT Allocation file was 33 lines, all stock 13136535, quote 43925, dealer 37047. The dry run said new 33 and errors 1. Staging already has those 33 current lines in `pdc_sales_private.sales_accessory_lines`. Service as a Whole always showed archived 0. CW parts showed skipped instead of updated.
@@ -25,6 +45,23 @@ Craig, 28 Oct 2026 09:20 AWST, on the live Admin > Revolution uploads page. The 
 The page copied the report file name into the `x-filename` header. A name such as `PMG PD Service as a Whole w/Sublet – 28‑10‑2026 · copy.xlsx` is not Latin-1, so the browser refused to send the request. The file never left the browser. No SQL change. Staging only. Production was not touched. Kajel's imports are unchanged.
 
 The file name now travels in the form body only. The request headers are the sign-in token, and only when that token is Latin-1. The server still reads the name from the uploaded file.
+## The drop was still refused by the booking check
+
+Craig, 28 Oct 2026 10:03 AWST. After the cross-bay guard was switched off, dragging still said the change would overlap a booking in another bay and to keep a 1-hour gap. The logs at 10:01 and 10:02 AWST were `administrator_move_workshop_booking` returning 400, and the database said `Workshop Planner validation rejected booking` with `vehicle_overlap` against Key 460's own Hoist row. That check is `workshop_validate_booking`. r601 / F215 / sort 372 leaves it in place and skips it while `cross_bay_vehicle_guard` is false. Same-bay overlap stays. The planner script is cache-busted as `r601=2026.10.28.r601`.
+
+## The clock must push, and resume must push
+
+r600 / F214 / sorts 370 and 371. A vehicle's own stoppage does not stop the clock from pushing the other bays. A running overrun steps 15 minutes ahead. A held lock skips that minute. Resume pushes the later planned jobs in that bay. Same-bay overlaps are cleared by the tick in this release. The cross-bay guard stays off. Pin count stays 241.
+
+## Cross-bay overlap is switched off
+
+Craig, 28 Oct 2026 09:46 AWST. Dropping Key 460 still said the change would overlap a booking in another bay or station, including a booking pushed back, and to keep a 1-hour gap. He asked for that rule to be switched off for now and put back later. r599 / F213 / sort 369. `pdc_ops.workshop_guard_599.cross_bay_vehicle_guard` is false. Drop, resume, cascade push-back and the clock tick do not stop for a same-vehicle overlap in another bay, and they do not add the 1-hour gap. Jobs in the same bay still cannot overlap, and a drop onto a running job still places after it. Turn the column back to true to restore the rule. Staging only. Department 135 is not edited. Pin count stays 241.
+
+## A drop onto a running job must place itself after that job
+
+Craig, 28 Oct 2026 09:34 AWST. Dragging Key 460 (stock 13071838) into Jason Ranoco's Hoist bay, where Key 328 is running, still said: "A job is already running in this bay. No change was made. Drag it again and choose OK to place this job right after it. Later jobs in the bay move back."
+
+The place-after helper already knew the running job's real end, including an overrun, and it already knew which later jobs to push. It stopped and asked before it would do either. r598 / F212 / sort 368. The drop places the job at the next working minute at or after that real end and pushes the later jobs in the same step. There is no OK dialog. Key 460 is not booked by the release. Pin count stays 241. Department 135 is not edited.
 
 ## Key 460 still showed 12 hours and then refused its own Hoist row
 

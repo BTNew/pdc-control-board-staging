@@ -128,7 +128,7 @@ const approvedRootImportPatch = Object.freeze({
   // r592: a drop onto a running job asks to place this job after it and lists the jobs that move back (F206). Department 135 keeps its frozen planner.
   // r594: an unallocated drag books the unticked lines for that station (F208). Department 135 keeps its frozen planner.
   // r597: an occupied-bay drop cascades and says which jobs moved; a bayless card shows the unticked hours (F211). Department 135 keeps its frozen planner.
-  "workshop-planner.js": "9b418b77dcfc4038b1d55e519b14e19ab7a6e348a03d1d62ffb06b70a6dfe67c",
+  "workshop-planner.js": "3fcc405baf7539a7e70019734306713541b220dc44710c54f2a0a58b69c465a2",
   // r527: a refused set_bay_default_technician no longer wipes the cached bay list (F141). Department 135 keeps the baseline bytes.
   // r549: setWorkshopBayDisplayName calls set_workshop_bay_display_name (F163). Department 135 keeps the baseline bytes.
   "workshop-reference-data-service.js": "105e1f26100390826b8a4b0b8dabd12233a356995d067c24bf9585d9277319a9",
@@ -300,7 +300,7 @@ const approvedRootImportPatch = Object.freeze({
   // r590: the QC sign-off button stays visible and names what is still outstanding (F204). Department 135 keeps its frozen app.js.
   // r593: a recent key is listed in New to PMB and stays in the PMB bucket. No department tick (F207). Department 135 keeps its frozen app.js.
   // r591: Admin > Revolution uploads is administrators only (F205). Department 135 is not tagged.
-  "app.js": "95e652bdc2af1313ccdcef606a4693b513f7c90bd903f2713d21088ee3fc3b58",
+  "app.js": "9d7f1dd765f3f9ffb6418a6775705396afee8f63a9242685ce65be89c0f347d0",
   // r464: a booking that runs past the day divider is one bar (joined per-day pieces, display only; F77). The Karratha copy stays frozen.
   // r465: overview bar labels show Key · JC and the customer only (Stock and the vehicle description stay in the hover title); the customer span is classed for the Running layout (F78).
   // r467: Day / Week / Month zoom on the overview timeline (display only; F80).
@@ -446,7 +446,8 @@ const approvedRootImportPatch = Object.freeze({
   // r597: index.html adds r597=2026.10.28.r597 on app.js (unticked hours and cascade without a question, F211). Department 135 is not tagged.
   // r591: index.html cache-busts pdc-revolution-upload.js after the header fix (F205). Department 135 is not tagged.
   // r602: index.html cache-busts pdc-revolution-upload.js so the dry run compares the current board (F216). Department 135 is not tagged.
-  "index.html": "2b655e198b731eb30416ea569c2986624ff5e620bd7dd1051991e79003134cdc",
+  // r601: index.html adds r601=2026.10.28.r601 on app.js (cascade text, cross-bay guard off, F212 to F215). Department 135 is not tagged.
+  "index.html": "75f04ef8b99d28f5de7d0b089fa7dcc26c3015f6ec2d7203d1f7bd8c1044d955",
   "pdc-conversions.js": "0a99e7a5306f15e434b293a3ca9a318ffad4b78eb814c27144d75ff98821d810",
   // r401: Pit tick and read RPCs (set_pdc_pit_line_tick_401, get_pdc_pit_line_ticks_401).
   // r414: readQcPhotoReceipt (get_pdc_qc_photo_receipt_414) for the QC page (F30).

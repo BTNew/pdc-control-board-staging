@@ -90,7 +90,8 @@ test('a valid place-after drop does not show the running-job conflict toast', ()
   const shown = describe(place);
   assert.match(asked, /Place this job right after it/);
   assert.equal(asked.includes(CONFLICT_TOAST), false);
-  assert.match(shown, /place this job right after it/i);
+  assert.match(shown, /placed after the one already running/i);
+  assert.equal(shown.includes('choose OK'), false);
   assert.equal(shown.includes(CONFLICT_TOAST), false);
   assert.equal(describe({ ok: false, error: 'live_booking_conflict' }), CONFLICT_TOAST);
   assert.match(up, /conflicts with a job already running or on stoppage/);
@@ -98,7 +99,8 @@ test('a valid place-after drop does not show the running-job conflict toast', ()
 });
 
 test('the planner has plain English for both codes and the migration keeps the pins', () => {
-  assert.match(planner, /place_after_running: 'A job is already running in this bay/);
+  assert.match(planner, /place_after_running: 'The job is placed after the one already running/);
+  assert.equal(planner.includes('Drag it again and choose OK to place this job right after it'), false);
   assert.match(planner, /place_after_not_confirmed: 'No change was made/);
   assert.match(service, /'place_after_running'/);
   assert.match(service, /'place_after_not_confirmed'/);
