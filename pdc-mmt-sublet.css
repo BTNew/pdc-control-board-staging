@@ -55,3 +55,9 @@
   .mmt-cards { grid-template-columns: 1fr; }
   .mmt-card { padding: 16px; }
 }
+
+/* r643 (F258): the MMT login has one destination. The server refuses every other request from it. */
+body.mmt-only .nav > :not([data-view="mmt-sublet"]),
+body.mmt-only .view:not(#mmt-sublet),
+body.mmt-only .site-switcher,
+body.mmt-only #hosting-security-warning { display: none !important; }

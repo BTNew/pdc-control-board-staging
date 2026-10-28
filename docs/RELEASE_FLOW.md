@@ -54,3 +54,10 @@ once after a short `pg_sleep` (e.g. 1 s), and if still locked record `skipped_lo
 without error; the next minute catches up. Before applying: confirm the tick is idempotent and
 catches up after a skipped minute, and that `clock_ticks_recent` counts a skip as a skip, not a
 failure. Needs Craig's approval and a re-pin.
+
+## Backups hold tables (F258, r642)
+
+A backup `COPY public.*` can run for 20+ minutes and holds every table it reads. An `ALTER TABLE` on one of
+those tables then fails on `lock_timeout` and the whole migration rolls back. Before a migration that alters
+an existing table, check `pg_stat_activity` for an active `COPY public.%`; if one is running, put the ALTER in
+its own small follow-up migration and apply it once the COPY has finished.

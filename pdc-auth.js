@@ -856,6 +856,17 @@
     'handoff_operation_line_583', 'undo_line_handoff_583', 'list_line_handoffs_583',
   ]));
 
+  // r643 (F258): the MMT (Malaga Motor Trimmers) login sees Sublet · MMT only. The database pre-request hook
+  // refuses everything else from it (pdc_mmt_private.providers); this keeps the browser from asking.
+  const MMT_LOGINS = Object.freeze(new Set(['mmt@neatseat.com.au']));
+  const MMT_RPC_ALLOWLIST = Object.freeze(new Set([
+    'get_pdc_mmt_sublet_board_642', 'set_pdc_mmt_sublet_tick_642', 'record_pdc_login', 'record_pdc_usage_20260914',
+  ]));
+  function isMmtSession() {
+    return MMT_LOGINS.has(String(window.PDC_AUTH_CONTEXT?.email || '').trim().toLowerCase());
+  }
+  window.pdcIsMmtSession = isMmtSession;
+
   function isFitterSession() {
     return String(window.PDC_AUTH_CONTEXT?.role || '').trim().toLowerCase() === 'fitter';
   }
@@ -885,6 +896,7 @@
     const rpc = client.rpc.bind(client);
     client.rpc = function guardedRpc(name, ...rest) {
       if (isFitterSession() && !FITTER_RPC_ALLOWLIST.has(String(name || ''))) return locallyRefusedRpc(name);
+      if (isMmtSession() && !MMT_RPC_ALLOWLIST.has(String(name || ''))) return locallyRefusedRpc(name);
       return rpc(name, ...rest);
     };
     Object.defineProperty(client, '__pdcFitterRpcGuard', { value: true });

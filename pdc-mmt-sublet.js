@@ -206,4 +206,24 @@
     reset() { state.payload = null; state.error = ''; state.view.pending.clear(); state.view.errors.clear(); host()?.replaceChildren(); },
   });
   root.addEventListener?.('pdc-auth-locked', () => root.PdcMmtSublet.reset());
+
+  // r643 (F258): phones are a QC-only client (pdc-qc-mobile.js turns every view into QC except Fitters bay).
+  // That file is shared byte for byte with Department 135, so the exemption lives here: this wrapper loads before
+  // pdc-qc-mobile.js (deferred script vs DOMContentLoaded), so it sits inside it and turns its 'qc' back into
+  // 'mmt-sublet' when the MMT page was asked for (menu tap, pmgpdc.au/mmt) or the MMT login is signed in.
+  if (typeof root.showView === 'function' && typeof document !== 'undefined') {
+    const phone = root.matchMedia?.('(max-width: 900px), (pointer: coarse) and (max-width: 1024px)');
+    let wantMmt = root.location?.hash === '#/mmt-sublet';
+    document.addEventListener('click', event => {
+      const nav = event.target.closest?.('[data-view]');
+      if (nav) wantMmt = nav.dataset.view === 'mmt-sublet';
+    }, true);
+    root.addEventListener('hashchange', () => { if (root.location.hash === '#/mmt-sublet') wantMmt = true; });
+    const inner = root.showView;
+    root.showView = function mmtPhoneShowView(view, options) {
+      const mmtLogin = typeof root.pdcIsMmtSession === 'function' && root.pdcIsMmtSession();
+      const next = view === 'qc' && phone?.matches && (wantMmt || mmtLogin) ? 'mmt-sublet' : view;
+      return inner.call(this, next, options);
+    };
+  }
 })(typeof window !== 'undefined' ? window : globalThis);

@@ -5980,6 +5980,16 @@ window.addEventListener?.('pdc-auth-ready', () => {
     showView('fitters', { historyMode: 'replace' });
     return;
   }
+  // r643 (F258): the MMT login opens Sublet · MMT only.
+  const mmtOnly = typeof window.pdcIsMmtSession === 'function' && window.pdcIsMmtSession();
+  document.body.classList.toggle('mmt-only', mmtOnly);
+  if (mmtOnly) {
+    teardownWorkshopPlannerScope();
+    teardownWorkshopEligibilityOverview({ clearSnapshot: true });
+    closeVehicleModal();
+    showView('mmt-sublet', { historyMode: 'replace' });
+    return;
+  }
   // Auth-ready also represents live token/role changes. Existing planner
   // services must discard their prior authority generation before reuse;
   // init alone intentionally reuses the instance and is not sufficient.
