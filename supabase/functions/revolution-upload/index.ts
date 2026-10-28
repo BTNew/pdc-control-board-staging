@@ -28,7 +28,7 @@ Deno.serve(async (req) => {
 
   const action = new URL(req.url).searchParams.get('action') || 'dry-run';
   let bytes: Uint8Array;
-  let filename = req.headers.get('x-filename') || '';
+  let filename = filenameFromHeader(req.headers.get('x-filename') || '');
   try {
     const loaded = await readUpload(req, filename);
     bytes = loaded.bytes;
@@ -97,6 +97,11 @@ async function staffEmail(projectUrl: string, auth: string) {
   const rows = await roles.json();
   const allowed = Array.isArray(rows) && rows.some((row) => row.role === 'administrator' && row.active && row.account_status === 'approved');
   return allowed ? String(user.email || user.id) : '';
+}
+
+function filenameFromHeader(value: string) {
+  if (!value || /[^\u0000-\u00FF]/.test(value)) return '';
+  try { return decodeURIComponent(value); } catch { return ''; }
 }
 
 async function readUpload(req: Request, filename: string) {

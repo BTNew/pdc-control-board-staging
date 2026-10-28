@@ -71,6 +71,12 @@ function send(res, status, body) {
   res.end(JSON.stringify(body));
 }
 
+function filenameFromHeader(value) {
+  const text = String(value || '');
+  if (!text || /[^\u0000-\u00FF]/.test(text)) return 'upload.xls';
+  try { return decodeURIComponent(text); } catch { return 'upload.xls'; }
+}
+
 function cors() {
   return { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers': 'authorization, content-type, x-filename, x-uploader' };
 }
@@ -81,7 +87,7 @@ async function readBody(req) {
   const raw = Buffer.concat(chunks);
   const type = req.headers['content-type'] || '';
   if (!type.includes('multipart/form-data')) {
-    return { bytes: new Uint8Array(raw), filename: String(req.headers['x-filename'] || 'upload.xls') };
+    return { bytes: new Uint8Array(raw), filename: filenameFromHeader(req.headers['x-filename']) };
   }
   const boundary = /boundary=(?:"([^"]+)"|([^;]+))/i.exec(type)?.[1] || /boundary=(?:"([^"]+)"|([^;]+))/i.exec(type)?.[2];
   if (!boundary) throw new Error('The upload had no file.');
@@ -91,7 +97,9 @@ async function readBody(req) {
   const part = raw.subarray(start + marker.length + 2, next - 2);
   const split = part.indexOf(Buffer.from('\r\n\r\n'));
   const header = part.subarray(0, split).toString('utf8');
-  const filename = /filename="([^"]*)"/.exec(header)?.[1] || 'upload.xls';
+  const encoded = /filename\*=UTF-8''([^;\r\n]+)/i.exec(header)?.[1];
+  const quoted = /filename="([^"]*)"/.exec(header)?.[1];
+  const filename = encoded ? filenameFromHeader(encoded) : (quoted || 'upload.xls');
   return { bytes: new Uint8Array(part.subarray(split + 4)), filename };
 }
 
