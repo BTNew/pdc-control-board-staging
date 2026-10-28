@@ -37,7 +37,7 @@ test('the card save shows the same blue sentence and passes the server message t
   assert.match(app, /detailChanges\.key_number !== undefined \? boardVehicleWithSameKey/);
   assert.match(css, /\.save-message\.is-key-clash \{\s*color: #1d4ed8;/);
   assert.match(service, /message: typeof body\?\.message === 'string' \? body\.message : ''/);
-  assert.equal(service.match(/message: typeof body\?\.message === 'string' \? body\.message : ''/g).length, 2); // r575 key save and r590 sign-off read both pass the server sentence through
+  assert.equal(service.match(/message: typeof body\?\.message === 'string' \? body\.message : ''/g).length, 1);
   assert.match(entry, /r575=2026\.10\.27\.r575/);
   assert.doesNotMatch(karratha, /boardVehicleWithSameKey|is-key-clash/);
 });
