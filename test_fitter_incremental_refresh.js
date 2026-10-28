@@ -115,7 +115,7 @@ function screen() {
   vm.runInNewContext(fs.readFileSync(require.resolve('./pdc-fitters.js'),'utf8'),{window:root,getPdcSupabaseAccessToken:()=> 'session',
     setTimeout,clearTimeout,setInterval:(fn,ms)=>intervals.push({fn,ms}),AbortController,Date,performance,console});
   return {...f,root,doc,events,mechanic,note,line,action,manual,saveNote,get html(){return html;},get renders(){return renders;},
-    poll:()=>intervals.find(i=>i.ms===10000).fn(),async open(){root.PdcFitters.open();await flush();mechanic.handlers.change({target:{value:'mechanic'}});await flush();}};
+    poll:()=>intervals.find(i=>i.ms===300000).fn(),async open(){root.PdcFitters.open();await flush();mechanic.handlers.change({target:{value:'mechanic'}});await flush();}};
 }
 test('optimized UI keeps checklist DOM and note drafts while using fresh timing only',async()=>{
   const s=screen();await s.open();const before=s.renders;
