@@ -367,3 +367,25 @@ The public hours description may be 1 to 2000 characters, still trimmed, still w
 2. The hours stay at the new value. The screen says the hour row was saved. Cancel is not required.
 3. A line whose wording is longer than 2000 characters is refused in words, and no other line is changed.
 4. `pdc_ops.fault_regression_check()` includes `hours_description_fits_573` and it is green. Pin count is still 241.
+
+## F271 / r661: station icons showed queued jobs as booked
+
+### Reported
+
+Craig, 28 Oct 2026: stock 13047149 is not booked into any bay but its station icons showed the orange ! (booked).
+
+### Cause
+
+The shared icon rule (`vehicle-requirements-guard.js`) counted a `queued` planner job as booked. A queued job is in the station queue with no bay. On staging, every queued job has no bay (283 jobs on 94 vehicles) and every planned or started job has one. 13047149 had Fitting, Electrical, Tint and Tyre queued (no bay) and only Hoist planned in a bay, so Fitting, Electrical, Tint and Tyre wrongly showed orange. The side panel destination pill also showed queued jobs as booked.
+
+### Fix
+
+Only `planned` or `started` (a job placed in a bay) is booked, orange !. Queued is required, red dot. Stoppage and completed are unchanged. The side panel pill shows "Not booked" for a queued job. Front end only, no database change. Department 135 keeps its frozen copy.
+
+### Check
+
+`test_r661_station_icon_bay_only.js`: queued is a red dot, planned or started in a bay is orange, another station's booking does not count, stoppage and completed unchanged.
+
+### How to re-test
+
+Open 13047149 on the PMB board. Hoist shows orange !, Fitting, Electrical, Tint and Tyre show red dots.

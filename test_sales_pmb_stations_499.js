@@ -114,7 +114,8 @@ test('a started booking flashes that station only (is-started); queued, planned,
   const started = salesHtml(F(24));
   assert.match(started, /pdc-station-electrical is-required is-booked is-started is-current-stage" title="Elec started"/);
   assert.match(started, /aria-label="Elec started"/);
-  assert.match(started, /pdc-station-tyre is-required is-booked" title="Tyre booked"/);
+  // r661 (F271): a queued Tyre job has no bay, so it is a red dot (required), not booked.
+  assert.match(started, /pdc-station-tyre is-required" title="TYRE required - not signed off yet"/);
   assert.doesNotMatch(started, /pdc-station-tyre[^"]*is-started/);
   assert.doesNotMatch(salesHtml(F(23)), /is-started/, 'planned and stoppage do not flash');
   assert.doesNotMatch(salesHtml(F(37)), /is-started/, 'a completed station does not flash');
