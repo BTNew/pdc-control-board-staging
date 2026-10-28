@@ -141,7 +141,9 @@ const WORKSHOP_CANONICAL_MUTATION_ERRORS = new Set([
   'bay_rule_warning', 'bay_rule_not_confirmed',
   // r424 (F38): push-back warning, bay re-order and its undo.
   'later_bookings_warning', 'later_bookings_not_confirmed', 'resequence_rejected', 'plan_changed',
-  'order_unchanged', 'not_same_bay', 'started_job_fixed', 'resequence_too_large', 'booking_not_found'
+  'order_unchanged', 'not_same_bay', 'started_job_fixed', 'resequence_too_large', 'booking_not_found',
+  // r594 (F208): resume pushes the bay instead of returning an overlap code.
+  'resume_cascade_blocked'
 ]);
 
 function workshopCanonicalMutationError(body) {

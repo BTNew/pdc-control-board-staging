@@ -46,6 +46,7 @@
     parts_incomplete_entry:'Parts no longer hold up a job. Refresh the page and try again; if it happens again, tell the controller.',
     vehicle_overlap:'A protected booking for this vehicle prevents this change. Ask the controller to check that work before continuing.',
     bay_overlap:'This bay has another job in progress. Ask the controller to check its bookings.',
+    resume_cascade_blocked:'This resume was not saved. Nothing was moved. Ask the controller to check the bay.',
     bay_already_started:'This bay already has a running or stopped job. Ask the controller to complete it or release its bay.',
     schedule_changed:'The schedule changed during this action. Refresh, review the latest bookings and try again.',
     schedule_write_order_blocked:'The affected jobs cannot be safely moved. Ask the controller to review the surrounding bookings.',
@@ -128,6 +129,11 @@
     return body?.error || body?.code || 'rejected';
   }
   function bookingConflictMessage(body, action) {
+    if ((body?.error || body?.code) === 'resume_cascade_blocked') {
+      const text = typeof body?.message === 'string' ? body.message.trim() : '';
+      if (text && !/\bbay_overlap\b|\btechnician_overlap\b|\bvehicle_overlap\b/i.test(text)) return text;
+      return errors.resume_cascade_blocked;
+    }
     if(serverErrorCode(body)!=='vehicle_overlap') return null;
     const blocker=body?.blocker;
     if(!blocker || typeof blocker!=='object') return null;

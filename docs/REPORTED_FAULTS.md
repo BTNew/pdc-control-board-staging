@@ -1,5 +1,23 @@
 # Reported faults
 
+## Resume pushes the later jobs in the bay
+
+Craig, 28 Oct 2026 08:13 AWST, then 08:30 AWST: cascade is an absolute rule, and go-live belongs to the cascade release. Staging `cdsmnqxtyyoeoznmbidd` only. Production `vjdtsswhroyguxyfjdkt` was not touched. This branch was not applied. `bc-ae6809e2` owns the release, including this resume push.
+
+Key 307, stock 13073300, was on stoppage in Ben Palmer's Fitting bay. Resume was refused because the remaining time ran into key 359, stock 13094080, planned in the same bay from 11:00. The screen said the bay was already occupied. Key 264, stock IS60270754, starts when key 359 finishes.
+
+### Fix
+
+r594 / F208 / sort 364. `resume_workshop_work_pre345` calls `pdc_ops.push_later_planned_in_bay_594` and then resumes. Later planned jobs in that bay move back-to-back, the same step as `pdc_ops.place_after_live_bay_592` and `cascade_workshop_booking_move_pre_116`. Those two functions are not edited. A resume that still cannot move returns a sentence, not an overlap code. Pin count stays 241. Department 135 stays `fd05b9eef69498002ac06dd68e01cdff`. Kajel rows stay `9be0883b1a555f48f3c1ba9fa111c891` and apply stays `b62fb7c29ffd2a1629f214f696e5cb14`.
+
+Up `supabase/migrations/20261028091500_r594_resume_bay_cascade.sql`. Down `supabase/rollbacks/20261028091500_r594_resume_bay_cascade.down.sql`. Check `resume_cascade_594`.
+
+### Dry run
+
+Rolled back on staging. Nothing was left behind: key 307 was still stoppage at version 40, key 359 still started at 11:00, key 264 still started at 11:52 the next day, the helper was absent, the resume body was still `336941bde80a3511cc6ebd54eb00c716`, pins were 241, and there was no resume history row.
+
+Inside the transaction the resume succeeded with 0 overlaps in Ben Palmer's bay. Key 307 would have run 08:34 to 12:01. Key 359 moved from 11:00 to 12:01 and finished 29 Oct 12:53. Key 264 moved from 29 Oct 11:52 to 12:53 and finished 16:09. Each later job started as the one in front of it finished.
+
 ## Control board QC lines and nested work items
 
 Craig, 28 Oct 2026 05:18 AWST, release 2 of go live and optimise the board. Staging `cdsmnqxtyyoeoznmbidd` only. Production `vjdtsswhroyguxyfjdkt` was not touched. The vehicle-board lock convoy is r586. This release is the eligibility snapshot the control board reads.

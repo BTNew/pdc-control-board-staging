@@ -1343,6 +1343,12 @@ function workshopDescribeSharedActionError(result) {
   const error = result && result.error;
   const conflict = result && result.conflict;
   if (error === '55P03') return 'The workshop is busy finishing another update. No changes were saved. Please try again shortly.';
+  // r594 (F208): a resume that cannot push the bay says so in a sentence. Never the raw code or the generic overlap line.
+  if (error === 'resume_cascade_blocked') {
+    const text = typeof result?.message === 'string' ? result.message.trim() : '';
+    if (text && !/\bbay_overlap\b|\btechnician_overlap\b|\bvehicle_overlap\b/i.test(text)) return text;
+    return 'This resume was not saved. Nothing was moved.';
+  }
   if (result?.outcomeUnknown === true || ['runtime_failure', 'no_response', 'request_failed'].includes(error)) {
     return 'The change could not be confirmed. Refresh the planner to check its current state before trying again.';
   }
@@ -8528,10 +8534,14 @@ async function resumeWorkshopPlan(planId = '') {
     const bookingActionToken = workshopBeginBookingAction(entry.sharedBookingId || entry.id, 'resumeWork');
     if (!bookingActionToken) return;
     try {
-      await workshopDispatchSharedAction('resumeWork', {
+      const resumed = await workshopDispatchSharedAction('resumeWork', {
         bookingId: entry.sharedBookingId || entry.id,
         expectedVersion: entry.sharedVersion,
       }, renderWorkshopPlanner, { bookingActionToken });
+      const pushed = Array.isArray(resumed?.pushed) ? resumed.pushed : [];
+      const keys = pushed.map(row => String(row?.key_number || '').trim()).filter(Boolean);
+      if (resumed?.ok === true && keys.length === 1) workshopNotify(`Resumed. Key ${keys[0]} moved back in this bay.`, 'info');
+      if (resumed?.ok === true && keys.length > 1) workshopNotify(`Resumed. Keys ${keys.join(' and ')} moved back in this bay.`, 'info');
     } finally { workshopEndBookingAction(bookingActionToken); }
     return;
   }
