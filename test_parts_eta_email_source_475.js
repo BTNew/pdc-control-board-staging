@@ -77,7 +77,7 @@ test('Table view: the chip moves verbatim into its own Parts ETA column; the Veh
   assert.match(cell('c-ploc'), /^<span class="tune-parts-location" title="Parts location: 05E2A">05E2A<\/span>$/);
   assert.doesNotMatch(cell('c-unit'), /pdc-parts-eta/); assert.match(cell('c-unit'), /<strong>HiLux<\/strong>/); assert.match(cell('c-unit'), /<em>meta<\/em>/);
   assert.match(row, /data-vlt-parts-eta="2026-10-29"/);
-  assert.deepEqual(row.match(/<td class="c-[a-z]+"/g).map(x => x.slice(11, -1)), ['c-sel', 'c-key', 'c-stock', 'c-job', 'c-cust', 'c-unit', 'c-ploc', 'c-eta', 'c-work', 'c-age', 'c-status', 'c-action']);
+  assert.deepEqual(row.match(/<td class="c-[a-z]+"/g).map(x => x.slice(11, -1)), ['c-sel', 'c-key', 'c-stock', 'c-job', 'c-cust', 'c-unit', 'c-ploc', 'c-pit', 'c-eta', 'c-work', 'c-age', 'c-status', 'c-action']); // r604 adds Pit
   const none = table.tableRowHtml(card.replace(decorated, unit), 'pmb', { key: 'k1' });
   assert.match(none, /<td class="c-eta"><span class="vlt-subtle-dash" title="No parts ETA">—<\/span><\/td>/);
   // r436 chip markup (no inner label span) is lifted the same way.
@@ -89,9 +89,9 @@ test('Table view: the chip moves verbatim into its own Parts ETA column; the Veh
 
 test('Table view column set, widths, header and CSS (compact; word "Parts ETA" hidden in the cell)', () => {
   assert.deepEqual(table.COLUMNS.eta, { label: 'Parts ETA', width: 96, min: 56 });
-  assert.deepEqual(Object.keys(table.COLUMNS), ['key', 'stock', 'job', 'cust', 'unit', 'ploc', 'eta', 'work', 'age', 'status', 'action']);
+  assert.deepEqual(Object.keys(table.COLUMNS), ['key', 'stock', 'job', 'cust', 'unit', 'ploc', 'pit', 'eta', 'work', 'age', 'status', 'action']); // r604 adds pit
   const src = fs.readFileSync('pdc-vehicle-locations-table.js', 'utf8'), css = fs.readFileSync('pdc-vehicle-locations-table.css', 'utf8');
-  assert.match(src, /<col class="c-ploc"><col class="c-eta"><col class="c-work">/);
+  assert.match(src, /<col class="c-ploc"><col class="c-pit"><col class="c-eta"><col class="c-work">/);
   assert.match(src, /<th class="c-eta"><span title="[^"]+">Parts ETA<\/span>\$\{grip\('eta'\)\}<\/th>/);
   assert.match(src, /<td colspan="12" class="vlt-empty">/);
   assert.match(css, /\.vlt-table col\.c-eta \{ width: var\(--vlt-w-eta, 96px\); \}/);
@@ -120,7 +120,7 @@ test('board read: v2 first, falls back to the r436 read when v2 is not there yet
 test('loader and cache bust: r475 tags on the parts ETA script, the table module and index.html', () => {
   const entry = fs.readFileSync('canonical-entry.js', 'utf8');
   assert.match(entry, /pdc-parts-eta\.js\?parts-eta=2026\.10\.21\.r436&r475=2026\.10\.22\.r475(&r\d+=[0-9.]+r\d+)*'/); // r482 (F95) appends its own tag after r475
-  assert.match(entry, /pdc-vehicle-locations-table\.js\?vehicle-locations-table=2026\.10\.22\.r461&r462=2026\.10\.22\.r462&r463=2026\.10\.22\.r463&r476=2026\.10\.22\.r476&r475=2026\.10\.22\.r475&r481=2026\.10\.22\.r481&r485=2026\.10\.22\.r485&r557=2026\.10\.27\.r557&r562=2026\.10\.27\.r562&r563=2026\.10\.27\.r563&r567=2026\.10\.27\.r567&r566=2026\.10\.27\.r566&r593=2026\.10\.28\.r593'/); // r567 typed Parts ETA, then r566 planner search boxes, then r586 New to PMB view
+  assert.match(entry, /pdc-vehicle-locations-table\.js\?vehicle-locations-table=2026\.10\.22\.r461&r462=2026\.10\.22\.r462&r463=2026\.10\.22\.r463&r476=2026\.10\.22\.r476&r475=2026\.10\.22\.r475&r481=2026\.10\.22\.r481&r485=2026\.10\.22\.r485&r557=2026\.10\.27\.r557&r562=2026\.10\.27\.r562&r563=2026\.10\.27\.r563&r567=2026\.10\.27\.r567&r566=2026\.10\.27\.r566&r593=2026\.10\.28\.r593(?:&r604=2026\.10\.28\.r604)?'/); // r604 (F218) appends the Pit column tag; r567 typed Parts ETA, then r566 planner search boxes, then r586 New to PMB view
   assert.match(fs.readFileSync('index.html', 'utf8'), /canonical-entry\.js\?[^"]*r475=2026\.10\.22\.r475/);
   for (const locked of ['styles.css', 'app.js']) assert.doesNotMatch(fs.readFileSync(locked, 'utf8'), /r475|pdc-parts-eta-k|c-eta/);
 });

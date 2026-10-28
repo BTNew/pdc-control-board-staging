@@ -94,6 +94,7 @@
     cust: { label: 'Customer', width: 104, min: 48, flex: 1 },
     unit: { label: 'Vehicle', width: 112, min: 60, flex: 1 },
     ploc: { label: 'Parts loc', width: 60, min: 44 },
+    pit: { label: 'Pit', width: 104, min: 56 }, // r604 (F218): pit date, place and day counter, left of Parts ETA
     eta: { label: 'Parts ETA', width: 96, min: 56 }, // r475 (F88)
     work: { label: 'Stations', width: 276, min: 276 },
     age: { label: 'Age / ETA', width: 72, min: 48 },
@@ -190,6 +191,10 @@
     const ploc = parts.span || '<span class="vlt-subtle-dash" title="No parts location">—</span>';
     const eta = extractPartsEta(parts.unit); // r475: the parts ETA chip gets its own column
     const etaCell = eta.span || '<span class="vlt-subtle-dash" title="No parts ETA">—</span>';
+    // r604 (F218): the Pit cell comes from pdc-pit-bookings.js when it is loaded; a dash otherwise.
+    const pitApi = typeof globalThis !== 'undefined' ? globalThis.PDC_PIT_BOOKINGS : null;
+    let pitCell = '<span class="vlt-subtle-dash" title="No pit booked">—</span>';
+    try { if (pitApi && typeof pitApi.cell === 'function') pitCell = pitApi.cell(rowKey) || pitCell; } catch (_) { /* dash */ }
     const rftSpan = p.rft && !p.work && [p.age, p.status, p.action].every(isBlank);
     const cells = [
       td('c-sel', html(p.select)),
@@ -199,6 +204,7 @@
       td('c-cust', html(p.name)),
       td('c-unit', eta.unit),
       td('c-ploc', ploc),
+      td('c-pit', pitCell),
       td('c-eta', etaCell),
       td(`c-work${p.rft && !p.work ? ' is-rft' : ''}`, html(p.work || p.rft), rftSpan ? ' colspan="4"' : ''),
     ];
@@ -740,8 +746,8 @@
       <section class="vlt-panel" aria-label="Vehicle locations table">
         <div class="vlt-panel-header"><h2>Vehicle locations</h2><p>${filterNote}</p>${root.workStatusLegendHtml()}<button type="button" class="vlt-reset-cols" data-vlt-reset-cols${Object.keys(state.widths).length ? '' : ' disabled'} title="Put every column back to its standard width">Reset columns</button></div>
         <div class="vlt-table-wrap"><table class="vlt-table${Object.keys(state.widths).length ? ' has-custom-widths' : ''}${/data-select-stock/.test(bodyHtml) ? ' has-select' : ''}">
-          <colgroup><col class="c-sel"><col class="c-key"><col class="c-stock"><col class="c-job"><col class="c-cust"><col class="c-unit"><col class="c-ploc"><col class="c-eta"><col class="c-work"><col class="c-age"><col class="c-status"><col class="c-action"></colgroup>
-          <thead><tr><th class="c-sel"></th><th class="c-key">${heading('Key', 'key')}${grip('key')}</th><th class="c-stock">${heading('Stock', 'stock')}${grip('stock')}</th><th class="c-job">${heading('Job Card', 'jobcard')}${grip('job')}</th><th class="c-cust">${heading('Customer', 'customer')}${grip('cust')}</th><th class="c-unit">${heading('Vehicle', 'vehicle')}${grip('unit')}</th><th class="c-ploc">${partsHeading}${grip('ploc')}</th><th class="c-eta"><span title="Parts ETA. A typed date wins over the parts-staff email. Overdue dates are red. Hover for the note and who last checked.">Parts ETA</span>${grip('eta')}</th><th class="c-work">${grip('work')}</th><th class="c-age">${heading('Age / ETA', 'age')}${grip('age')}</th><th class="c-status">Status${grip('status')}</th><th class="c-action">Booking${grip('action')}</th></tr></thead>
+          <colgroup><col class="c-sel"><col class="c-key"><col class="c-stock"><col class="c-job"><col class="c-cust"><col class="c-unit"><col class="c-ploc"><col class="c-pit"><col class="c-eta"><col class="c-work"><col class="c-age"><col class="c-status"><col class="c-action"></colgroup>
+          <thead><tr><th class="c-sel"></th><th class="c-key">${heading('Key', 'key')}${grip('key')}</th><th class="c-stock">${heading('Stock', 'stock')}${grip('stock')}</th><th class="c-job">${heading('Job Card', 'jobcard')}${grip('job')}</th><th class="c-cust">${heading('Customer', 'customer')}${grip('cust')}</th><th class="c-unit">${heading('Vehicle', 'vehicle')}${grip('unit')}</th><th class="c-ploc">${partsHeading}${grip('ploc')}</th><th class="c-pit"><span title="Pit booking: date, place and days to go. Green tick once it is back.">Pit</span>${grip('pit')}</th><th class="c-eta"><span title="Parts ETA. A typed date wins over the parts-staff email. Overdue dates are red. Hover for the note and who last checked.">Parts ETA</span>${grip('eta')}</th><th class="c-work">${grip('work')}</th><th class="c-age">${heading('Age / ETA', 'age')}${grip('age')}</th><th class="c-status">Status${grip('status')}</th><th class="c-action">Booking${grip('action')}</th></tr></thead>
           <tbody>${bodyHtml}</tbody></table></div>
       </section>`;
     const holder = doc.createElement('div');
@@ -757,6 +763,7 @@
     bindBoardHandlers(body);
     bindTableEvents(host, sort);
     bindElsewhere(host.querySelector('.vlt-search-elsewhere'));
+    try { root.PDC_PIT_BOOKINGS?.afterRender?.(host, { bucket: state.bucket }); } catch (_) { /* r604: the table still renders */ }
     navStatus();
     const wrap = host.querySelector('.vlt-table-wrap');
     if (wrap) wrap.scrollTop = ui.tableScroll;

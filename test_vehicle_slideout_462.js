@@ -115,7 +115,7 @@ test('column widths: CSS variables keep pinned Key / Stock aligned; defaults equ
   assert.match(css, /--vlt-left-key:0px/, 'r476: no select column when no row has a checkbox');
   assert.match(css, /--vlt-left-stock:50px/, 'Stock pins right after the wider Key column');
   const C = table.COLUMNS;
-  const total = 50 + C.stock.width + C.job.width + 150 + C.unit.width + C.ploc.width + C.eta.width + C.work.width + C.age.width + C.status.width + C.action.width; // r475 Parts ETA
+  const total = 50 + C.stock.width + C.job.width + 150 + C.unit.width + C.ploc.width + C.pit.width + C.eta.width + C.work.width + C.age.width + C.status.width + C.action.width; // r475 Parts ETA
   assert.match(css, new RegExp(`--vlt-table-min:${total}px`));
   const sheet = fs.readFileSync('pdc-vehicle-locations-table.css', 'utf8');
   for (const [key, col] of Object.entries(table.COLUMNS)) {

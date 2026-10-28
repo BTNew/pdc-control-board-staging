@@ -215,7 +215,8 @@ const approvedRootImportPatch = Object.freeze({
   // r575: pdc-key-number.js cache bust r575=2026.10.27.r575 (F189). Department 135 is not tagged.
   // r573: the same loader adds r573=2026.10.27.r573 (Place as STOPPAGE, F187). Department 135 is not tagged.
   // r595: the loader adds r595=2026.10.28.r595 on pdc-parts-stoppage.js. The slide-out keeps vehicle-slideout=2026.10.28.r588 and adds r595=2026.10.28.r595 (Parts ETA is set in the side panel; F209). Department 135 is not tagged.
-  "canonical-entry.js": "de86417534b745b77da82e6b3fa65e7f6876eaa90f5fc468aa2a62b1255492c1",
+  // r604: canonical-entry.js loads pdc-pit-bookings.js beside the table and tags the table r604 (Pit column, F218). Department 135 is not tagged.
+  "canonical-entry.js": "b29ea6503fb0448db8bba413eba61bceb624d818960ad085888fd1eba3ad6cc3",
   "pdc-workshop-vehicle-search.js": "d0be4a60c5ca2213ba71d4cd31cb7019736db3d7e0470d22b3fa88243e56eb4c",
   // Owner-authorised PMG fitter read recovery, 13 October 2026.
   // Coaster and HiAce conversions: one Start / Done tick per section in a
@@ -447,7 +448,8 @@ const approvedRootImportPatch = Object.freeze({
   // r591: index.html cache-busts pdc-revolution-upload.js after the header fix (F205). Department 135 is not tagged.
   // r602: index.html cache-busts pdc-revolution-upload.js so the dry run compares the current board (F216). Department 135 is not tagged.
   // r601: index.html adds r601=2026.10.28.r601 on app.js (cascade text, cross-bay guard off, F212 to F215). Department 135 is not tagged.
-  "index.html": "75f04ef8b99d28f5de7d0b089fa7dcc26c3015f6ec2d7203d1f7bd8c1044d955",
+  // r604: index.html adds r604=2026.10.28.r604 on canonical-entry.js (pit bookings, F218). Department 135 is not tagged.
+  "index.html": "aaa81caa83ab54c2771b60ef3459aab8688943fb342fd51ca5c99deebc18dd41",
   "pdc-conversions.js": "0a99e7a5306f15e434b293a3ca9a318ffad4b78eb814c27144d75ff98821d810",
   // r401: Pit tick and read RPCs (set_pdc_pit_line_tick_401, get_pdc_pit_line_ticks_401).
   // r414: readQcPhotoReceipt (get_pdc_qc_photo_receipt_414) for the QC page (F30).
