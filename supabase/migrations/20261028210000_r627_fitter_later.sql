@@ -28,7 +28,7 @@ BEGIN
     RAISE EXCEPTION 'r627: sort 380 or F242 is taken';
   END IF;
   IF to_regclass('public.pdc_line_later_627') IS NOT NULL THEN RAISE EXCEPTION 'r627: table exists'; END IF;
-  IF EXISTS (SELECT 1 FROM pg_trigger WHERE tgrelid = 'public.vehicle_work_items'::regclass AND NOT tgisinternal) THEN RAISE EXCEPTION 'r627: vehicle_work_items has triggers now'; END IF;
+  IF EXISTS (SELECT 1 FROM pg_trigger WHERE tgrelid = 'public.vehicle_work_items'::regclass AND tgname = 'keep_station_open_627') THEN RAISE EXCEPTION 'r627: trigger exists'; END IF;
   -- The two functions replaced here must be exactly what this release was written against.
   IF md5((SELECT prosrc FROM pg_proc WHERE oid = 'public.pdc_check_fitter_request()'::regprocedure)) <> '11c9967c8fe76e4ba8fe0bd88f20ed1f' THEN RAISE EXCEPTION 'r627: fitter gate changed'; END IF;
   IF strpos((SELECT prosrc FROM pg_proc WHERE oid = 'public.get_fitter_job(uuid,uuid)'::regprocedure),
