@@ -1,5 +1,9 @@
 # Reported faults
 
+## The drop was still refused by the booking check
+
+Craig, 28 Oct 2026 10:03 AWST. After the cross-bay guard was switched off, dragging still said the change would overlap a booking in another bay and to keep a 1-hour gap. The logs at 10:01 and 10:02 AWST were `administrator_move_workshop_booking` returning 400, and the database said `Workshop Planner validation rejected booking` with `vehicle_overlap` against Key 460's own Hoist row. That check is `workshop_validate_booking`. r601 / F215 / sort 372 leaves it in place and skips it while `cross_bay_vehicle_guard` is false. Same-bay overlap stays. The planner script is cache-busted as `r601=2026.10.28.r601`.
+
 ## The clock must push, and resume must push
 
 r600 / F214 / sorts 370 and 371. A vehicle's own stoppage does not stop the clock from pushing the other bays. A running overrun steps 15 minutes ahead. A held lock skips that minute. Resume pushes the later planned jobs in that bay. Same-bay overlaps are cleared by the tick in this release. The cross-bay guard stays off. Pin count stays 241.
