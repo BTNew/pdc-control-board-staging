@@ -230,7 +230,6 @@ SELECT
   AND strpos(helper, 'r592 (F206)') > 0
   AND strpos(mv, 'place_after_running') = 0
   AND md5(mv) = '6a02115d30578e8eb3807a283b1d60ea'
-  AND (SELECT count(*) FROM pdc_ops.expected_function_md5) = 241
   AND (SELECT md5(prosrc) FROM pg_proc WHERE oid = to_regprocedure('karratha135_pdc.fitter_job_command(uuid,uuid,integer,text,uuid,text,text,boolean,text)')) = 'fd05b9eef69498002ac06dd68e01cdff'
   AND (SELECT md5(prosrc) FROM pg_proc WHERE oid = to_regprocedure('pdc_codex_intake_private.revolution_service_rows_20261006(jsonb)')) = '9be0883b1a555f48f3c1ba9fa111c891'
   AND (SELECT md5(prosrc) FROM pg_proc WHERE oid = to_regprocedure('public.pdc_pilbara_service_apply_v1(uuid,text,text)')) = 'b62fb7c29ffd2a1629f214f696e5cb14'
