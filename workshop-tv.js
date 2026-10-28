@@ -9,7 +9,7 @@
  */
 (function (root) {
   'use strict';
-  const VERSION = '2026.10.28.r605';
+  const VERSION = '2026.10.28.r608';
   const PROJECT = 'cdsmnqxtyyoeoznmbidd';
   const HIDDEN_KEY = 'pdc.workshop-tv.hidden.v1';
   const REFRESH_MS = 60 * 1000;
@@ -173,7 +173,7 @@
     try {
       const { data: json, error } = await client.rpc('get_pdc_workshop_tv_605');
       if (error) throw error;
-      if (!json) { showGate('This sign-in cannot see the workshop board.'); return; }
+      if (!json) { showGate('This login cannot see the workshop board. Use an approved board login.'); return; }
       data = json; lastOk = Date.now();
       $('tv-gate').hidden = true;
       paint();
@@ -181,9 +181,31 @@
       tickNow(); // keep the last picture; the status line turns stale after 5 minutes
     }
   }
-  function showGate(message) {
+  function showGate(message, signIn = true) {
     $('tv-gate').hidden = false;
     $('tv-gate-msg').textContent = message;
+    $('tv-signin').hidden = !signIn;
+    if (signIn) setTimeout(() => $('tv-email')?.focus(), 0);
+  }
+  // r608 (F222): the TV signs in on its own screen. It used to rely on a board sign-in in the same browser,
+  // which a fresh TV browser does not have, so it only showed a message.
+  async function signIn(event) {
+    event.preventDefault();
+    const button = $('tv-signin-go');
+    button.disabled = true;
+    $('tv-signin-error').textContent = '';
+    try {
+      const { error } = await client.auth.signInWithPassword({ email: $('tv-email').value.trim(), password: $('tv-password').value });
+      if (error) throw error;
+      $('tv-password').value = '';
+      $('tv-gate').hidden = true;
+      await load();
+      schedule();
+    } catch (error) {
+      $('tv-signin-error').textContent = /invalid/i.test(error?.message || '') ? 'Email or password is wrong.' : `Could not sign in. ${error?.message || ''}`.trim();
+    } finally {
+      button.disabled = false;
+    }
   }
   function schedule() {
     clearInterval(timer);
@@ -211,11 +233,12 @@
     tickNow();
 
     const config = window.PDC_SUPABASE_CONFIG;
-    if (!window.supabase?.createClient || config?.projectRef !== PROJECT) { showGate('The board settings did not load. Refresh the page.'); return; }
+    if (!window.supabase?.createClient || config?.projectRef !== PROJECT) { showGate('The board settings did not load. Refresh the page.', false); return; }
     client = window.supabase.createClient(config.url, config.publishableKey, { auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: false } });
+    $('tv-signin').addEventListener('submit', signIn);
     const { data: session } = await client.auth.getSession();
-    if (!session?.session) { showGate('Sign in to the PDC board on this screen first, then come back to this page.'); return; }
-    client.auth.onAuthStateChange((event, next) => { if (event === 'SIGNED_OUT' || !next) showGate('Signed out. Sign in to the PDC board on this screen, then come back.'); });
+    if (!session?.session) { showGate('Sign in once on this TV. It stays signed in.'); return; }
+    client.auth.onAuthStateChange((event, next) => { if (event === 'SIGNED_OUT' || !next) showGate('Signed out. Sign in again.'); });
     await load();
     schedule();
   }
