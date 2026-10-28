@@ -1,4 +1,4 @@
--- Undo r593 (F207). Restores the station total that included ticked lines.
+-- Undo r594 (F208). Restores the station total that included ticked lines.
 -- Does not rewrite booking rows and does not book Key 460.
 
 SET LOCAL lock_timeout = '2s';
@@ -26,7 +26,7 @@ END $function$;
 DO $g$
 BEGIN
   IF strpos((SELECT prosrc FROM pg_proc WHERE oid='public.workshop_vehicle_stage_estimated_hours(uuid,text)'::regprocedure), 'pdc_panel_line_completion_565') <> 0 THEN
-    RAISE EXCEPTION 'r593 undo: ticked lines are still excluded';
+    RAISE EXCEPTION 'r594 undo: ticked lines are still excluded';
   END IF;
-  DELETE FROM pdc_ops.regression_checks WHERE check_name='outstanding_station_hours_593' AND added_in='r593';
+  DELETE FROM pdc_ops.regression_checks WHERE check_name='outstanding_station_hours_594' AND added_in='r594';
 END $g$;

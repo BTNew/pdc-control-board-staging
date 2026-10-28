@@ -6,7 +6,7 @@ Craig, 28 Oct 2026 08:02 AWST. The search card for Key 460 (stock 13071838) said
 
 The 12.00 h is the unallocated booking's saved duration. The station estimate added every Hoist line and did not look at the panel ticks. A drag of that card then sent 12.00 h, which is the whole station, not the work still to do.
 
-r593 / F207 / sort 363. The station estimate now skips a line whose panel tick is complete. An unallocated drag uses that estimate, so Hoist books 5.00 h. The same rule applies to every station on this planner. The card says how many hours are still to do. Key 460 is not booked by this release. Department 135's own hours function is not changed.
+r594 / F208 / sort 364. The station estimate now skips a line whose panel tick is complete. An unallocated drag uses that estimate, so Hoist books 5.00 h. The same rule applies to every station on this planner. The card says how many hours are still to do. Key 460 is not booked by this release. Department 135's own hours function is not changed.
 
 ## Key 460 would not go into Jason Ranoco's Hoist bay
 

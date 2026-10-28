@@ -1889,7 +1889,7 @@ function workshopBayAllocatedBaseMinutes(stage = '', bay = 0, baseMinutes = 0) {
 
 function workshopBookingDestinationHours(entry = null, stage = '', bay = 0, baseHours = 0) {
   if (entry && ['started', 'stoppage', 'completed'].includes(entry.status)) return Number(entry.hours) > 0 ? Number(entry.hours) : null;
-  // r593 (F207): an unallocated card keeps the old full-station total on the
+  // r594 (F208): an unallocated card keeps the old full-station total on the
   // booking. The drag books only the station lines that are still unticked.
   const outstandingHours = Number(entry?.operationEstimateHours);
   const storedBay = Number(entry?.bay);
