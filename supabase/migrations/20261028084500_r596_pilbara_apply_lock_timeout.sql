@@ -49,6 +49,7 @@ begin
   insert into public.workshop_station_revision(stage_code, revision, updated_at)
   values (v_code, 1, now())
   on conflict (stage_code) do update set revision = public.workshop_station_revision.revision + 1, updated_at = now()
+  where public.workshop_station_revision.stage_code = excluded.stage_code
   returning revision into v_revision;
   return v_revision;
 end;
