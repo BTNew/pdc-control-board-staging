@@ -25,6 +25,11 @@ Craig, 28 Oct 2026 09:20 AWST, on the live Admin > Revolution uploads page. The 
 The page copied the report file name into the `x-filename` header. A name such as `PMG PD Service as a Whole w/Sublet – 28‑10‑2026 · copy.xlsx` is not Latin-1, so the browser refused to send the request. The file never left the browser. No SQL change. Staging only. Production was not touched. Kajel's imports are unchanged.
 
 The file name now travels in the form body only. The request headers are the sign-in token, and only when that token is Latin-1. The server still reads the name from the uploaded file.
+## A drop onto a running job must place itself after that job
+
+Craig, 28 Oct 2026 09:34 AWST. Dragging Key 460 (stock 13071838) into Jason Ranoco's Hoist bay, where Key 328 is running, still said: "A job is already running in this bay. No change was made. Drag it again and choose OK to place this job right after it. Later jobs in the bay move back."
+
+The place-after helper already knew the running job's real end, including an overrun, and it already knew which later jobs to push. It stopped and asked before it would do either. r598 / F212 / sort 368. The drop places the job at the next working minute at or after that real end and pushes the later jobs in the same step. There is no OK dialog. Key 460 is not booked by the release. Pin count stays 241. Department 135 is not edited.
 
 ## Key 460 still showed 12 hours and then refused its own Hoist row
 
