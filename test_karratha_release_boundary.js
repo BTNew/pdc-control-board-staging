@@ -218,7 +218,7 @@ const approvedRootImportPatch = Object.freeze({
   // r604: canonical-entry.js loads pdc-pit-bookings.js beside the table and tags the table r604 (Pit column, F218). Department 135 is not tagged.
   // r616: r616=2026.10.28.r616 on the Parts ETA, key-number, Parts stoppage, pit, Sublet PO and Sublet PO attach loaders (fitter sessions stop polling boards, F231). Department 135 is not tagged.
   // r618: canonical-entry.js adds r618=2026.10.28.r618 to the pit and table loaders (pit list on the PIT tile only, searched; F233). Department 135 is not tagged.
-  "canonical-entry.js": "8086411ae2856edc5754fad2b3c36245579a3d2529f5c4405856488e57a9fdbc",
+  "canonical-entry.js": "8dfd94f61f320abf1d558793c9bdf2b59e8a7a86c87a58f2dfc1e4f5bf8b996b", // r622 (F237) cache tags
   "pdc-workshop-vehicle-search.js": "d0be4a60c5ca2213ba71d4cd31cb7019736db3d7e0470d22b3fa88243e56eb4c",
   // Owner-authorised PMG fitter read recovery, 13 October 2026.
   // Coaster and HiAce conversions: one Start / Done tick per section in a
