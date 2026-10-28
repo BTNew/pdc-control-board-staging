@@ -98,13 +98,35 @@
       stages: [...new Set(visibleColumns.map(column => column.stage))] };
   }
 
+  // r606 (F220): a job running past its scheduled end shows "Over time" in red, like the planner's red chip.
+  // Started past its end, or put on stoppage after its end. Display only.
+  function isOvertime(item, now = Date.now()) {
+    if (!item || item.kind !== 'booking') return false;
+    const end = Date.parse(item.source?.scheduled_end_at || '');
+    if (!Number.isFinite(end)) return false;
+    if (item.status === 'started') return now > end;
+    if (item.status === 'stoppage') { const at = Date.parse(item.source?.stoppage_started_at || ''); return Number.isFinite(at) && at > end; }
+    return false;
+  }
+  const overClass = item => (isOvertime(item) ? ' is-overtime' : '');
+  const overState = (item, state) => (isOvertime(item) ? 'Over time' : state);
+  if (typeof document !== 'undefined' && !document.getElementById('control-board-overtime-606')) {
+    const style = document.createElement('style');
+    style.id = 'control-board-overtime-606';
+    style.textContent = '@keyframes cb-overtime-606{0%,100%{background:#dc2626}50%{background:#7f1d1d}}'
+      + '.control-board-timeline-job.is-overtime,.control-board-bay-card.is-overtime{background:#dc2626!important;border-color:#7f1d1d!important;color:#fff!important;animation:cb-overtime-606 1.1s ease-in-out infinite}'
+      + '.control-board-timeline-job.is-overtime *,.control-board-bay-card.is-overtime *{color:#fff!important}'
+      + '@media (prefers-reduced-motion: reduce){.control-board-timeline-job.is-overtime,.control-board-bay-card.is-overtime{animation:none}}';
+    document.head.appendChild(style);
+  }
+
   function cardHtml(item, waiting = false) {
     if (item.kind === 'admin') return `<div class="control-board-bay-card is-admin" data-control-board-match><strong>${escape(item.source.label || 'Admin block')}</strong><span>Admin block</span></div>`;
     const person = itemIdentity(item);
-    const state = { started: 'Live', stoppage: 'Stoppage', planned: 'Planned', queued: 'Queued', waiting: 'Unallocated' }[item.status] || '';
+    const state = overState(item, { started: 'Live', stoppage: 'Stoppage', planned: 'Planned', queued: 'Queued', waiting: 'Unallocated' }[item.status] || '');
     const action = item.kind === 'booking' ? 'Open booking' : 'Open workshop';
     const title = `${action} · ${stageLabel(item.stage)} · ${state}\nKey ${person.key} · Job card ${person.job}\nStock ${person.stock}\n${person.customer}\n${person.description}`;
-    return `<button type="button" class="control-board-bay-card is-${escape(item.status)}" data-control-board-match data-control-board-item="${escape(item.kind)}" data-control-board-id="${escape(item.id)}" title="${escape(title)}" aria-label="${escape(title.replace(/\n/g, ' · '))}">
+    return `<button type="button" class="control-board-bay-card is-${escape(item.status)}${overClass(item)}" data-control-board-match data-control-board-item="${escape(item.kind)}" data-control-board-id="${escape(item.id)}" title="${escape(title)}" aria-label="${escape(title.replace(/\n/g, ' · '))}">
       ${waiting ? `<span class="control-board-card-station">${escape(stageLabel(item.stage))}${item.unassignedBay ? ' · Check bay allocation' : ''}</span>` : ''}
       <strong>Key ${escape(person.key)} · JC ${escape(person.job)}</strong>
       <span>Stock ${escape(person.stock)}</span>
@@ -337,7 +359,7 @@
   }
   function timelineCard(segment) {
     const item = segment.item, person = itemIdentity(item);
-    const state = { started: 'Live', stoppage: 'Stoppage', planned: 'Planned', queued: 'Queued', admin: 'Admin block' }[item.status];
+    const state = overState(item, { started: 'Live', stoppage: 'Stoppage', planned: 'Planned', queued: 'Queued', admin: 'Admin block' }[item.status]);
     const title = item.kind === 'admin' ? item.source.label || 'Admin block' : `Key ${person.key} · JC ${person.job} · Stock ${person.stock}\n${person.customer}\n${person.description}`;
     const midnight = Date.parse(`${segment.date}T00:00:00+08:00`);
     const partLabel = part => { const dayStart = Date.parse(`${part.date}T00:00:00+08:00`); return `${part.date} · ${timeLabel((part.start - dayStart) / 60000)}–${timeLabel((part.end - dayStart) / 60000)}`; };
@@ -347,7 +369,7 @@
       : `${segment.date} · ${timeLabel((segment.start - midnight) / 60000)}–${timeLabel((segment.end - midnight) / 60000)}${segment.continuesFromPrevious ? ' · Continued from previous day' : ''}${segment.continuesNext ? ' · Continues next working day' : ''}${segment.historicalOnClosure ? ' · Recorded booking on closure' : ''}`;
     const joinedParts = segment.joined ? ` data-control-board-parts="${segment.parts.map(part => `${part.date}@${Math.round((part.left - segment.left) * 10) / 10}-${Math.round((part.left + part.width - segment.left) * 10) / 10}`).join(' ')}"` : '';
     const tag = item.kind === 'admin' ? 'div' : 'button';
-    return `<${tag} ${tag === 'button' ? 'type="button"' : ''} class="control-board-timeline-job is-${escape(item.status)}${segment.width < 130 ? ' is-short' : ''}${segment.joined ? ' is-joined' : ''}" style="left:${segment.left}px;width:${segment.width}px;top:${segment.lane * 48 + 5}px" data-control-board-match data-control-board-item="${escape(item.kind)}" data-control-board-id="${escape(item.id)}" data-control-board-date="${segment.date}"${joinedParts} title="${escape(`${state} · ${title}\n${timingLabel}`)}" aria-label="${escape(`${state} · ${title} · ${timingLabel}`.replace(/\n/g, ' · '))}">
+    return `<${tag} ${tag === 'button' ? 'type="button"' : ''} class="control-board-timeline-job is-${escape(item.status)}${overClass(item)}${segment.width < 130 ? ' is-short' : ''}${segment.joined ? ' is-joined' : ''}" style="left:${segment.left}px;width:${segment.width}px;top:${segment.lane * 48 + 5}px" data-control-board-match data-control-board-item="${escape(item.kind)}" data-control-board-id="${escape(item.id)}" data-control-board-date="${segment.date}"${joinedParts} title="${escape(`${state} · ${title}\n${timingLabel}`)}" aria-label="${escape(`${state} · ${title} · ${timingLabel}`.replace(/\n/g, ' · '))}">
       <strong>${item.kind === 'admin' ? escape(title) : `Key ${escape(person.key)} · JC ${escape(person.job)}`}</strong>
       ${item.kind === 'admin' ? '' : `<span class="control-board-timeline-customer">${escape(person.customer)}</span>`}
       ${item.kind === 'admin' ? '' : (typeof window !== 'undefined' ? window.PdcFitters?.progressHtml(item.source.fitter_progress, true, { paused: item.status === 'stoppage' ? 'Stoppage' : '' }) || '' : '')}
@@ -357,12 +379,12 @@
   // label rule (Key + JC + customer, never Stock).
   function monthCard(segment) {
     const item = segment.item, person = itemIdentity(item);
-    const state = { started: 'Live', stoppage: 'Stoppage', planned: 'Planned', queued: 'Queued', admin: 'Admin block' }[item.status];
+    const state = overState(item, { started: 'Live', stoppage: 'Stoppage', planned: 'Planned', queued: 'Queued', admin: 'Admin block' }[item.status]);
     const parts = segment.parts || [segment];
     const dates = `${parts[0].date}${parts.length > 1 ? ` to ${parts[parts.length - 1].date}` : ''}`;
     const label = item.kind === 'admin' ? text(item.source.label) || 'Admin block' : `Key ${person.key} · JC ${person.job} · ${person.customer}`;
     const tag = item.kind === 'admin' ? 'div' : 'button';
-    return `<${tag} ${tag === 'button' ? 'type="button"' : ''} class="control-board-timeline-job is-${escape(item.status)} is-zoom-block" style="left:${segment.left}px;width:${Math.max(2, segment.width)}px;top:${segment.lane * ZOOM.month.lane + 3}px" data-control-board-match data-control-board-item="${escape(item.kind)}" data-control-board-id="${escape(item.id)}" data-control-board-date="${segment.date}" title="${escape(`${label}\n${state} · ${dates}`)}" aria-label="${escape(`${label} · ${state} · ${dates}`)}"></${tag}>`;
+    return `<${tag} ${tag === 'button' ? 'type="button"' : ''} class="control-board-timeline-job is-${escape(item.status)}${overClass(item)} is-zoom-block" style="left:${segment.left}px;width:${Math.max(2, segment.width)}px;top:${segment.lane * ZOOM.month.lane + 3}px" data-control-board-match data-control-board-item="${escape(item.kind)}" data-control-board-id="${escape(item.id)}" data-control-board-date="${segment.date}" title="${escape(`${label}\n${state} · ${dates}`)}" aria-label="${escape(`${label} · ${state} · ${dates}`)}"></${tag}>`;
   }
   function zoomControls(zoom) {
     const index = ZOOM_LEVELS.indexOf(zoom), outLevel = ZOOM_LEVELS[Math.min(ZOOM_LEVELS.length - 1, index + 1)], inLevel = ZOOM_LEVELS[Math.max(0, index - 1)];
@@ -526,5 +548,5 @@
       if (!resize) view.removeEventListener('resize', sync);
     };
   }
-  return Object.freeze({ buildModel, buildTimeline, render, mountTimeline, stageLabel, dateKey, shiftDate, searchDateRange, getZoom, setZoom, ZOOM_LEVELS });
+  return Object.freeze({ buildModel, buildTimeline, render, mountTimeline, stageLabel, dateKey, shiftDate, searchDateRange, getZoom, setZoom, ZOOM_LEVELS, isOvertime });
 });
