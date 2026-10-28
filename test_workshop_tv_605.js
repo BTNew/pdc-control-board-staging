@@ -93,7 +93,9 @@ test('view only and wired: no write RPCs, page ships, staging only', () => {
   assert.doesNotMatch(js, /\.from\(/, 'no direct table access, so no table writes');
   assert.doesNotMatch(js, /channel\(|subscribe\(/, 'no realtime channel');
   const html = fs.readFileSync('workshop-tv.html', 'utf8');
-  assert.match(html, /workshop-tv\.js\?r605=2026\.10\.28\.r605/);
+  assert.match(html, /workshop-tv\.js\?r605=2026\.10\.28\.r605&amp;r608=2026\.10\.28\.r608/);
+  assert.match(html, /<form id="tv-signin"/, 'r608 (F222): the TV signs in on its own screen');
+  assert.match(js, /signInWithPassword/);
   assert.match(html, /id="tv-full"/);
   assert.match(js, /requestFullscreen/);
   assert.match(html, /pdc-supabase-config\.staging\.js/);
