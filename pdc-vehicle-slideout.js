@@ -747,7 +747,7 @@
     if (doc.querySelector('link[data-pdc-vehicle-slideout]')) return;
     const link = doc.createElement('link');
     link.rel = 'stylesheet';
-    link.href = `pdc-vehicle-slideout.css?vehicle-slideout=${VERSION}`;
+    link.href = `pdc-vehicle-slideout.css?vehicle-slideout=${VERSION}&r681=2026.10.29.r681`; // r681 (F291): tidy Edit hours, description box on hover only
     link.dataset.pdcVehicleSlideout = '1';
     doc.head.appendChild(link);
   }

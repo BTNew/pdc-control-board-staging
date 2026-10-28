@@ -166,7 +166,7 @@ test('panel CSS is scoped to the panel: the Drop-down view card and station cell
   // Craig 08:07: operations stacked full width, one row per line, ellipsis + full text on hover and focus.
   assert.match(css, /#vso-shell \.authenticated-email-operations \.pdc-op-panels \{ display: flex !important; flex-direction: column;/);
   assert.match(css, /li > span \{[^}]*white-space: nowrap !important; overflow: hidden !important; text-overflow: ellipsis;/);
-  assert.match(css, /li\[data-vso-full\]:hover::after,\s*#vso-shell \.authenticated-email-operations li\[data-vso-full\]:focus::after/);
+  assert.match(css, /li\[data-vso-full\]:has\(> span:hover\)::after/);
   assert.match(css, /content: attr\(data-vso-full\)/);
   const js = fs.readFileSync('pdc-vehicle-slideout.js', 'utf8');
   assert.match(js, /if \(!span\.title\) span\.title = full;/, 'title tooltip');

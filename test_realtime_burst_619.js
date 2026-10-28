@@ -31,5 +31,5 @@ test('wired into workshop, navision and vehicle board refreshes; cache bust', ()
   assert.match(svc, /recent\.length > 3 \? Math\.max\(250, 20000 - \(now - lastRun\)\) : 250/);
   const html = fs.readFileSync('index.html', 'utf8');
   assert.match(html, /pdc-email-vehicle-location-service\.js\?[^"]*&amp;r619=2026\.10\.28\.r619(&amp;r642=2026\.10\.28\.r642)?(&amp;r676=2026\.10\.28\.r676)?"/);
-  assert.match(html, /app\.js\?[^"]*&amp;r619=2026\.10\.28\.r619(&amp;r642=2026\.10\.28\.r642)?(&amp;r676=2026\.10\.28\.r676)?(&amp;r679=2026\.10\.29\.r679)?"/);
+  assert.match(html, /app\.js\?[^"]*&amp;r619=2026\.10\.28\.r619(&amp;r642=2026\.10\.28\.r642)?(&amp;r676=2026\.10\.28\.r676)?(&amp;r679=2026\.10\.29\.r679)?(&amp;r681=2026\.10\.29\.r681)?"/);
 });

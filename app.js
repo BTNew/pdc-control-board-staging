@@ -15617,6 +15617,24 @@ function vehicleWorkshopHoursBatchError(result = {}) {
   })[result.code] || 'The hours batch was rejected. Authoritative values were reloaded; no unrelated row was changed.';
 }
 
+// r681 (F291): the save needs a job card that is on this vehicle's lines. 40 vehicles (FMG and others) have no job
+// card on the vehicle row, so Save sent '' and every hours save came back "invalid". Use a job card from the lines.
+function vehicleWorkshopHoursBatchJobCard(vehicle = {}, detail = {}) {
+  const found = new Set();
+  const walk = (value, depth) => {
+    if (!value || depth > 6) return;
+    if (Array.isArray(value)) { value.forEach(item => walk(item, depth + 1)); return; }
+    if (typeof value !== 'object') return;
+    const jc = String(value.job_card_number || '').trim();
+    if (jc) found.add(jc);
+    Object.values(value).forEach(item => { if (item && typeof item === 'object') walk(item, depth + 1); });
+  };
+  walk(detail, 0);
+  const direct = String(vehicleJobcardNumber(vehicle) || '').trim();
+  const tokens = direct.split(/[^A-Za-z0-9_-]+/).filter(Boolean);
+  return tokens.find(token => found.has(token)) || [...found][0] || direct;
+}
+
 async function saveVehicleWorkshopLineHoursBatch(button) {
   if (!button || app.vehicleWorkshopHoursBatchSaving) return false;
   const page = button.closest?.('[data-vehicle-workshop-hours-batch-page]');
@@ -15642,7 +15660,7 @@ async function saveVehicleWorkshopLineHoursBatch(button) {
     const result = await service.saveVehicleWorkshopLineHoursBatch({
       vehicleId: canonicalId,
       stockNumber: displayStockNumber(vehicle),
-      jobCardNumber: vehicleJobcardNumber(vehicle),
+      jobCardNumber: vehicleWorkshopHoursBatchJobCard(vehicle, detail),
       expectedVehicleVersion: Number(detail.vehicle_version || vehicle.__emailVehicleVersion || 0),
       rows,
       idempotencyKey: crypto.randomUUID(),
