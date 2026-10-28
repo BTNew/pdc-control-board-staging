@@ -25,7 +25,7 @@ DO $r688$
 DECLARE awst time := (clock_timestamp() AT TIME ZONE 'Australia/Perth')::time;
   r record; v_def text; v_new text; v_guards integer; v_clears integer; v_total integer := 0;
   c_guard text := $p$upper\((btrim\(coalesce\()?(\w+)\.current_location(,''\)\))?\)\s*<>\s*'QC'$p$;
-  c_guard_new text := $p$upper(btrim(coalesce(nullif(btrim(\3.location_override),''),\3.current_location,'')))<>'QC'$p$;
+  c_guard_new text := $p$upper(btrim(coalesce(nullif(btrim(\2.location_override),''),\2.current_location,'')))<>'QC'$p$;
   c_move text := $p$current_location\s*=\s*'(RFT|PMB)'\s*,$p$;
   c_move_new text := $p$current_location='\1',location_override=NULL,location_override_reason=NULL,location_override_at=NULL,location_override_by=NULL,$p$;
 BEGIN
@@ -45,6 +45,7 @@ BEGIN
       AND p.proname IN ('set_pdc_qc_operation_completion_379', 'reject_pdc_qc_operation_381', 'record_pdc_qc_photo_evidence_399',
                         'get_pdc_qc_photo_receipt_414', 'finalize_pdc_qc_to_rft_399', 'finalize_pdc_qc_to_rft_700',
                         'reject_pdc_qc_vehicle_to_pmb_stoppage_767', 'record_pdc_qc_retest_photo_747', 'finalize_pdc_qc_retest_to_rft_747')
+      AND p.prosrc !~ '^\s*SELECT public\.reject_pdc_qc_vehicle_to_pmb_stoppage_767\('  -- 5-arg wrapper, calls the 6-arg body
     ORDER BY 3
   LOOP
     IF r.protected THEN RAISE EXCEPTION 'r688: % is pinned or named by a check', r.sig; END IF;
@@ -63,7 +64,7 @@ BEGIN
     RAISE NOTICE 'r688: % guards=% override_clears=%', r.sig, v_guards, v_clears;
     v_total := v_total + 1;
   END LOOP;
-  IF v_total <> 10 THEN RAISE EXCEPTION 'r688: changed % functions, expected 10', v_total; END IF;
+  IF v_total <> 9 THEN RAISE EXCEPTION 'r688: changed % functions, expected 9', v_total; END IF;
 
   INSERT INTO pdc_ops.regression_checks(check_name, sort_order, fault_id, added_in, enabled, description, check_sql)
   VALUES ('qc_follows_override_688', 426, 'F298', 'r688', true,
@@ -75,6 +76,7 @@ WHERE p.pronamespace = 'public'::regnamespace
   AND p.proname IN ('set_pdc_qc_operation_completion_379', 'reject_pdc_qc_operation_381', 'record_pdc_qc_photo_evidence_399',
                     'get_pdc_qc_photo_receipt_414', 'finalize_pdc_qc_to_rft_399', 'finalize_pdc_qc_to_rft_700',
                     'reject_pdc_qc_vehicle_to_pmb_stoppage_767', 'record_pdc_qc_retest_photo_747', 'finalize_pdc_qc_retest_to_rft_747')
+  AND p.prosrc !~ '^\s*SELECT public\.reject_pdc_qc_vehicle_to_pmb_stoppage_767\('
   AND (p.prosrc ~* 'upper\((btrim\(coalesce\()?\w+\.current_location(,''''\)\))?\)\s*<>\s*''QC'''
        OR p.prosrc !~* 'location_override\),''''\),\w+\.current_location'
        OR ((p.proname LIKE 'finalize%' OR p.proname LIKE 'reject_pdc_qc_vehicle%') AND p.prosrc !~* 'current_location=''(RFT|PMB)'',location_override=NULL'))
