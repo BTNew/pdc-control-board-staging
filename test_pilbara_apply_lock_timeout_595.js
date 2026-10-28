@@ -3,13 +3,13 @@ const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 
-const up = fs.readFileSync('supabase/migrations/20261028084500_r595_pilbara_apply_lock_timeout.sql', 'utf8');
-const down = fs.readFileSync('supabase/rollbacks/20261028084500_r595_pilbara_apply_lock_timeout.down.sql', 'utf8');
+const up = fs.readFileSync('supabase/migrations/20261028084500_r596_pilbara_apply_lock_timeout.sql', 'utf8');
+const down = fs.readFileSync('supabase/rollbacks/20261028084500_r596_pilbara_apply_lock_timeout.down.sql', 'utf8');
 
 test('r595 publishes a 120s Pilbara apply and one station-revision lock', () => {
   assert.match(up, /SET statement_timeout = '120s'/);
   assert.match(up, /pdc:workshop:station-revision/);
-  assert.match(up, /pilbara_apply_lock_timeout_595/);
+  assert.match(up, /pilbara_apply_lock_timeout_596/);
   assert.match(up, /fd05b9eef69498002ac06dd68e01cdff/);
   assert.match(up, /9be0883b1a555f48f3c1ba9fa111c891/);
   assert.match(up, /b62fb7c29ffd2a1629f214f696e5cb14/);

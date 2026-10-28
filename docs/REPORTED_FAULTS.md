@@ -12,15 +12,17 @@ This morning's clock reds (`clock_ticks_recent`, `clock_tick_latency_trend`) are
 
 ### Fix
 
-r595 / F209 / sort 365, taken because the live ledger tip was sort 364 / F208. Both station-revision bumps take the advisory lock `pdc:workshop:station-revision` before they touch a revision row, so a one-station bump and an all-station bump queue instead of deadlocking. The public Apply RPC publishes `statement_timeout=120s` again. Pin count stays 241. Department 135 stays `fd05b9eef69498002ac06dd68e01cdff`. Kajel rows stay `9be0883b1a555f48f3c1ba9fa111c891` and apply stays `b62fb7c29ffd2a1629f214f696e5cb14`. The clock tick body stays `3b2398e33a2ea35fc137deeedeca4af5`. This release does not replace either Kajel function.
+r596 / F210 / sort 366. Sort 365 / F209 / r595 was taken by the Parts ETA panel release while this was being rechecked, so this release took the next free triple. Applied on staging `cdsmnqxtyyoeoznmbidd`. Ledger `20261028005119` `r596_pilbara_apply_lock_timeout`. Production `vjdtsswhroyguxyfjdkt` was not touched. Both station-revision bumps take the advisory lock `pdc:workshop:station-revision` before they touch a revision row, so a one-station bump and an all-station bump queue instead of deadlocking. The public Apply RPC publishes `statement_timeout=120s` again. Pin count stays 241. Department 135 stays `fd05b9eef69498002ac06dd68e01cdff`. Kajel rows stay `9be0883b1a555f48f3c1ba9fa111c891` and apply stays `b62fb7c29ffd2a1629f214f696e5cb14`. The clock tick body stays `3b2398e33a2ea35fc137deeedeca4af5`. This release does not replace either Kajel function.
+
+The last three ticks before the apply succeeded: 08:43 AWST 692 ms, 08:44 AWST 1009 ms, 08:45 AWST 693 ms. This morning's clock reds stayed the baseline: `clock_ticks_recent` and `clock_tick_latency_trend`. `unallocated_bay_rechain_548` was also red before the apply. The post-check did not add a red. `pilbara_apply_lock_timeout_596` is green. `protected_function_md5s` is green, 241 pinned, 0 changed. Nothing was rolled back.
 
 A fictional Pilbara row (order 900001, stock 13999901, dealer 014450) previews as a new 14450 row. A one-row Apply is not run: this upload is a full dealer snapshot and would mark the other live rows missing before a rollback.
 
-Up `supabase/migrations/20261028084500_r595_pilbara_apply_lock_timeout.sql`. Down `supabase/rollbacks/20261028084500_r595_pilbara_apply_lock_timeout.down.sql`.
+Up `supabase/migrations/20261028084500_r596_pilbara_apply_lock_timeout.sql`. Down `supabase/rollbacks/20261028084500_r596_pilbara_apply_lock_timeout.down.sql`.
 
 ### Check
 
-`pilbara_apply_lock_timeout_595` (F209, sort 365). It goes red if the 120 second limit is missing from the public Apply, if either bump takes a revision row before the shared lock, or if the pin count, department 135, Kajel's two checksums, or the clock tick move.
+`pilbara_apply_lock_timeout_596` (F210, sort 366). It goes red if the 120 second limit is missing from the public Apply, if either bump takes a revision row before the shared lock, or if the pin count, department 135, Kajel's two checksums, or the clock tick move.
 
 ## New to PMB is a view, not an acknowledgement
 
