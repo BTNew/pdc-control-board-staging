@@ -3,7 +3,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
-const sql = fs.readFileSync('supabase/migrations/20261029030000_r688_qc_follows_override.sql', 'utf8');
+const sql = fs.readFileSync('supabase/migrations/20261029074400_r688_qc_follows_override.sql', 'utf8');
 test('guard checks override before current_location', () => {
   assert.match(sql, /coalesce\(nullif\(btrim\(\\2\.location_override\),''\),\\2\.current_location,''\)\)\)<>'QC'/);
 });
@@ -19,7 +19,7 @@ test('public schema only, never pinned or checked functions, originals backed up
   assert.match(sql, /import window/);
 });
 test('rollback restores from backup', () => {
-  const down = fs.readFileSync('supabase/rollbacks/20261029030000_r688_qc_follows_override.down.sql', 'utf8');
+  const down = fs.readFileSync('supabase/rollbacks/20261029074400_r688_qc_follows_override.down.sql', 'utf8');
   assert.match(down, /r688_function_backup/);
   assert.match(down, /qc_follows_override_688/);
 });

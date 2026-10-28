@@ -1,4 +1,4 @@
--- r688 (F298) / sort 426. Staging cdsmnqxtyyoeoznmbidd only.
+-- r688 (F298) / sort 440. Staging cdsmnqxtyyoeoznmbidd only. Applied 29 Oct 2026 07:46 AWST (Craig approved 07:44).
 -- QC could not tick, photo, reject or sign off a vehicle that was put in QC by a location override
 -- (e.g. 12661302 / Key 119: current_location PMB, location_override QC). The board shows the override, but every
 -- QC write function checked current_location only, so each tap failed with "This operation was not saved".
@@ -33,7 +33,7 @@ BEGIN
   IF NOT public.pdc_monitor_staging_guard()
      OR (SELECT count(*) FROM public.pdc_staging_environment_sentinel WHERE singleton AND project_ref = 'cdsmnqxtyyoeoznmbidd') <> 1
      OR to_regclass('public.pdc_production_environment_sentinel') IS NOT NULL THEN RAISE EXCEPTION 'r688: staging only'; END IF;
-  IF EXISTS (SELECT 1 FROM pdc_ops.regression_checks WHERE sort_order = 426 OR fault_id = 'F298' OR added_in = 'r688' OR check_name = 'qc_follows_override_688') THEN RAISE EXCEPTION 'r688: sort 426 or F298 is taken'; END IF;
+  IF EXISTS (SELECT 1 FROM pdc_ops.regression_checks WHERE sort_order = 440 OR fault_id = 'F298' OR added_in = 'r688' OR check_name = 'qc_follows_override_688') THEN RAISE EXCEPTION 'r688: sort 440 or F298 is taken'; END IF;
   IF EXISTS (SELECT 1 FROM pdc_import_620.jobs WHERE status IN ('queued', 'running')) THEN RAISE EXCEPTION 'r688: an import job is running'; END IF;
 
   FOR r IN
@@ -67,7 +67,7 @@ BEGIN
   IF v_total <> 9 THEN RAISE EXCEPTION 'r688: changed % functions, expected 9', v_total; END IF;
 
   INSERT INTO pdc_ops.regression_checks(check_name, sort_order, fault_id, added_in, enabled, description, check_sql)
-  VALUES ('qc_follows_override_688', 426, 'F298', 'r688', true,
+  VALUES ('qc_follows_override_688', 440, 'F298', 'r688', true,
     'QC write and read functions accept a vehicle shown in QC by location override, and leaving QC clears the override.',
     $chk$
 SELECT count(*) = 0 AS ok, coalesce(string_agg(p.proname, ', '), 'none') AS detail
