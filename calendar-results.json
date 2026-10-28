@@ -1,0 +1,34 @@
+{
+  "calendarCorrect": {
+    "sixHoursFromFriday16": "2026-09-21 08:00",
+    "saturdayAvailable": "08:00–12:00",
+    "sundayAvailableMinutes": 0
+  },
+  "saturdayRenderingFixed": {
+    "visibleChipRange": "8:00–12:00",
+    "expected": "08:00–12:00",
+    "segment": {
+      "start": 60,
+      "end": 300,
+      "continuesFromPrevious": true,
+      "continuesNext": true,
+      "historicalOnClosure": false,
+      "usesConfiguredOvertime": false
+    }
+  },
+  "handover": {
+    "fiftyNineMinuteGapRejected": true,
+    "oneHourGapAccepted": true
+  },
+  "adminBlockAvoided": {
+    "bestSlot": {
+      "stage": "FITTING",
+      "bay": 2,
+      "dateKey": "2026-09-21",
+      "startMinutes": 0
+    },
+    "adminBlock": "Bay 1 training 07:00–17:00",
+    "availableAlternative": "Bay 2 07:00",
+    "adminBlockCount": 1
+  }
+}

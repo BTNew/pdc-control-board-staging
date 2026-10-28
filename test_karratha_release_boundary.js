@@ -300,7 +300,7 @@ const approvedRootImportPatch = Object.freeze({
   // r590: the QC sign-off button stays visible and names what is still outstanding (F204). Department 135 keeps its frozen app.js.
   // r593: a recent key is listed in New to PMB and stays in the PMB bucket. No department tick (F207). Department 135 keeps its frozen app.js.
   // r591: Admin > Revolution uploads is administrators only (F205). Department 135 is not tagged.
-  "app.js": "66410490415ef82b64a6136bee46a78138476ffbf3032ac9209d34fd774773c6",
+  "app.js": "9d7f1dd765f3f9ffb6418a6775705396afee8f63a9242685ce65be89c0f347d0",
   // r464: a booking that runs past the day divider is one bar (joined per-day pieces, display only; F77). The Karratha copy stays frozen.
   // r465: overview bar labels show Key · JC and the customer only (Stock and the vehicle description stay in the hover title); the customer span is classed for the Running layout (F78).
   // r467: Day / Week / Month zoom on the overview timeline (display only; F80).

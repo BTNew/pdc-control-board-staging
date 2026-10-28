@@ -35,8 +35,9 @@ test('SQL trigger wrapper resolves the canonical booking UUID and separate vehic
   assert.match(message, /18 Sept,? 9:00 am/);
   assert.match(message, /18 Sept,? 11:00 am/);
   assert.match(message, /Perth time/);
-  assert.match(message, /No conflicting bookings were saved/);
-  assert.match(message, /at least 1 hour/);
+  // r599 (F213) / r603 (F217): cross-bay guard is off, so the message says so instead of asking for a 1-hour gap.
+  assert.match(message, /cross-bay overlap rule is switched off/);
+  assert.doesNotMatch(message, /at least 1 hour/);
   assert.equal(reads.trusted, 1);
   assert.equal(reads.legacy, 0);
   assert.ok(!message.includes(A));
