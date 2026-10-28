@@ -256,3 +256,12 @@ body.vlt-table-on #vlt-nav-status { flex: 0 1 250px; }
 @media (prefers-reduced-motion: reduce) {
   .vlt-tile[data-vlt-tile="pmb"].is-key-alert { animation: none; background: #fecaca; box-shadow: inset 0 0 0 2px #dc2626; }
 }
+
+/* r685 (F295): station headings filter the table to vehicles that still need that station. */
+.vlt-table thead [data-vlt-station] { cursor: pointer; border-radius: 4px; }
+.vlt-table thead [data-vlt-station]:hover { background: rgba(220, 38, 38, 0.08); }
+.vlt-table thead [data-vlt-station]:focus-visible { outline: 2px solid #2563eb; outline-offset: 1px; }
+.vlt-table thead [data-vlt-station].vlt-station-active { background: #dc2626; color: #fff; }
+.vlt-table thead [data-vlt-station].vlt-station-active > span { color: #fff; }
+.vlt-station-note { font-weight: 700; color: #b91c1c; }
+.vlt-station-clear { margin-left: 4px; font: inherit; font-size: 11px; padding: 1px 8px; border: 1px solid #cbd5e1; border-radius: 999px; background: #fff; cursor: pointer; }
