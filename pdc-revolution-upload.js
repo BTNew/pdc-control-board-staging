@@ -1,5 +1,14 @@
-/* Admin > Revolution uploads. r591 preview. The file is parsed on the server. Apply stays off. */
-(function () {
+/* Admin > Revolution uploads. r591. The file is parsed on the server. Apply stays off. */
+function revolutionUploadParts(file, token) {
+  const form = new FormData();
+  form.append('file', file, file.name);
+  const headers = {};
+  if (typeof token === 'string' && /^[\u0000-\u00FF]*$/.test(token)) headers.Authorization = `Bearer ${token}`;
+  return { form, headers };
+}
+if (typeof module !== 'undefined' && module.exports) module.exports = { revolutionUploadParts };
+
+if (typeof window !== 'undefined') (function () {
   const STAGING = 'cdsmnqxtyyoeoznmbidd';
   const PRODUCTION = 'vjdtsswhroyguxyfjdkt';
   const LOG_KEY = 'pdc-revolution-upload-log-r591';
@@ -136,12 +145,8 @@
   async function postFile(file, action) {
     const url = new URL(endpoint());
     url.searchParams.set('action', action);
-    const form = new FormData();
-    form.append('file', file, file.name);
-    const headers = { 'x-filename': file.name, 'x-uploader': 'Preview staff' };
     const session = window.PDC_SUPABASE_CONFIG?.session || window.pdcSession;
-    const token = session?.access_token;
-    if (token) headers.Authorization = `Bearer ${token}`;
+    const { form, headers } = revolutionUploadParts(file, session?.access_token);
     const response = await fetch(url, { method: 'POST', body: form, headers });
     const payload = await response.json();
     if (!response.ok && !payload.md5 && !payload.error) throw new Error('The server did not return a dry run.');

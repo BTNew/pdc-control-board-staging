@@ -1,5 +1,13 @@
 # Reported faults
 
+## Revolution upload said Failed to fetch
+
+Craig, 28 Oct 2026 09:20 AWST, on the live Admin > Revolution uploads page. The browser said FAILED TO FETCH, and `Failed to execute 'fetch' on 'Window': Failed to read the 'headers' property from 'RequestInit': String contains non ISO-8859-1 code point.`
+
+The page copied the report file name into the `x-filename` header. A name such as `PMG PD Service as a Whole w/Sublet – 28‑10‑2026 · copy.xlsx` is not Latin-1, so the browser refused to send the request. The file never left the browser. No SQL change. Staging only. Production was not touched. Kajel's imports are unchanged.
+
+The file name now travels in the form body only. The request headers are the sign-in token, and only when that token is Latin-1. The server still reads the name from the uploaded file.
+
 ## Key 460 still showed 12 hours and then refused its own Hoist row
 
 Craig, 28 Oct 2026 08:40 AWST. After r594 the Hoist card for Key 460 (stock 13071838) still said 12.00 hours. Dropping it into Jason Ranoco's bay asked him to confirm every later job, then the board said the move conflicts with stock 13071838, Hoist, scheduled Thu 29 Oct 8:52 am to Fri 30 Oct 10:22 am. That window is the 12-hour block stored on the same unallocated Hoist booking. The Control Board search showed 0 bays and 3 unallocated bookings (Tint, Hoist, Fabrication). It was not booked into a bay.
