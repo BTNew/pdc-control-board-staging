@@ -17,7 +17,7 @@ function board() {
   const fixture = createFixture({ vehicleCount: 0 });
   const c = fixture.context;
   const now = new Date();
-  const recent = new Date(now.getTime() - 2 * 86400000).toISOString();
+  const recent = new Date(now.getTime() - 2 * 3600000).toISOString(); // r679: inside the 24-hour window
   const old = new Date(now.getTime() - 10 * 86400000).toISOString();
   c.app.data = [
     { id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', stock: '13092999', keyNumber: '10', keyAssignedAt: recent, pdcLocation: 'PMB', pdcSheetVisible: true, source: 'microsoft_navision', vehicle: 'Hilux', client: 'Fixture' },
@@ -59,13 +59,16 @@ test('a recent key is in both places and an old or missing key stays in PMB only
   assert.deepEqual(newOnes.map(vehicle => vehicle.stock), ['13092999']);
 });
 
-test('the window defaults to 4 days and a missing setting does not invent a timestamp', () => {
+test('the window is 24 hours (r679) and a missing setting does not invent a timestamp', () => {
   const c = board();
-  assert.equal(c.newToPmbWindowDays(), 4);
+  assert.equal(c.newToPmbWindowDays(), 1);
   c.app.newToPmbWindowDays = 7;
-  assert.equal(c.newToPmbWindowDays(), 7);
-  c.app.newToPmbWindowDays = 0;
-  assert.equal(c.newToPmbWindowDays(), 4);
+  assert.equal(c.newToPmbWindowDays(), 1, 'a stored window no longer changes the 24 hours');
+  const day = c.app.data[0];
+  const saved = day.keyAssignedAt;
+  day.keyAssignedAt = new Date(Date.now() - 25 * 3600000).toISOString();
+  assert.equal(c.pmbKeyIsNew(day), false, 'a key older than 24 hours is not New to PMB');
+  day.keyAssignedAt = saved;
   const recent = c.app.data[0];
   delete recent.keyAssignedAt;
   assert.equal(c.pmbKeyIsNew(recent), false);
