@@ -997,7 +997,7 @@ function createPdcEmailVehicleLocationService(options = {}) {
     try {
       const response = await request(`${url}/rest/v1/rpc/${name}`, { method: 'POST', headers: { apikey: key, Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
       const body = await response.json().catch(() => null); const data = body?.data || body;
-      if (!response.ok || !body || body.ok !== true || !data?.receipt_id || String(data.vehicle_id || '') !== String(payload.p_vehicle_id || data.vehicle_id || '')) return { ok: false, code: body?.code || body?.error || unavailableCode, message: typeof body?.message === 'string' ? body.message : '', outstanding: Array.isArray(body?.outstanding) ? body.outstanding : [], data };
+      if (!response.ok || !body || body.ok !== true || !data?.receipt_id || String(data.vehicle_id || '') !== String(payload.p_vehicle_id || data.vehicle_id || '')) return { ok: false, code: body?.code || body?.error || unavailableCode, message: (typeof body?.message === 'string' && body.message) || '', outstanding: Array.isArray(body?.outstanding) ? body.outstanding : [], data };
       return { ok: true, code: body.code || data.code || 'ok', replay: body.replay === true, data };
     } catch (_error) { return { ok: false, code: unavailableCode, data: null }; }
   }
