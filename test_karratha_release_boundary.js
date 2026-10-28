@@ -441,8 +441,7 @@ const approvedRootImportPatch = Object.freeze({
   // r590: index.html adds r590=2026.10.28.r590 on app.js and pdc-email-vehicle-location-service.js (QC sign-off wording, F204). Department 135 is not tagged.
   // r593: index.html adds r593=2026.10.28.r593 on app.js and styles.css (New to PMB view, F207). Department 135 is not tagged.
   // r591: Revolution uploads nav, view, stylesheet and script (F205). Department 135 is not tagged.
-  // r591: index.html adds r591=2026.10.28.r591 on pdc-staff-usage.js (Revolution uploads counts as Update History, F205). Department 135 is not tagged.
-  "index.html": "ce53052bf0403121ceb332eb8d0d19f6fe09b792aff6a5df38a411fccf6c57b5",
+  "index.html": "757ad251fc0f6a9a163dfaeb44ee13915b9fb1e5706e483c98c5b445314cf0c9",
   "pdc-conversions.js": "0a99e7a5306f15e434b293a3ca9a318ffad4b78eb814c27144d75ff98821d810",
   // r401: Pit tick and read RPCs (set_pdc_pit_line_tick_401, get_pdc_pit_line_ticks_401).
   // r414: readQcPhotoReceipt (get_pdc_qc_photo_receipt_414) for the QC page (F30).
