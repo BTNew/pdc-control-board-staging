@@ -125,7 +125,8 @@ test('loader: after pdc-parts-eta.js (onload and onerror), cache-busted; Pages s
   assert.match(fs.readFileSync('scripts/build_pages_runtime.js', 'utf8'), /'pdc-operation-panels\.js', 'pdc-key-number\.js'/);
   assert.doesNotMatch(fs.readFileSync('styles.css', 'utf8'), /pdc-keyno-/);
   assert.doesNotMatch(fs.readFileSync('pdc-key-number.js', 'utf8'), /[."' ]pdc-key-cell/, 'own classes never reuse the board table\'s .pdc-key-cell');
-  assert.doesNotMatch(fs.readFileSync('app.js', 'utf8'), /pdc-key-number|set_pdc_vehicle_key_number_460/);
+  assert.doesNotMatch(fs.readFileSync('app.js', 'utf8'), /pdc-key-number/);
+  assert.match(fs.readFileSync('app.js', 'utf8'), /set_pdc_vehicle_key_number_460/); // r593: To PMB asks for a key and saves it with the existing key RPC
   assert.equal(key.VERSION, '2026.10.22.r460');
 });
 
