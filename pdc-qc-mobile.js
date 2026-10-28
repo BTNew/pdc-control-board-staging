@@ -240,6 +240,12 @@
     if (!row || !canWrite() || busy(key) || pending(key) || rejectionDrafts.has(key) || !inspected(row)) return false;
     restorePhoto(row);
     if (!qcPhotoEvidenceIsValid(qcPhotoEvidence.get(key))) return false;
+    const signoffStatus = typeof qcPageSignoffStatus === 'function' ? qcPageSignoffStatus(row, { photoValid: true }) : { ready: true, note: '' };
+    if (!signoffStatus.ready) {
+      feedback(key, 'error', signoffStatus.note || 'Sign-off is still blocked.');
+      renderQualityControlPage();
+      return false;
+    }
     try {
       const task = desktopSignoff(key); // Existing protected QC → RFT action.
       renderQualityControlPage();
@@ -252,11 +258,12 @@
         window.scrollTo(0, 0);
         return true;
       }
-      feedback(key, 'error', 'Sign-off was not completed. Your saved photo receipt is retained; refresh and check the checklist.');
+      const existing = qcPageFeedback.get(key);
+      feedback(key, 'error', existing?.kind === 'error' && existing.message ? existing.message : 'Sign-off was not completed. Your saved photo receipt is retained; refresh and check the checklist.');
       return false;
     } catch (_) {
       if (!pdcWriteAuthorityCurrent(authority)) return false;
-      feedback(key, 'error', 'Sign-off was not confirmed. Refresh QC before retrying. Your saved photo receipt is retained.');
+      feedback(key, 'error', _.message || 'Sign-off was not confirmed. Refresh QC before retrying. Your saved photo receipt is retained.');
       return false;
     } finally { if (pdcWriteAuthorityCurrent(authority)) renderQualityControlPage(); }
   }
@@ -315,9 +322,13 @@
     const checked = lines.filter(line => line.completed).length;
     const photo = qcPhotoEvidence.get(key);
     const valid = qcPhotoEvidenceIsValid(photo);
+    if (typeof qcPageLoadSignoffOutstanding === 'function') void qcPageLoadSignoffOutstanding(row);
+    const signoff = typeof qcPageSignoffStatus === 'function'
+      ? qcPageSignoffStatus(row, { photoValid: valid })
+      : { ready: inspected(row) && valid, note: !inspected(row) ? 'Check every item before signing off.' : !valid ? 'Save a completion photo before signing off.' : '' };
     const photoBusy = qcPagePhotoUploadInFlight.has(key);
     const currentFeedback = qcPageFeedback.get(key);
-    const ready = inspected(row) && valid && !busy(key) && !pending(key) && !rejectionDrafts.has(key) && canWrite();
+    const ready = signoff.ready && !busy(key) && !pending(key) && !rejectionDrafts.has(key) && canWrite();
     const photoBlocked = valid || busy(key) || pending(key) || rejectionDrafts.has(key) || !canWrite() || Boolean(qcPagePhotoDisabledReason(row, key));
     return `<div class="qc-phone-detail" data-qc-vehicle-key="${e(key)}">
       <section class="qc-phone-summary"><p class="qc-phone-kicker">${e(row.jobCardNumber || row.jobcard || 'QC inspection')}</p><h2>${e(displayStockNumber(row) || key)}</h2><p class="qc-phone-model">${e(displayVehicle(row) || 'Vehicle')}</p><p class="qc-phone-muted">${e(vehicleCustomerName(row) || row.customerName || 'Customer unavailable')}${vehicleKeyNumber(row) ? ` · Key ${e(vehicleKeyNumber(row))}` : ''}</p></section>
@@ -334,7 +345,7 @@
         ${!valid && !photoBusy && qcPagePhotoDisabledReason(row, key) ? `<p class="qc-phone-muted">${e(qcPagePhotoDisabledReason(row, key))}</p>` : ''}
       </section>
       <button class="qc-phone-reject-other" type="button" data-qc-reject-other ${busy(key) || pending(key) || !canWrite() ? 'disabled' : ''}>Reject QC / other fault</button>
-      <footer class="qc-phone-finish"><p>${ready ? 'Checklist checked and photo saved.' : photoBusy ? 'Wait for the photo to finish saving.' : pending(key) ? 'Wait for checklist changes to save.' : !inspected(row) ? 'Check every item before signing off.' : !valid ? 'Save a completion photo before signing off.' : 'Resolve the pending action before signing off.'}</p><button type="button" data-qc-signoff="${e(key)}" ${ready ? '' : 'disabled'}>${qcPageSignoffInFlight.has(key) ? 'Signing off…' : 'Sign off QC → RFT'}</button></footer>
+      <footer class="qc-phone-finish"><p>${ready ? 'Checklist checked and photo saved.' : photoBusy ? 'Wait for the photo to finish saving.' : pending(key) ? 'Wait for checklist changes to save.' : signoff.note || 'Resolve the pending action before signing off.'}</p><button type="button" data-qc-signoff="${e(key)}" ${ready ? '' : 'disabled'}>${qcPageSignoffInFlight.has(key) ? 'Signing off…' : 'Sign off QC → RFT'}</button></footer>
     </div>`;
   }
   function renderPhone() {

@@ -6136,6 +6136,7 @@ const qcPagePhotoUploadInFlight = new Set();
 const qcPagePhotoReceiptReads = new Map();
 const qcPageOperationPending = new Map();
 const qcPageFeedback = new Map();
+const qcPageSignoffBlockers = new Map();
 const qcPageRejectInFlight = new Set();
 let qcPageOperationMutationChain = Promise.resolve();
 let qcPageNotice = '';
@@ -6160,6 +6161,7 @@ function qcPageResetAuthority(event = {}) {
   qcPageOperationMutationChain = Promise.resolve();
   qcPageOperationPending.clear(); qcPagePhotoUploadInFlight.clear();
   qcPageSignoffInFlight.clear(); qcPageRejectInFlight.clear(); qcPageFeedback.clear();
+  qcPageSignoffBlockers.clear();
   app.partsCompletionInFlight?.clear(); app.partsStoppageInFlight?.clear();
   app.rftTransportActionInFlight?.clear(); app.rftTransportActionOwners?.clear();
   qcSelectedVehicleKey = '';
@@ -6316,6 +6318,60 @@ function qcPageAllOperationLinesComplete(vehicle = {}) {
   return lines.length > 0 && lines.every(line => line.completed === true);
 }
 
+function qcPageSignoffCacheKey(vehicle = {}) {
+  return `${String(vehicle.__emailVehicleId || '')}:${Number(vehicle.__emailVehicleVersion || 0)}`;
+}
+
+function qcPageSignoffStatus(vehicle = {}, options = {}) {
+  const photoValid = options.photoValid === true;
+  const local = qcPageOperationLines(vehicle)
+    .filter(line => line.completed !== true)
+    .map(line => `${qcPageStageLabel(line.stageCode)}: ${line.description || line.operationNo || 'a line'} is not ticked.`);
+  const forced = Array.isArray(options.outstanding);
+  const cache = qcPageSignoffBlockers.get(qcPageSignoffCacheKey(vehicle));
+  const checked = forced || Boolean(cache && cache.loading !== true && Array.isArray(cache.outstanding));
+  const server = (forced ? options.outstanding : (checked ? cache.outstanding : []))
+    .map(item => String(item || '').trim())
+    .filter(Boolean);
+  const shown = checked ? [...new Set([...server, ...local])] : local;
+  const ready = checked && shown.length === 0 && photoValid && qcPageAllOperationLinesComplete(vehicle);
+  const note = shown.length
+    ? shown.join(' ')
+    : !checked
+      ? 'Checking what is still outstanding…'
+      : !photoValid
+        ? 'Store a completion photo before final sign-off.'
+        : 'Photo stored. Final sign-off records QC evidence and moves the vehicle to RFT. No salesperson email or dealer-transit timer starts until explicit RFT Booked.';
+  return { ready, note, shown, checked };
+}
+
+async function qcPageLoadSignoffOutstanding(vehicle = {}) {
+  const id = String(vehicle.__emailVehicleId || '');
+  if (!id) return;
+  const cacheKey = qcPageSignoffCacheKey(vehicle);
+  if (qcPageSignoffBlockers.has(cacheKey)) return;
+  qcPageSignoffBlockers.set(cacheKey, { loading: true, outstanding: null });
+  const service = app.emailVehicleLocationService;
+  let outstanding = [];
+  let failed = typeof service?.readQcSignoffOutstanding !== 'function';
+  if (!failed) {
+    try {
+      const result = await service.readQcSignoffOutstanding(id);
+      if (result?.ok === true && result.ready === true) outstanding = [];
+      else if (Array.isArray(result?.outstanding) && result.outstanding.length) outstanding = result.outstanding.map(item => String(item || '')).filter(Boolean);
+      else if (result?.message) outstanding = [String(result.message)];
+      else failed = true;
+    } catch (_error) {
+      failed = true;
+    }
+  }
+  qcPageSignoffBlockers.set(cacheKey, {
+    loading: false,
+    outstanding: failed ? ['QC sign-off status could not be read. Refresh QC before signing off.'] : outstanding,
+  });
+  if (typeof renderQualityControlPage === 'function') renderQualityControlPage();
+}
+
 function qcPageOperationHoursLabel(line = {}) {
   if (line.stageCode === 'SUBLET') return 'Hours not required';
   if (line.estimatedHours === null || line.estimatedHours === undefined || line.estimatedHours === '') return 'Unknown hours';
@@ -6468,7 +6524,8 @@ function qcPageDetailHtml(vehicle = {}) {
   const allComplete = qcPageAllOperationLinesComplete(vehicle);
   const hasSalesperson = Boolean(cleanNavisionText(vehicle.salespersonCode || '') && cleanNavisionText(vehicle.salespersonEmail || ''));
   const photoValid = qcPhotoEvidenceIsValid(photo);
-  const signoffReady = allComplete && photoValid;
+  const signoff = qcPageSignoffStatus(vehicle, { photoValid });
+  const signoffBusy = qcPageSignoffInFlight.has(key);
   const inputId = `qc-photo-input-${key}`;
   const photoDisabledReason = qcPagePhotoDisabledReason(vehicle, key);
   const feedback = qcPageFeedback.get(key);
@@ -6490,7 +6547,7 @@ function qcPageDetailHtml(vehicle = {}) {
       ${photo && !photoValid && photo.status !== 'uploading' ? `<button class="small-button qc-photo-clear" type="button" data-qc-photo-clear="${escapeHtml(key)}">Clear / choose another</button>` : ''}
       </div>
       <div class="qc-detail-actions"><button class="small-button qc-reject-action" type="button" data-qc-reject="${escapeHtml(key)}" ${rejectBusy ? 'disabled' : ''}>${rejectBusy ? 'Rejecting…' : 'Reject / QC Fix Required'}</button></div>
-      <div class="qc-signoff-bar"><span class="qc-signoff-note" role="status">${signoffReady ? 'Photo stored. Final sign-off records QC evidence and moves the vehicle to RFT. No salesperson email or dealer-transit timer starts until explicit RFT Booked.' : allComplete ? 'Store a completion photo before final sign-off.' : 'Every active operation line must be complete before final sign-off.'}</span>${signoffReady ? `<button class="primary" type="button" data-qc-signoff="${escapeHtml(key)}" ${qcPageSignoffInFlight.has(key) ? 'disabled' : ''}>${qcPageSignoffInFlight.has(key) ? 'Signing off…' : 'Sign off QC → RFT'}</button>` : ''}</div>
+      <div class="qc-signoff-bar"><span class="qc-signoff-note" role="status">${escapeHtml(signoff.note)}</span><button class="primary qc-signoff-button" type="button" data-qc-signoff="${escapeHtml(key)}" ${(signoff.ready && !signoffBusy) ? '' : 'disabled'}>${signoffBusy ? 'Signing off…' : 'Sign off QC → RFT'}</button></div>
   </section>`;
 }
 
@@ -6498,6 +6555,7 @@ function qcPageReceiptLineApply(vehicle = {}, lineIdentity = '', result = {}) {
   const line = qcPageOperationLines(vehicle).find(item => item.lineIdentity === String(lineIdentity || ''));
   const receiptLine = result?.data?.line;
   if (!line || !receiptLine || String(receiptLine.line_identity || '') !== String(lineIdentity || '')) return false;
+  qcPageSignoffBlockers.clear();
   line.completed = receiptLine.completed === true;
   line.completedBy = receiptLine.completed_by || null;
   line.completedAt = receiptLine.completed_at || null;
@@ -6670,8 +6728,11 @@ async function qcPageSignoff(key = '') {
   const vehicle = qcPageVehicles().find(row => qcPageVehicleKey(row) === cleanKey);
   const photo = qcPhotoEvidence.get(cleanKey);
   if (!vehicle || !qcPhotoEvidenceIsValid(photo)) return false;
-  if (!qcPageAllOperationLinesComplete(vehicle)) {
-    pdcNotify('Every active authenticated or audited manual operation line must be complete before QC finalization.');
+  const signoff = qcPageSignoffStatus(vehicle, { photoValid: true });
+  if (!signoff.ready) {
+    qcPageFeedback.set(cleanKey, { kind: 'error', message: signoff.note });
+    pdcNotify(signoff.note);
+    renderQualityControlPage();
     return false;
   }
   qcPageSignoffInFlight.add(cleanKey);
@@ -6754,7 +6815,10 @@ function renderQualityControlPage() {
   const mobile = qcPageIsMobile();
   if (!vehicles.some(vehicle => qcPageVehicleKey(vehicle) === qcSelectedVehicleKey)) qcSelectedVehicleKey = mobile ? '' : qcPageVehicleKey(vehicles[0] || {});
   const selected = vehicles.find(vehicle => qcPageVehicleKey(vehicle) === qcSelectedVehicleKey) || null;
-  if (selected) void qcPageLoadStoredPhoto(qcPageVehicleKey(selected));
+  if (selected) {
+    void qcPageLoadStoredPhoto(qcPageVehicleKey(selected));
+    void qcPageLoadSignoffOutstanding(selected);
+  }
   host.innerHTML = `<div class="qc-page-layout ${mobile ? selected ? 'is-mobile-detail' : 'is-mobile-list' : ''}">${qcPageNotice ? `<div class="qc-finalization-notice" role="status" aria-live="polite">${escapeHtml(qcPageNotice)}</div>` : ''}
     <section class="qc-queue" aria-labelledby="qc-queue-title"><div class="qc-queue-header"><div><h3 id="qc-queue-title">Vehicles requiring QC</h3><p>${vehicles.length} awaiting QC sign-off</p></div><span class="qc-queue-count">${vehicles.length}</span></div><div class="qc-vehicle-list">${vehicles.length ? vehicles.map(vehicle => qcPageVehicleCardHtml(vehicle, qcPageVehicleKey(vehicle) === qcSelectedVehicleKey)).join('') : '<div class="qc-empty-state"><strong>No vehicles require QC</strong><span>Vehicles appear here after all required workshop work is complete.</span></div>'}</div></section>
     <section class="qc-detail-host">${selected ? qcPageDetailHtml(selected) : '<div class="qc-empty-state qc-detail-empty"><strong>Select a vehicle</strong><span>Choose a QC vehicle to review its completed work and store the completion photo.</span></div>'}</section>
@@ -7912,10 +7976,13 @@ async function completeVehicleQualityControl(key = '', photoEvidence = null, aut
         qc_photo_receipt_required: 'The server could not verify the stored completion photo receipt. No vehicle state changed.',
       };
       const resultCode = cleanNavisionText(result?.code || result?.error || '');
-      const message = qcFinalizationMessages[resultCode] || (typeof describeVehicleLifecycleActionError === 'function'
+      const named = cleanNavisionText(result?.message || '');
+      const listed = (Array.isArray(result?.outstanding) ? result.outstanding : []).map(item => cleanNavisionText(item || '')).filter(Boolean).join(' ');
+      const message = named || listed || qcFinalizationMessages[resultCode] || (typeof describeVehicleLifecycleActionError === 'function'
         ? describeVehicleLifecycleActionError(result && (result.code || result.error))
         : 'The QC finalization could not be saved.');
       pdcNotify(message);
+      qcPageFeedback.set(String(key || ''), { kind: 'error', message });
       if (window.__workshopDataService && typeof window.__workshopDataService.loadSnapshot === 'function') await window.__workshopDataService.loadSnapshot('qc_finalization_rejected');
       renderAll();
       return false;
