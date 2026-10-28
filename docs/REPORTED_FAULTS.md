@@ -1,5 +1,29 @@
 # Reported faults
 
+## Pilbara Navision Apply was cancelled
+
+Craig, 28 Oct 2026 07:41 AWST. Navision Uploads, Pilbara, on pmgpdc.au (staging `cdsmnqxtyyoeoznmbidd`). The preview said it had received 1102 car records for dealers 014450, 001234 and 002345. Apply then failed. The toast was "The Navision import took too long and was cancelled." Craig approved go-live 28 Oct 2026 08:42 AWST ("Go live #584"). Production `vjdtsswhroyguxyfjdkt` was not touched.
+
+The first Apply ran from about 07:37 and deadlocked at 07:37:47 and again at 07:38:12. Postgres named the pair. One side was `apply_navision_upload_profile` (pid 3549135). The other side was an MCP `fault_regression_check()` that started at 07:36:54 (pid 3551100). That check calls `workshop_bay_display_name_probe_549()`, which updates Hoist bay 2's display name to "Bay 8" and therefore bumps every station revision. The Apply updates vehicles, and that bumps one station. The two updates locked `workshop_station_revision` in opposite orders. A dry-run named `place_after_live_bay_588` was holding `workshop_bookings` rows at 07:35, in the same window, and was not the deadlock partner. The minute clock was also slow from 07:40 to 07:44 (3–22 seconds) and was not the other side of the deadlock. Two further Applies then died at the 30 second role limit (`57014`). Broome's smaller upload at 08:12 succeeded.
+
+The public Apply function is supposed to publish `statement_timeout=120s` so PostgREST sets it before the statement. That setting was dropped when the function was recreated on 20 Oct with only `search_path`. A timeout set inside the private function does not raise the 30 second cap. Yesterday's Pilbara save finished in 21 seconds, under that cap. This morning it did not.
+
+This morning's clock reds (`clock_ticks_recent`, `clock_tick_latency_trend`) are the baseline. They came from the 07:24 and 07:35 lock timeouts and are not a reason to roll this release back.
+
+### Fix
+
+r596 / F210 / sort 366. Sort 365 / F209 / r595 was taken by the Parts ETA panel release while this was being rechecked, so this release took the next free triple. Applied on staging `cdsmnqxtyyoeoznmbidd`. Ledger `20261028005119` `r596_pilbara_apply_lock_timeout`. Production `vjdtsswhroyguxyfjdkt` was not touched. Both station-revision bumps take the advisory lock `pdc:workshop:station-revision` before they touch a revision row, so a one-station bump and an all-station bump queue instead of deadlocking. The public Apply RPC publishes `statement_timeout=120s` again. Pin count stays 241. Department 135 stays `fd05b9eef69498002ac06dd68e01cdff`. Kajel rows stay `9be0883b1a555f48f3c1ba9fa111c891` and apply stays `b62fb7c29ffd2a1629f214f696e5cb14`. The clock tick body stays `3b2398e33a2ea35fc137deeedeca4af5`. This release does not replace either Kajel function.
+
+The last three ticks before the apply succeeded: 08:43 AWST 692 ms, 08:44 AWST 1009 ms, 08:45 AWST 693 ms. This morning's clock reds stayed the baseline: `clock_ticks_recent` and `clock_tick_latency_trend`. `unallocated_bay_rechain_548` was also red before the apply. The post-check did not add a red. `pilbara_apply_lock_timeout_596` is green. `protected_function_md5s` is green, 241 pinned, 0 changed. Nothing was rolled back.
+
+A fictional Pilbara row (order 900001, stock 13999901, dealer 014450) previews as a new 14450 row. A one-row Apply is not run: this upload is a full dealer snapshot and would mark the other live rows missing before a rollback.
+
+Up `supabase/migrations/20261028084500_r596_pilbara_apply_lock_timeout.sql`. Down `supabase/rollbacks/20261028084500_r596_pilbara_apply_lock_timeout.down.sql`.
+
+### Check
+
+`pilbara_apply_lock_timeout_596` (F210, sort 366). It goes red if the 120 second limit is missing from the public Apply, if either bump takes a revision row before the shared lock, or if the pin count, department 135, Kajel's two checksums, or the clock tick move.
+
 ## Parts ETA in the table no longer sets a date
 
 Craig, 28 Oct 2026 06:05 AWST. On Vehicle Locations the Parts ETA cell (`Set`) does nothing when you click it. The date should be read in that column. It is set or changed only in the vehicle side panel, in the PARTS ETA section that opens when you click the vehicle. That section must also offer Place as STOPPAGE, the same choice from #561 (r581), so the vehicle can go into the planner's Stoppage section. The side panel is slow to open and slow when a date is set.
