@@ -1,5 +1,5 @@
-d6147d575bb860fffb5eadd771361e44  supabase/migrations/20261028040000_r584_named_external_sublet.sql
-55227a3c88239dc3386e61b97f51c386  supabase/rollbacks/20261028040000_r584_named_external_sublet.down.sql
+d0da9ac6b4f00a0284021baf91fa8944  supabase/migrations/20261028040000_r584_named_external_sublet.sql
+5861ff607076c0df065214b56427a5a9  supabase/rollbacks/20261028040000_r584_named_external_sublet.down.sql
 ca08696ffbe6a1834e63f8b8faf246e1  pdc_work_categories_private.note_fee_sublet_521(jsonb)  release stays r521
 2813508255aa6f65c7490e54c76cd564  previous note_fee body, restored by the down file
 5adf2ee5c2dc8c11199d314be477a6c1  pdc_work_categories_private.suggest(jsonb)  unchanged r523

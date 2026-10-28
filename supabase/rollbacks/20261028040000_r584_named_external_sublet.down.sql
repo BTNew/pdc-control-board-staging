@@ -69,7 +69,8 @@ BEGIN
  SELECT x.vehicle_id, public.pdc_qc_operation_lines_379_uncached(x.vehicle_id), clock_timestamp()
  FROM unnest(ids) AS x(vehicle_id)
  ON CONFLICT (vehicle_id) DO UPDATE
-    SET lines = EXCLUDED.lines, computed_at = EXCLUDED.computed_at;
+    SET lines = EXCLUDED.lines, computed_at = EXCLUDED.computed_at
+    WHERE true;
 END
 $bf$;
 
