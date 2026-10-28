@@ -479,6 +479,27 @@ function reconcileVehicleRows(localRows = [], serverRows = [], options = {}) {
   });
   return { rows: retained.concat(additions), conflictCount: conflicts.size };
 }
+// r676 (F285): a delta reply carries the full vehicle order and only the changed vehicles.
+// Returns the same shape as a full reply, or null when the delta does not fit the retained snapshot.
+function applyBoardDelta(retained, sentToken, body) {
+  if (!retained || !sentToken || retained.generation !== sentToken || body.base_token !== sentToken) return null;
+  if (typeof body.snapshot_token !== 'string' || !body.snapshot_token || !Array.isArray(body.vehicle_ids) || !Array.isArray(body.changed)) return null;
+  let previous;
+  try { previous = JSON.parse(retained.json); } catch (_error) { return null; }
+  if (!Array.isArray(previous?.data?.vehicles)) return null;
+  const byId = new Map(previous.data.vehicles.map(vehicle => [String(vehicle?.id), vehicle]));
+  for (const vehicle of body.changed) {
+    if (!vehicle || vehicle.id == null) return null;
+    byId.set(String(vehicle.id), vehicle);
+  }
+  const vehicles = [];
+  for (const id of body.vehicle_ids) {
+    const vehicle = byId.get(String(id));
+    if (!vehicle) return null;
+    vehicles.push(vehicle);
+  }
+  return { ok: true, code: body.code || 'ok', data: { ...(body.data && typeof body.data === 'object' ? body.data : {}), vehicles } };
+}
 function createPdcEmailVehicleLocationService(options = {}) {
   const config = options.config || {};
   if (projectRef(config.url) !== PDC_EMAIL_VEHICLE_STAGING_PROJECT_REF) throw new Error('Authenticated email vehicle locations are staging-only.');
@@ -508,7 +529,8 @@ function createPdcEmailVehicleLocationService(options = {}) {
     let response = await request(`${url}/rest/v1/rpc/${endpoint}`, {
       method: 'POST', signal,
       headers: { apikey: key, Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-      body: endpoint === PDC_EMAIL_VEHICLE_CONDITIONAL_SNAPSHOT_RPC ? JSON.stringify({ p_snapshot_token: sentToken }) : '{}',
+      // r676 (F285): ask for a delta. The server sends only the vehicles that changed since the retained snapshot.
+      body: endpoint === PDC_EMAIL_VEHICLE_CONDITIONAL_SNAPSHOT_RPC ? JSON.stringify({ p_snapshot_token: sentToken, p_accept_delta: true }) : '{}',
     });
     let body = await response.json();
     if (token !== getAccessToken()) return snapshotAuthorityLost();
@@ -537,6 +559,13 @@ function createPdcEmailVehicleLocationService(options = {}) {
         return { ok: false, code: 'snapshot_protocol_error', data: null };
       }
       return JSON.parse(retainedSnapshot.json);
+    }
+    if (body.delta === true) {
+      // r676 (F285): rebuild the full board from the retained copy plus the changed vehicles, in the server's order.
+      const rebuilt = applyBoardDelta(retainedSnapshot, sentToken, body);
+      if (!rebuilt) { clearRetainedSnapshot(); return { ok: false, code: 'snapshot_protocol_error', data: null }; }
+      retainedSnapshot = { generation: body.snapshot_token, json: JSON.stringify(rebuilt) };
+      return rebuilt;
     }
     const result = { ok: true, code: body.code || 'ok', data: body.data || body };
     if (typeof body.snapshot_token === 'string' && body.snapshot_token.length > 0 && Array.isArray(result.data?.vehicles)) {
@@ -1212,6 +1241,6 @@ function createPdcEmailVehicleLocationService(options = {}) {
   }
   return { authority: 'supabase_staging_authenticated_email_vehicle', snapshot, readSubletAuditLedgers, saveVehicleWorkshopLineHoursBatch, updateSublet, createSubletBooking, updateSubletBooking, updateSubletBookingProvider, returnSubletBooking, updatePartsEta, markPartsOrdered, markPartsComplete, setPartsStoppage, vehicleHistory, updateSalesPreparation, updateSalespersonAssignment, updateVehicleDetailFields, clearVehicleStoppage, setPmbStoppage, bookRftTransport, collectRftTransport, finalizeQcToRft700, readQcSignoffOutstanding, bookRftTransport700, collectRftTransport700, bookRftTransport734, collectRftTransport734, setRftConfirmation736, bookRftTransport739, readRftBookingContext739, readRftTransportDraft739, readRftTransportEvidence734, createAcceptanceVehicle, setQcOperationCompletion, setPitLineTick, readPitLineTicks, rejectQcVehicleToPmb, uploadQcPhotoEvidence, readQcPhotoReceipt, finalizeQcToRft, finalizeQcRetest, subscribe };
  }
-const pdcEmailVehicleLocationExported = { PDC_EMAIL_VEHICLE_STAGING_PROJECT_REF, PDC_EMAIL_VEHICLE_REVISION_TABLE, PDC_EMAIL_VEHICLE_SNAPSHOT_RPC, PDC_EMAIL_VEHICLE_CONDITIONAL_SNAPSHOT_RPC, PDC_SUBLET_AUDIT_READ_RPC, PDC_WORKSHOP_HOURS_BATCH_RPC, PDC_SUBLET_UPDATE_RPC, PDC_SUBLET_CREATE_RPC, PDC_SUBLET_BOOKING_UPDATE_RPC, PDC_SUBLET_PROVIDER_UPDATE_RPC, PDC_SUBLET_RETURN_RPC, PDC_PARTS_ETA_UPDATE_RPC, PDC_PARTS_ORDERED_RPC, PDC_PARTS_COMPLETE_RPC, PDC_PARTS_STOPPAGE_RPC, PDC_PARTS_COMPLETE_SUCCESS_CODES, PDC_VEHICLE_HISTORY_RPC, PDC_SALES_PREPARATION_UPDATE_RPC, PDC_SALESPERSON_ASSIGNMENT_RPC, PDC_VEHICLE_DETAIL_FIELDS_RPC, PDC_STOPPAGE_CLEAR_RPC, PDC_PMB_STOPPAGE_RPC, PDC_RFT_TRANSPORT_BOOK_RPC, PDC_RFT_TRANSPORT_COLLECT_RPC, PDC_RFT_CONFIRMATION_RPC, PDC_RFT_TRANSPORT_DRAFT_BOOK_RPC, PDC_RFT_TRANSPORT_DRAFT_CONTEXT_RPC, PDC_RFT_TRANSPORT_DRAFT_READ_RPC, PDC_FINAL_QC_TO_RFT_RPC, PDC_FINAL_RFT_BOOK_RPC, PDC_FINAL_RFT_COLLECT_RPC, PDC_FINAL_LIFECYCLE_RECEIPTS_TABLE, PDC_ACCEPTANCE_VEHICLE_CREATE_RPC, PDC_QC_OPERATION_COMPLETION_RPC, PDC_PIT_LINE_TICK_RPC, PDC_PIT_LINE_TICKS_READ_RPC, PDC_QC_PHOTO_BUCKET, PDC_QC_PHOTO_RECEIPT_RPC, PDC_QC_FINALIZATION_RPC, PDC_QC_RETEST_PHOTO_RPC, PDC_QC_RETEST_FINALIZATION_RPC, canonicalWorkKey, mapLifecycleHistory, mapServerVehicle, isVehicleCreationEvent, presentVehicleCreationEvents, reconcileVehicleRows, createPdcEmailVehicleLocationService };
+const pdcEmailVehicleLocationExported = { applyBoardDelta, PDC_EMAIL_VEHICLE_STAGING_PROJECT_REF, PDC_EMAIL_VEHICLE_REVISION_TABLE, PDC_EMAIL_VEHICLE_SNAPSHOT_RPC, PDC_EMAIL_VEHICLE_CONDITIONAL_SNAPSHOT_RPC, PDC_SUBLET_AUDIT_READ_RPC, PDC_WORKSHOP_HOURS_BATCH_RPC, PDC_SUBLET_UPDATE_RPC, PDC_SUBLET_CREATE_RPC, PDC_SUBLET_BOOKING_UPDATE_RPC, PDC_SUBLET_PROVIDER_UPDATE_RPC, PDC_SUBLET_RETURN_RPC, PDC_PARTS_ETA_UPDATE_RPC, PDC_PARTS_ORDERED_RPC, PDC_PARTS_COMPLETE_RPC, PDC_PARTS_STOPPAGE_RPC, PDC_PARTS_COMPLETE_SUCCESS_CODES, PDC_VEHICLE_HISTORY_RPC, PDC_SALES_PREPARATION_UPDATE_RPC, PDC_SALESPERSON_ASSIGNMENT_RPC, PDC_VEHICLE_DETAIL_FIELDS_RPC, PDC_STOPPAGE_CLEAR_RPC, PDC_PMB_STOPPAGE_RPC, PDC_RFT_TRANSPORT_BOOK_RPC, PDC_RFT_TRANSPORT_COLLECT_RPC, PDC_RFT_CONFIRMATION_RPC, PDC_RFT_TRANSPORT_DRAFT_BOOK_RPC, PDC_RFT_TRANSPORT_DRAFT_CONTEXT_RPC, PDC_RFT_TRANSPORT_DRAFT_READ_RPC, PDC_FINAL_QC_TO_RFT_RPC, PDC_FINAL_RFT_BOOK_RPC, PDC_FINAL_RFT_COLLECT_RPC, PDC_FINAL_LIFECYCLE_RECEIPTS_TABLE, PDC_ACCEPTANCE_VEHICLE_CREATE_RPC, PDC_QC_OPERATION_COMPLETION_RPC, PDC_PIT_LINE_TICK_RPC, PDC_PIT_LINE_TICKS_READ_RPC, PDC_QC_PHOTO_BUCKET, PDC_QC_PHOTO_RECEIPT_RPC, PDC_QC_FINALIZATION_RPC, PDC_QC_RETEST_PHOTO_RPC, PDC_QC_RETEST_FINALIZATION_RPC, canonicalWorkKey, mapLifecycleHistory, mapServerVehicle, isVehicleCreationEvent, presentVehicleCreationEvents, reconcileVehicleRows, createPdcEmailVehicleLocationService };
 if (typeof module !== 'undefined' && module.exports) module.exports = pdcEmailVehicleLocationExported;
 if (typeof window !== 'undefined') window.PDC_EMAIL_VEHICLE_LOCATION_SERVICE = pdcEmailVehicleLocationExported;
