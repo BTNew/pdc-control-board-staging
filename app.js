@@ -5122,6 +5122,11 @@ function showView(view, options) {
     window.PdcFittingStats?.reset();
     requestedView = 'dashboard';
   }
+  // r591 (F205): Admin > Revolution uploads is administrators only. Apply stays off in this preview.
+  if (requestedView === 'revolution-upload' && !userManagementAdministratorActive()) {
+    window.PdcRevolutionUpload?.reset();
+    requestedView = 'dashboard';
+  }
   if (requestedView === 'deleted' && !vehicleLifecycleAdministratorActive()) {
     resetDeletedVehicleAuthorityState();
     requestedView = 'dashboard';
@@ -5176,6 +5181,7 @@ function showView(view, options) {
   if (app.currentView === 'update-history' && nextView !== 'update-history') window.PdcUpdateHistory?.close();
   if (app.currentView === 'fitting-stats' && nextView !== 'fitting-stats') window.PdcFittingStats?.close();
   if (app.currentView === 'bay-manager' && nextView !== 'bay-manager') window.PdcBayManager?.close();
+  if (app.currentView === 'revolution-upload' && nextView !== 'revolution-upload') window.PdcRevolutionUpload?.reset();
   if (app.currentView === 'lists' && nextView !== 'lists') window.PdcWorkshopHours?.reset();
   app.currentRequestedView = requestedView;
   app.currentView = nextView;
@@ -5183,7 +5189,7 @@ function showView(view, options) {
   if (document.body?.dataset) document.body.dataset.currentView = requestedView;
   $$('.view').forEach(el => el.classList.toggle('active', el.id === nextView));
   $$('.nav-item[data-view]').forEach(el => el.classList.toggle('active', el.dataset.view === requestedView || (plannerStage && el.dataset.view === 'workshop')));
-  const adminViews = new Set(['user-management', 'update-history', 'fitting-stats', 'bay-manager', 'lists', 'import', 'backup', 'deleted', 'completed', 'backend']);
+  const adminViews = new Set(['user-management', 'update-history', 'fitting-stats', 'bay-manager', 'revolution-upload', 'lists', 'import', 'backup', 'deleted', 'completed', 'backend']);
   const adminActive = adminViews.has(requestedView);
   $('#nav-admin-toggle')?.classList.toggle('active', adminActive);
   if (adminActive && syncAdminNavigationVisibility()) setAdminNavigationExpanded(true);
@@ -5213,6 +5219,7 @@ function showView(view, options) {
     'update-history': 'Update history',
     'fitting-stats': 'Fitting statistics',
     'bay-manager': 'Bay Manager',
+    'revolution-upload': 'Revolution uploads',
     zpl: 'Label Tools'
   };
   const pageTitle = $('#page-title');
@@ -5987,6 +5994,8 @@ window.addEventListener?.('pdc-auth-locked', () => {
   if (app.currentView === 'fitting-stats' || app.currentRequestedView === 'fitting-stats') showView('dashboard', { historyMode: 'replace' });
   window.PdcBayManager?.reset();
   if (app.currentView === 'bay-manager' || app.currentRequestedView === 'bay-manager') showView('dashboard', { historyMode: 'replace' });
+  window.PdcRevolutionUpload?.reset();
+  if (app.currentView === 'revolution-upload' || app.currentRequestedView === 'revolution-upload') showView('dashboard', { historyMode: 'replace' });
   const userManagementView = document.getElementById('user-management');
   if (userManagementView) userManagementView.hidden = true;
   if (app.currentView === 'user-management' || app.currentRequestedView === 'user-management') showView('dashboard', { historyMode: 'replace' });
@@ -6935,6 +6944,9 @@ function renderActiveView() {
       break;
     case 'bay-manager':
       window.PdcBayManager?.open();
+      break;
+    case 'revolution-upload':
+      window.PdcRevolutionUpload?.open();
       break;
     case 'import':
       renderReviewTable(false);
