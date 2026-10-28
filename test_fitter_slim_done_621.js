@@ -17,10 +17,17 @@ test('To do first, Completed after as slim rows; card order kept', () => {
   const end = src.indexOf('\n  }\n', start) + 4;
   const ctx = {}; vm.runInNewContext(src.slice(start, end) + ';this.f=fitterLinesByDoneHtml;', ctx);
   const html = ctx.f([{ id: 'a', completed: true }, { id: 'b' }, { id: 'c', completed: true }], (l, i) => `<i>${l.id}${i}</i>`);
-  assert.match(html, /<h3>To do \(1\)<\/h3><div class="fitter-lines"><i>b1<\/i><\/div>/);
+  assert.match(html, /<h3>To do \(1\)<\/h3><div class="fitter-lines fitter-todo-list"><i>b1<\/i><\/div>/);
   assert.match(html, /Completed \(2\)<\/h3><div class="fitter-lines fitter-done-list"><i>a0<\/i><i>c2<\/i><\/div>/);
   assert.match(ctx.f([{ id: 'a' }], (l, i) => 'x'), /<h3>To do \(1\)/);
   assert.doesNotMatch(ctx.f([{ id: 'a' }], () => 'x'), /Completed/);
   assert.match(src, /\.fitter-done-list \.fitter-line>\*:not\(\.fitter-line-check\):not\(details\)\{display:none!important\}/);
-  assert.match(fs.readFileSync('index.html', 'utf8'), /pdc-fitters\.js\?[^"]*&amp;r621=2026\.10\.28\.r621"/);
+  assert.match(fs.readFileSync('index.html', 'utf8'), /pdc-fitters\.js\?[^"]*&amp;r621=2026\.10\.28\.r621(&amp;r622=2026\.10\.28\.r622)?"/);
+});
+
+test('r622 (F237): To do slimmer, Completed tight grid rows', () => {
+  assert.match(src, /\.fitter-todo-list \.fitter-line\{padding:6px 10px;border-radius:8px;display:flex/);
+  assert.match(src, /\.fitter-done-list\{display:grid;grid-template-columns:repeat\(auto-fill,minmax\(240px,1fr\)\)/);
+  assert.match(src, /\.fitter-done-list \.fitter-line-check strong\{display:block;font-size:13px/);
+  assert.match(fs.readFileSync('index.html', 'utf8'), /pdc-fitters\.js\?[^"]*&amp;r622=2026\.10\.28\.r622"/);
 });

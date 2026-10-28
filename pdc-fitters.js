@@ -7,20 +7,38 @@
     if (!lines.length) return '<h3>Items for this bay</h3><div class="fitter-lines"><p class="fitter-empty">No approved operation lines for this bay. Ask the controller to review the vehicle.</p></div>';
     const todo = [], done = [];
     lines.forEach((l, i) => (l.completed ? done : todo).push(card(l, i)));
-    return `<h3>To do (${todo.length})</h3><div class="fitter-lines">${todo.join('') || '<p class="fitter-empty">Every item for this bay is completed.</p>'}</div>`
+    return `<h3>To do (${todo.length})</h3><div class="fitter-lines fitter-todo-list">${todo.join('') || '<p class="fitter-empty">Every item for this bay is completed.</p>'}</div>`
       + (done.length ? `<h3 class="fitter-done-heading">Completed (${done.length})</h3><div class="fitter-lines fitter-done-list">${done.join('')}</div>` : '');
   }
-  if (typeof document !== 'undefined' && !document.getElementById('fitter-done-slim-621')) {
+  if (typeof document !== 'undefined' && !document.getElementById('fitter-done-slim-622')) {
     const style = document.createElement('style');
-    style.id = 'fitter-done-slim-621';
-    style.textContent = '.fitter-done-heading{margin-top:18px;color:#1f7a3a}'
-      + '.fitter-done-list{gap:4px}'
-      + '.fitter-done-list .fitter-line{padding:4px 10px;min-height:0;box-shadow:none}'
+    style.id = 'fitter-done-slim-622';
+    // r622 (F237): To do rows slimmer; Completed as tight one-line rows, two or more across on a wide tablet.
+    style.textContent = '.fitter-done-heading{margin-top:14px;color:#1f7a3a}'
+      + '.fitter-todo-list{gap:6px}'
+      + '.fitter-todo-list .fitter-line{padding:6px 10px;border-radius:8px;display:flex;flex-wrap:wrap;align-items:center;gap:2px 16px}'
+      + '.fitter-todo-list .fitter-line>.fitter-line-check{flex:1 1 280px}'
+      + '.fitter-todo-list .fitter-line>*:not(.fitter-line-check):not(.fitter-item-ticks):not(.fitter-notes){flex-basis:100%}'
+      + '.fitter-todo-list .fitter-line>.fitter-notes[open]{flex-basis:100%}'
+      + '.fitter-todo-list .fitter-item-ticks .conv-bar{flex-basis:100%}'
+      + '.fitter-todo-list .fitter-line-check{min-height:0;gap:10px;align-items:center}'
+      + '.fitter-todo-list .fitter-line-check input{flex:0 0 22px;width:22px;height:22px;margin:0}'
+      + '.fitter-todo-list .fitter-line-check>span{gap:1px}'
+      + '.fitter-todo-list .fitter-line-check strong{font-size:16px;line-height:1.25}'
+      + '.fitter-todo-list .fitter-line-check small{font-size:12.5px}'
+      + '.fitter-todo-list .fitter-item-ticks{margin:0}'
+      + '.fitter-todo-list .fitter-notes{margin:0;font-size:13px}'
+      + '.fitter-todo-list .fitter-source-note{margin:4px 0 0;font-size:13px}'
+      + '.fitter-done-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:3px 8px}'
+      + '.fitter-done-list .fitter-line{padding:1px 8px;min-height:0;box-shadow:none;border-radius:6px}'
       + '.fitter-done-list .fitter-line>*:not(.fitter-line-check):not(details){display:none!important}'
-      + '.fitter-done-list .fitter-line-check{margin:0;padding:2px 0;min-height:0}'
-      + '.fitter-done-list .fitter-line-check strong{font-size:.95rem;font-weight:600}'
+      + '.fitter-done-list .fitter-line-check{margin:0;padding:0;min-height:30px;gap:8px;align-items:center}'
+      + '.fitter-done-list .fitter-line-check input{flex:0 0 18px;width:18px;height:18px;margin:0}'
+      + '.fitter-done-list .fitter-line-check>span{display:block;min-width:0;overflow:hidden}'
+      + '.fitter-done-list .fitter-line-check strong{display:block;font-size:13px;font-weight:500;line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}'
       + '.fitter-done-list .fitter-line-check small{display:none}'
-      + '.fitter-done-list .conv-list>:not(summary){display:none!important}';
+      + '.fitter-done-list .conv-list>:not(summary){display:none!important}'
+      + '.fitter-done-list .conv-list summary{padding:2px 0;font-size:13px}';
     (document.head || document.documentElement).appendChild(style);
   }
 
