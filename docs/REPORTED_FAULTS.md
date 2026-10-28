@@ -8,13 +8,13 @@ Rebasing PR #591 onto main also broke 5 site tests. The `r601` cache tag was put
 
 ### Fix
 
-r603 / F217. Front end and repo only. No SQL, no pin change (241), Department 135 untouched, Kajel untouched. New cache tags go at the end of a script address, never the front. A text change ships with its test change in the same commit.
+r603 / F217. Front end and repo only. No SQL, no pin change (241), Department 135 untouched, Kajel untouched. New cache tags go where the tests that pin that address allow (see rule 3). A text change ships with its test change in the same commit.
 
 ### Rules so it does not happen again
 
 1. A release is not done until the SQL is applied AND its PR is merged and published. Check `version.json` and the open PR list together.
 2. Run `node --test test_*.js` on the rebased branch before merging. Main must stay at 0 failures.
-3. Append cache tags; never insert them first.
+3. Cache tags: never change the first or last tag on a script address without checking the tests that pin it. Grep `test_*.js` for the script name first; some tests pin the start of the address, others pin the end. (Corrected in r604: the r603 note said always append, which broke four other tests.)
 
 ### Regression check
 

@@ -105,7 +105,7 @@ body.vlt-table-on .vlt-slim-bar .incoming-filter-meta { flex: 0 1 auto; min-widt
    Status and Booking take the spare width (--vlt-flex-* from layoutWidths() in the JS); a saved width wins. The select
    column is 0 px unless a row on screen has a select checkbox (--vlt-w-sel, 22 px). */
 .vlt-table col.c-sel { width: var(--vlt-w-sel, 0px); } .vlt-table col.c-key { width: var(--vlt-w-key, 42px); } .vlt-table col.c-stock { width: var(--vlt-w-stock, 82px); } .vlt-table col.c-job { width: var(--vlt-w-job, 78px); }
-.vlt-table col.c-cust { width: var(--vlt-w-cust, var(--vlt-flex-cust, 104px)); } .vlt-table col.c-unit { width: var(--vlt-w-unit, var(--vlt-flex-unit, 112px)); } .vlt-table col.c-ploc { width: var(--vlt-w-ploc, 60px); } .vlt-table col.c-eta { width: var(--vlt-w-eta, 96px); }
+.vlt-table col.c-cust { width: var(--vlt-w-cust, var(--vlt-flex-cust, 104px)); } .vlt-table col.c-unit { width: var(--vlt-w-unit, var(--vlt-flex-unit, 112px)); } .vlt-table col.c-ploc { width: var(--vlt-w-ploc, 60px); } .vlt-table col.c-pit { width: var(--vlt-w-pit, 104px); } .vlt-table col.c-eta { width: var(--vlt-w-eta, 96px); }
 /* r567 (F181): a typed Parts ETA shows the date and a short note, so that cell grows. An email chip stays one line. */
 .vlt-table td.c-eta:has(.pdc-parts-stoppage-slot) { height: auto; max-height: none; white-space: normal; padding-top: 3px; padding-bottom: 3px; }
 .vlt-table col.c-work { width: var(--vlt-w-work, 276px); } .vlt-table col.c-age { width: var(--vlt-w-age, 72px); } .vlt-table col.c-status { width: var(--vlt-w-status, var(--vlt-flex-status, 112px)); } .vlt-table col.c-action { width: var(--vlt-w-action, var(--vlt-flex-action, 160px)); }

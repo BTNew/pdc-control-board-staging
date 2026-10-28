@@ -46,7 +46,7 @@ test('bug 1 reproduced and fixed: every row has its own Job Card cell; Stock sho
     if (jc) { assert.ok(job.includes(jc), 'the card\'s own job-card markup moves verbatim'); withJob += 1; }
     else assert.match(job, /vlt-subtle-dash/, 'no job card: a grey dash');
     // order: select, key, stock, job, customer, vehicle, parts loc, stations
-    assert.deepEqual([...row.matchAll(/<td class="(c-[a-z]+)/g)].map(m => m[1]).slice(0, 9), ['c-sel', 'c-key', 'c-stock', 'c-job', 'c-cust', 'c-unit', 'c-ploc', 'c-eta', 'c-work']); // r475 adds Parts ETA
+    assert.deepEqual([...row.matchAll(/<td class="(c-[a-z]+)/g)].map(m => m[1]).slice(0, 10), ['c-sel', 'c-key', 'c-stock', 'c-job', 'c-cust', 'c-unit', 'c-ploc', 'c-pit', 'c-eta', 'c-work']); // r475 adds Parts ETA; r604 adds Pit
   }
   assert.ok(withJob >= 20, `fixture has job cards (${withJob})`);
   const source = fs.readFileSync('pdc-vehicle-locations-table.js', 'utf8');
@@ -54,7 +54,7 @@ test('bug 1 reproduced and fixed: every row has its own Job Card cell; Stock sho
   assert.match(source, /<th class="c-job">\$\{heading\('Job Card', 'jobcard'\)\}\$\{grip\('job'\)\}<\/th>/, 'header uses the board\'s own job-card sort');
   assert.match(source, /colspan="12" class="vlt-empty"/); // r475: + Parts ETA
   assert.equal(table.COLUMNS.job.label, 'Job Card');
-  assert.deepEqual(Object.keys(table.COLUMNS), ['key', 'stock', 'job', 'cust', 'unit', 'ploc', 'eta', 'work', 'age', 'status', 'action']); // r475 adds eta
+  assert.deepEqual(Object.keys(table.COLUMNS), ['key', 'stock', 'job', 'cust', 'unit', 'ploc', 'pit', 'eta', 'work', 'age', 'status', 'action']); // r475 adds eta; r604 adds pit
 });
 
 test('Job Card shows for people who already saved r461 / r462 settings (view, widths) and can never be 0 wide or hidden', () => {
@@ -67,7 +67,7 @@ test('Job Card shows for people who already saved r461 / r462 settings (view, wi
   const css = table.widthStyle(widths);
   assert.doesNotMatch(css, /--vlt-w-job/);
   const C = table.COLUMNS; // r476 (F89): new defaults, no select column when no row has a checkbox; r475 adds Parts ETA
-  assert.match(css, new RegExp(`--vlt-table-min:${50 + 120 + C.job.width + 150 + C.unit.width + 70 + C.eta.width + C.work.width + C.age.width + C.status.width + C.action.width}px`), 'table minimum includes the Job Card default width');
+  assert.match(css, new RegExp(`--vlt-table-min:${50 + 120 + C.job.width + 150 + C.unit.width + 70 + C.pit.width + C.eta.width + C.work.width + C.age.width + C.status.width + C.action.width}px`), 'table minimum includes the Job Card default width');
   assert.deepEqual(table.sanitizeWidths({ job: 0 }), {}, 'a 0 width is ignored');
   assert.deepEqual(table.sanitizeWidths({ job: 5 }), { job: 64 }, 'below the minimum: the minimum');
   const sheet = fs.readFileSync('pdc-vehicle-locations-table.css', 'utf8');
