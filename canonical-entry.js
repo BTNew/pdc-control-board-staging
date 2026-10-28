@@ -135,7 +135,7 @@
       // each Pit cell at render time and the module redraws once its data is in, so the order does not matter.
       if (!document.querySelector('script[data-pdc-pit-bookings]')) {
         const pit = document.createElement('script');
-        pit.src = 'pdc-pit-bookings.js?r604=2026.10.28.r604&r611=2026.10.28.r611&r612=2026.10.28.r612&r616=2026.10.28.r616&r618=2026.10.28.r618&r622=2026.10.28.r622&r630=2026.10.28.r630';
+        pit.src = 'pdc-pit-bookings.js?r604=2026.10.28.r604&r611=2026.10.28.r611&r612=2026.10.28.r612&r616=2026.10.28.r616&r618=2026.10.28.r618&r622=2026.10.28.r622&r630=2026.10.28.r630&r632=2026.10.28.r632';
         pit.dataset.pdcPitBookings = '1';
         document.head.appendChild(pit);
       }
