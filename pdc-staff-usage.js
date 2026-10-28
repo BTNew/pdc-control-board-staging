@@ -27,6 +27,8 @@
     // r489: Admin > Fitting statistics shares the admin Update History bucket until the database page list gains its own entry.
     'fitting-stats':'update-history',
     'bay-manager':'update-history',
+    // r591: Admin > Revolution uploads shares the Update History bucket. The database page list is unchanged.
+    'revolution-upload':'update-history',
   });
   const PAGES = new Set(Object.keys(PAGE_LABELS));
   const cleanPage = page => {

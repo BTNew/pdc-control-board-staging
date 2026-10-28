@@ -441,7 +441,8 @@ const approvedRootImportPatch = Object.freeze({
   // r590: index.html adds r590=2026.10.28.r590 on app.js and pdc-email-vehicle-location-service.js (QC sign-off wording, F204). Department 135 is not tagged.
   // r593: index.html adds r593=2026.10.28.r593 on app.js and styles.css (New to PMB view, F207). Department 135 is not tagged.
   // r591: Revolution uploads nav, view, stylesheet and script (F205). Department 135 is not tagged.
-  "index.html": "757ad251fc0f6a9a163dfaeb44ee13915b9fb1e5706e483c98c5b445314cf0c9",
+  // r591: index.html adds r591=2026.10.28.r591 on pdc-staff-usage.js (Revolution uploads counts as Update History, F205). Department 135 is not tagged.
+  "index.html": "ce53052bf0403121ceb332eb8d0d19f6fe09b792aff6a5df38a411fccf6c57b5",
   "pdc-conversions.js": "0a99e7a5306f15e434b293a3ca9a318ffad4b78eb814c27144d75ff98821d810",
   // r401: Pit tick and read RPCs (set_pdc_pit_line_tick_401, get_pdc_pit_line_ticks_401).
   // r414: readQcPhotoReceipt (get_pdc_qc_photo_receipt_414) for the QC page (F30).
@@ -467,7 +468,8 @@ const approvedRootImportPatch = Object.freeze({
   // r489: 'fitting-stats' counts under the Update History bucket (F102).
   // r525: Period option Last 24 hours (p_days 1) on Website activity (F139). The Karratha copy stays frozen.
   // r570: bay-manager counts under the Update History bucket (F184). The Karratha copy stays frozen.
-  "pdc-staff-usage.js": "5d5d43caff01b8a74c28b0f02f0996df3541c182d65ef4d0c4edb8ed297390e7",
+  // r591: revolution-upload counts under the Update History bucket (F205). The Karratha copy stays frozen.
+  "pdc-staff-usage.js": "944b3e3f4849ea8632e9c98992f18bf7e0c4beac04d3cb22b20e8949fa14151f",
   "site-switcher.css": "84882066f9ff13057de368d8af1418788e82b2723ec68683166e2f8ded6c8348",
   // r403: the own-role monitor reconnects instead of locking on a realtime blip
   // (F11); index.html and app.js/canonical-entry.js add r403=2026.10.21.01 for
