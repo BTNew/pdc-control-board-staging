@@ -11,13 +11,15 @@ const lines = [
   { vehicle_id: 'c', line_key: 'jc:J3:2', po_number: 'GP3', key_number: '413', stock_number: '13073119', customer: 'Gamma', vehicle: 'Coaster', description: 'MMT multi row', built: true, complete: true, built_version: 1, complete_version: 2 },
 ];
 
-test('stages and filters: to build, built, complete, all; search on key, stock, PO, customer', () => {
+test('stages and filters: to build, built, complete, all; search on PO, key or stock only', () => {
   assert.deepEqual(lines.map(mmt.stage), ['todo', 'built', 'complete']);
   assert.deepEqual(mmt.counts(lines), { todo: 1, built: 1, complete: 1, all: 3 });
   assert.deepEqual(mmt.filterLines(lines, 'built').map(l => l.vehicle_id), ['b']);
   assert.deepEqual(mmt.filterLines(lines, 'all', '416').map(l => l.vehicle_id), ['b']);
   assert.deepEqual(mmt.filterLines(lines, 'all', 'gp3').map(l => l.vehicle_id), ['c']);
-  assert.deepEqual(mmt.filterLines(lines, 'all', 'acme').map(l => l.vehicle_id), ['a']);
+  assert.deepEqual(mmt.filterLines(lines, 'all', 'K206').map(l => l.vehicle_id), ['a']);
+  assert.deepEqual(mmt.filterLines(lines, 'all', '13073119').map(l => l.vehicle_id), ['c']);
+  assert.deepEqual(mmt.filterLines(lines, 'all', 'acme'), [], 'customer is not searched');
 });
 
 test('Complete is locked until Built; Built is locked once Complete; read-only logins cannot tick', () => {
@@ -30,7 +32,7 @@ test('Complete is locked until Built; Built is locked once Complete; read-only l
 
 test('row shows PO, key, stock, customer and vehicle; panel escapes text', () => {
   const row = mmt.rowHtml(lines[0], true, new Set(), new Map());
-  for (const text of ['GP1', '206', '12667943', 'Acme', 'HiLux']) assert.ok(row.includes(text), text);
+  for (const text of ['GP1', 'K206', '12667943', 'Acme', 'HiLux']) assert.ok(row.includes(text), text);
   const panel = mmt.panelHtml({ can_tick: true, lines: [{ ...lines[0], customer: '<b>x</b>' }] }, { filter: 'all', search: '' });
   assert.match(panel, /&lt;b&gt;x&lt;\/b&gt;/);
   assert.match(mmt.panelHtml({ can_tick: false, lines: [] }, { filter: 'todo' }), /No MMT sublets at PMB/);

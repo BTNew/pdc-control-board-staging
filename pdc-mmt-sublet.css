@@ -1,30 +1,31 @@
-/* r642 (F257): MMT sublet page. */
-.mmt-toolbar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 0 0 12px; }
-.mmt-filter span { display: inline-block; min-width: 1.6em; margin-left: 4px; padding: 0 6px; border-radius: 999px; background: rgba(0, 0, 0, .08); font-size: 12px; }
-.mmt-filter.is-active { background: var(--ink, #1f2937); color: #fff; border-color: var(--ink, #1f2937); }
+/* r642 (F257): MMT sublet page, QC phone card style. */
+.mmt-summary { color: #5c718b; font-size: 14px; margin: 0 0 10px; }
+.mmt-search { display: block; width: 100%; box-sizing: border-box; margin: 0 0 10px; padding: 12px 14px; border: 1px solid #d5dde7; border-radius: 12px; font: inherit; font-size: 16px; background: #fff; }
+.mmt-toolbar { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 14px; }
+.mmt-filter { padding: 7px 11px; border: 1px solid #d5dde7; border-radius: 9px; background: #fff; color: #33475f; font: inherit; font-size: 13px; font-weight: 650; cursor: pointer; }
+.mmt-filter span { margin-left: 4px; padding: 0 6px; border-radius: 999px; background: #edf3fb; font-size: 12px; }
+.mmt-filter.is-active { background: #172338; border-color: #172338; color: #fff; }
 .mmt-filter.is-active span { background: rgba(255, 255, 255, .2); }
-.mmt-search { margin-left: auto; width: 260px; max-width: 100%; padding: 7px 10px; border: 1px solid var(--line, #d1d5db); border-radius: 8px; font: inherit; }
-.mmt-table td { vertical-align: middle; }
-.mmt-po strong { font-variant-numeric: tabular-nums; }
-.mmt-key { font-weight: 700; font-size: 1.05em; }
-.mmt-desc { max-width: 380px; color: var(--muted, #6b7280); font-size: 13px; }
-.mmt-table { width: 100%; table-layout: auto !important; }
-.mmt-table th:nth-child(-n+5), .mmt-table td:nth-child(-n+5) { width: 1%; white-space: nowrap; }
-.mmt-table th, .mmt-table td { padding-right: 10px; }
-.mmt-ticks { white-space: nowrap; width: 1%; }
-.mmt-tick + .mmt-tick { margin-right: 0; }
-.mmt-tick { display: inline-flex; align-items: center; gap: 6px; margin-right: 8px; padding: 6px 10px; border: 1px solid var(--line, #d1d5db); border-radius: 8px; cursor: pointer; user-select: none; }
-.mmt-tick input { width: 18px; height: 18px; margin: 0; cursor: inherit; }
-.mmt-tick.is-on { background: #e7f6ec; border-color: #2e9d57; color: #1d6b3a; font-weight: 600; }
-.mmt-tick:has(input:disabled) { opacity: .55; cursor: not-allowed; }
-.mmt-row.is-complete td { background: #f3faf5; }
-.mmt-error { display: block; color: var(--toyota-red, #c00); margin-top: 4px; }
-.mmt-empty, .mmt-note { color: var(--muted, #6b7280); }
-@media (prefers-color-scheme: dark) {
-  .mmt-tick.is-on { background: #12361f; color: #9be3b4; }
-  .mmt-row.is-complete td { background: #0f2417; }
-}
-@media (max-width: 760px) {
-  .mmt-search { margin-left: 0; width: 100%; }
-  .mmt-desc { max-width: none; }
+.mmt-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 14px; }
+.mmt-card { display: flex; flex-direction: column; gap: 4px; padding: 18px 20px; border: 1px solid #dfe5ec; border-radius: 18px; background: #fff; color: #172338; }
+.mmt-card.is-complete { background: #f4fbf6; border-color: #b9e1c7; }
+.mmt-card-top { display: flex; align-items: center; gap: 10px; margin-bottom: 4px; }
+.mmt-card-top strong { font-size: 24px; letter-spacing: -.6px; overflow-wrap: anywhere; }
+.mmt-card-top .qc-phone-pill { margin-left: auto; }
+.mmt-key-badge { display: inline-block; padding: 3px 9px; border-radius: 8px; background: #172338; color: #fff; font-size: 22px; font-weight: 800; letter-spacing: -.4px; }
+.qc-phone-pill.is-built { background: #fff3dc; color: #8a5a00; }
+.mmt-card-po { display: flex; align-items: baseline; gap: 8px; margin-top: 10px; padding-top: 12px; border-top: 1px solid #e8edf3; }
+.mmt-card-po span { color: #5c718b; font-size: 12px; font-weight: 700; letter-spacing: .5px; }
+.mmt-card-po strong { font-size: 17px; font-variant-numeric: tabular-nums; }
+.mmt-card-line { color: #5c718b; font-size: 13px; }
+.mmt-card-ticks { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 10px; }
+.mmt-tick { display: flex; align-items: center; justify-content: center; gap: 8px; min-height: 46px; padding: 8px 10px; border: 1px solid #d5dde7; border-radius: 12px; background: #fff; font-weight: 700; cursor: pointer; user-select: none; }
+.mmt-tick input { width: 20px; height: 20px; margin: 0; cursor: inherit; }
+.mmt-tick.is-on { background: #e3f5e9; border-color: #2e9d57; color: #1e6b45; }
+.mmt-tick:has(input:disabled) { opacity: .5; cursor: not-allowed; }
+.mmt-error { display: block; color: var(--toyota-red, #c00); margin-top: 6px; }
+.mmt-empty, .mmt-note { color: #5c718b; }
+@media (max-width: 520px) {
+  .mmt-cards { grid-template-columns: 1fr; }
+  .mmt-card { padding: 16px; }
 }

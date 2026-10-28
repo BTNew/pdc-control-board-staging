@@ -33,8 +33,12 @@
     return (Array.isArray(lines) ? lines : []).filter(line => {
       if (filter && filter !== 'all' && stage(line) !== filter) return false;
       if (!q) return true;
-      return [line.key_number, line.stock_number, line.po_number, line.customer, line.vehicle, line.job_card_number, line.description]
-        .some(value => String(value ?? '').toLowerCase().includes(q));
+      // r642: search box matches PO number, key or stock number (key exact, ignoring a leading K and zeros).
+      const key = String(line.key_number ?? '').replace(/^0+/, '').toLowerCase();
+      const qKey = q.replace(/^k/, '').replace(/^0+/, '');
+      return (qKey && key === qKey)
+        || String(line.po_number ?? '').toLowerCase().includes(q)
+        || String(line.stock_number ?? '').toLowerCase().includes(q);
     });
   }
   function counts(lines) {
@@ -53,19 +57,22 @@
     return `<label class="mmt-tick${on ? ' is-on' : ''}" title="${esc(title)}"><input type="checkbox" data-mmt-tick="${esc(kind)}" data-mmt-line="${esc(lineId(line))}"${on ? ' checked' : ''}${disabled ? ' disabled' : ''}><span>${kind === 'built' ? 'Built' : 'Complete'}</span></label>`;
   }
 
+  /** One QC-style card: key badge and stock, vehicle, customer, PO and job line, then the two ticks. */
   function rowHtml(line, canTick, pendingSet, errors) {
     const id = lineId(line);
     const pending = pendingSet?.has(id);
     const err = errors?.get(id);
-    return `<tr class="mmt-row is-${stage(line)}">`
-      + `<td class="mmt-po"><strong>${esc(line.po_number || '—')}</strong></td>`
-      + `<td class="mmt-key">${esc(line.key_number ?? '—')}</td>`
-      + `<td>${esc(line.stock_number || '—')}</td>`
-      + `<td>${esc(line.customer || '—')}</td>`
-      + `<td>${esc(line.vehicle || '—')}</td>`
-      + `<td class="mmt-desc">${esc(line.description || '')}${err ? `<small class="mmt-error">${esc(err)}</small>` : ''}</td>`
-      + `<td class="mmt-ticks">${tickHtml(line, 'built', canTick, pending)}${tickHtml(line, 'complete', canTick, pending)}</td>`
-      + `</tr>`;
+    const key = String(line.key_number ?? '').trim();
+    const pill = line.complete ? '<span class="qc-phone-pill is-ready">Complete</span>' : line.built ? '<span class="qc-phone-pill is-built">Built</span>' : '<span class="qc-phone-pill">To build</span>';
+    return `<article class="mmt-card is-${stage(line)}">`
+      + `<div class="mmt-card-top">${key ? `<span class="mmt-key-badge">K${esc(key)}</span>` : ''}<strong>${esc(line.stock_number || '—')}</strong>${pill}</div>`
+      + `<div class="qc-phone-model">${esc(line.vehicle || 'Vehicle')}</div>`
+      + `<div class="qc-phone-muted">${esc(line.customer || 'Customer unavailable')}</div>`
+      + `<div class="mmt-card-po"><span>PO</span><strong>${esc(line.po_number || '—')}</strong></div>`
+      + `<div class="mmt-card-line">${esc(line.description || '')}</div>`
+      + `<div class="mmt-card-ticks">${tickHtml(line, 'built', canTick, pending)}${tickHtml(line, 'complete', canTick, pending)}</div>`
+      + (err ? `<small class="mmt-error">${esc(err)}</small>` : '')
+      + `</article>`;
   }
 
   function panelHtml(payload, view) {
@@ -73,12 +80,14 @@
     const c = counts(lines);
     const shown = filterLines(lines, view.filter, view.search);
     const chips = Object.entries(FILTERS).map(([key, label]) =>
-      `<button type="button" class="small-button mmt-filter${view.filter === key ? ' is-active' : ''}" data-mmt-filter="${key}">${esc(label)} <span>${c[key]}</span></button>`).join('');
+      `<button type="button" class="mmt-filter${view.filter === key ? ' is-active' : ''}" data-mmt-filter="${key}">${esc(label)} <span>${c[key]}</span></button>`).join('');
     const body = shown.length
-      ? `<div class="table-wrap"><table class="data-table mmt-table"><thead><tr><th>PO</th><th>Key</th><th>Stock</th><th>Customer</th><th>Vehicle</th><th>Job line</th><th>Ticks</th></tr></thead><tbody>${shown.map(line => rowHtml(line, payload.can_tick === true, view.pending, view.errors)).join('')}</tbody></table></div>`
+      ? `<div class="mmt-cards">${shown.map(line => rowHtml(line, payload.can_tick === true, view.pending, view.errors)).join('')}</div>`
       : `<p class="mmt-empty">${lines.length ? 'Nothing matches.' : 'No MMT sublets at PMB right now.'}</p>`;
-    return `<div class="mmt-toolbar">${chips}<input type="search" class="mmt-search" data-mmt-search placeholder="Key, stock, PO or customer" value="${esc(view.search || '')}" aria-label="Search MMT sublets"></div>`
-      + (payload.can_tick ? '' : '<p class="mmt-note">Read only. Controllers, administrators, fitters and the MMT login can tick.</p>')
+    return `<div class="mmt-summary">${c.todo} to build · ${c.built} built · ${c.complete} complete</div>`
+      + `<input type="search" inputmode="search" class="mmt-search" data-mmt-search placeholder="Search PO, key or stock number" value="${esc(view.search || '')}" aria-label="Search PO, key or stock number">`
+      + `<div class="mmt-toolbar">${chips}</div>`
+      + (payload.can_tick ? '' : '<p class="mmt-note">Read only. Only the MMT login, controllers, administrators and fitters can tick.</p>')
       + body;
   }
 
