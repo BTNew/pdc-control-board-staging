@@ -1,0 +1,26 @@
+r584 (F198) / sort 356. Preview only. Do not merge. Do not apply.
+
+Staging target: cdsmnqxtyyoeoznmbidd. Production is not a target.
+r583 / F197 / sort 355 is the live line hand-off (PR #566).
+The first preview claimed r516 / F130 / sort 302. That triple is the live JITA upload.
+
+Craig Watson (23 Oct, about 3:15 pm AWST): any Navision / import line whose description or operation code contains MMT seat covers, IVMS, RADLINK or reflective stripes is an external Sublet. It is never Fitting, Electrical, Bus or another workshop station.
+
+Matching is the whole operation line (description and operation code), not a GP PO item on another line.
+- MMT seat covers: MMT … SEAT COVER or SEAT COVERS, any case. "Canvas seat covers" does not match.
+- IVMS and RADLINK: the word on its own. DIVMS does not match.
+- Reflective stripes: those two words after spaces are collapsed, any case. "reflective striping" does not match.
+
+The six category bodies stay at the r523 checksums. They already call note_fee_sublet_521 before the department gate, before UNALLOCATED, before saved ai routing, and again after the department 138 station overwrite. This preview extends that hook's regex. It does not create a separate helper and it does not replace those six functions. The before_import_rules_20261017 pin stays release r523 and md5 82c809d15c382e73c0ae5bf135293ebe, so bus_whole_job_450 stays green.
+
+The note_fee pin stays release r521. Its prosrc md5 becomes ca08696ffbe6a1834e63f8b8faf246e1. note_fee_sublet_521 and perth_delivery_sublet_523 keep the six r523 md5s and are updated only for that hook md5. Perth delivery's body stays 2944c99ffc3c4ce09704b00d66f9fdc4. A matching pending line keeps routing_rule note_fee_sublet_521, because the pending body is not edited. The pit rule stays. A person's line override, booking, owner review or manual lock still wins. Manage sublets is unchanged. No app.js. Department 135 is not changed. Service as a Whole import functions are not replaced.
+
+Work-item writes are the sublet key only, recorded in pdc_ops.named_external_work_touch_584. The down file restores those rows. Inserted rows are deleted only while pdc_772_work_item_no_delete is disabled, and that trigger is enabled again before the down file finishes. Pin count stays 241. No new pin.
+
+Stock 12662903 has the line "Fit IVMS Sat/Nav components". The failed r583 apply inserted its sublet row at 2026-10-27 11:38:15 UTC. Ledger 20261027115430 removed that row. It is absent again. This preview does not apply, so the row stays absent until Craig approves go-live.
+
+After the sublet rows are written, the QC cache for those vehicles is refilled. The down file restores the old hook first, then refills that cache, so the fitting station snapshot stays inside the r545 8 second budget.
+
+Up md5 d0da9ac6b4f00a0284021baf91fa8944. Down md5 5861ff607076c0df065214b56427a5a9. Note-fee hook md5 ca08696ffbe6a1834e63f8b8faf246e1.
+
+The live apply on staging is ledger 20261028011748. That statement is the same release with the cache upsert written before the safeupdate lint's WHERE true. The published file adds WHERE true on that upsert. It does not change which cache rows are written, and it was not run a second time.
