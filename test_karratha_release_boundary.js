@@ -216,7 +216,7 @@ const approvedRootImportPatch = Object.freeze({
   // r573: the same loader adds r573=2026.10.27.r573 (Place as STOPPAGE, F187). Department 135 is not tagged.
   // r595: the loader adds r595=2026.10.28.r595 on pdc-parts-stoppage.js. The slide-out keeps vehicle-slideout=2026.10.28.r588 and adds r595=2026.10.28.r595 (Parts ETA is set in the side panel; F209). Department 135 is not tagged.
   // r604: canonical-entry.js loads pdc-pit-bookings.js beside the table and tags the table r604 (Pit column, F218). Department 135 is not tagged.
-  "canonical-entry.js": "b29ea6503fb0448db8bba413eba61bceb624d818960ad085888fd1eba3ad6cc3",
+  "canonical-entry.js": "0c34b68843f0efdee01af80052838e656cc889b0cf117fa698f51b9ef7b39c3d",
   "pdc-workshop-vehicle-search.js": "d0be4a60c5ca2213ba71d4cd31cb7019736db3d7e0470d22b3fa88243e56eb4c",
   // Owner-authorised PMG fitter read recovery, 13 October 2026.
   // Coaster and HiAce conversions: one Start / Done tick per section in a

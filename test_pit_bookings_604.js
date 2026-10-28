@@ -9,9 +9,9 @@ const board = pit.indexBoard({
   today: '2026-10-28', can_edit: true,
   vehicles: [
     { vehicle_id: 'a1', stock_number: '13073300', key_number: 307, vehicle: 'HiLux', location: 'PMB', pit_lines: ['PIT AND WEIGH'], needs_pit: true, pit_date: null, pit_location: null, back: false, booking_version: 0 },
-    { vehicle_id: 'b2', stock_number: 's-200', key_number: null, vehicle: 'Coaster', location: 'YH', pit_lines: ['Pit Inspection'], needs_pit: true, pit_date: '2026-10-31', pit_location: 'Wangara', back: false, booking_version: 1 },
-    { vehicle_id: 'c3', stock_number: '300', vehicle: 'LC79', location: 'PIT', pit_lines: ['PIT & WEIGH'], needs_pit: true, pit_date: '2026-10-26', pit_location: 'Wades', back: false, booking_version: 2 },
-    { vehicle_id: 'd4', stock_number: '400', vehicle: 'Prado', location: 'PMB', pit_lines: ['PIT AND WEIGH'], needs_pit: true, pit_date: '2026-10-20', pit_location: 'PMB', back: true, back_at: '2026-10-22T03:00:00Z', booking_version: 3 },
+    { vehicle_id: 'b2', stock_number: 's-200', key_number: 360, vehicle: 'Coaster', location: 'YH', pit_lines: ['Pit Inspection'], needs_pit: true, pit_date: '2026-10-31', pit_location: 'Wangara', back: false, booking_version: 1 },
+    { vehicle_id: 'c3', stock_number: '300', key_number: 361, vehicle: 'LC79', location: 'PIT', pit_lines: ['PIT & WEIGH'], needs_pit: true, pit_date: '2026-10-26', pit_location: 'Wades', back: false, booking_version: 2 },
+    { vehicle_id: 'd4', stock_number: '400', key_number: 362, vehicle: 'Prado', location: 'PMB', pit_lines: ['PIT AND WEIGH'], needs_pit: true, pit_date: '2026-10-20', pit_location: 'PMB', back: true, back_at: '2026-10-22T03:00:00Z', booking_version: 3 },
   ],
 });
 
@@ -52,6 +52,12 @@ test('filters: not booked, booked, back, all', () => {
   assert.equal(pit.filterVehicles(board.vehicles, 'all').length, 4);
 });
 
+test('r611 (F225): vehicles without a key number are not listed', () => {
+  const noKey = pit.indexBoard({ today: '2026-10-28', can_edit: true, vehicles: [...board.vehicles, { vehicle_id: 'z9', stock_number: 'NOKEY', key_number: null, needs_pit: true }, { vehicle_id: 'z8', stock_number: 'ZERO', key_number: '0', needs_pit: true }] });
+  assert.equal(pit.filterVehicles(noKey.vehicles, 'all').length, 4);
+  assert.doesNotMatch(pit.panelHtml(noKey, { filter: 'all' }), /NOKEY|ZERO/);
+});
+
 test('calendar: Monday-first whole weeks covering the month; month stepping wraps the year', () => {
   const days = pit.monthGrid('2026-10-01');
   assert.equal(days.length % 7, 0);
@@ -66,10 +72,12 @@ test('panel: list rows drag, booked chips sit on their day, places are PMB / Wan
   const html = pit.panelHtml(board, { filter: 'all', month: '2026-10-01', place: 'Wades' });
   assert.match(html, /data-pdc-pit-panel/);
   assert.equal((html.match(/<tr class="pdc-pit-row/g) || []).length, 4);
-  assert.match(html, /data-pit-day="2026-10-31"[^>]*>[\s\S]*?s-200 · Wangara/);
+  assert.match(html, /data-pit-day="2026-10-31"[^>]*>[\s\S]*?K360 · Wangara/);
   assert.match(html, /data-pit-place="Wades"[^>]*>Wades|aria-checked="true" class="active" data-pit-place="Wades"/);
   assert.deepEqual([...pit.PLACES], ['PMB', 'Wangara', 'Wades']);
   assert.match(html, /data-pit-back="d4" checked/);
+  assert.match(html, /data-pit-back="a1"/, 'r611 (F225): unbooked vehicles have a Done tick too');
+  assert.match(html, /> Done<\/label>/);
   const readOnly = pit.panelHtml({ ...board, canEdit: false }, { filter: 'all', month: '2026-10-01' });
   assert.doesNotMatch(readOnly, /draggable="true"|data-pit-day=|data-pit-clear/);
   assert.match(readOnly, /View only/);
@@ -77,7 +85,7 @@ test('panel: list rows drag, booked chips sit on their day, places are PMB / Wan
 
 test('wiring: loader, cache bust, Pages ships the file, migration is staging-only and keeps pins at 241', () => {
   const entry = fs.readFileSync('canonical-entry.js', 'utf8');
-  assert.match(entry, /pdc-pit-bookings\.js\?r604=2026\.10\.28\.r604/);
+  assert.match(entry, /pdc-pit-bookings\.js\?r604=2026\.10\.28\.r604&r611=2026\.10\.28\.r611/);
   assert.match(entry, /pdc-vehicle-locations-table\.js\?[^']*&r604=2026\.10\.28\.r604/);
   assert.match(fs.readFileSync('index.html', 'utf8'), /canonical-entry\.js\?[^"]*r604=2026\.10\.28\.r604/);
   assert.match(fs.readFileSync('scripts/build_pages_runtime.js', 'utf8'), /'pdc-pit-bookings\.js'/);
