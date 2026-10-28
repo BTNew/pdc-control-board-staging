@@ -1183,15 +1183,23 @@ function createPdcEmailVehicleLocationService(options = {}) {
     let timer = null;
     let latestEvent = null;
     let stopped = false;
+    let lastRun = 0;
+    let recent = [];
     const subscription = subscribeRealtime(PDC_EMAIL_VEHICLE_REVISION_TABLE, event => {
       if (stopped) return;
       latestEvent = event;
       // One approval emits a revision for each source line. Refresh once per burst.
+      // r619 (F234): an import is a long burst; then refresh at most every 20 s (more than 3 events in 60 s).
+      const now = Date.now();
+      recent = recent.filter(at => now - at < 60000);
+      recent.push(now);
       if (timer !== null) return;
+      const delay = recent.length > 3 ? Math.max(250, 20000 - (now - lastRun)) : 250;
       timer = setTimeout(() => {
         timer = null;
+        lastRun = Date.now();
         if (!stopped && typeof onRevision === 'function') onRevision(latestEvent?.new?.revision ?? null, latestEvent);
-      }, 250);
+      }, delay);
     });
     return { unsubscribe() {
       clearRetainedSnapshot();
