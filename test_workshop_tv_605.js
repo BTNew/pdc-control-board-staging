@@ -45,7 +45,9 @@ test('bars sit on the day window; an over-time job stretches to now', () => {
 
 test('board: every station, over-time count, hidden stations drop out', () => {
   const html = tv.boardHtml(data, { now });
-  assert.equal((html.match(/<section class="tv-station"/g) || []).length, 2);
+  // r706 (F316): Tint is in the Start / Stop strip at the bottom, not a timeline.
+  assert.equal((html.match(/<section class="tv-station"/g) || []).length, 1);
+  assert.equal((html.match(/<section class="tv-astation" data-station="TINT"/g) || []).length, 1);
   assert.match(html, /data-station="HOIST"[\s\S]*1 over time/);
   assert.match(html, /tv-bay has-over/);
   assert.match(html, /is-stop[\s\S]*STOP/);
@@ -89,7 +91,9 @@ test('Perth clock labels', () => {
 test('view only and wired: no write RPCs, page ships, staging only', () => {
   const js = fs.readFileSync('workshop-tv.js', 'utf8');
   const rpcs = [...js.matchAll(/rpc\('([a-z0-9_]+)'/g)].map(m => m[1]);
-  assert.deepEqual(rpcs, ['get_pdc_workshop_tv_605']);
+  // r706 (F316): the only writes are Start / Stop for Tint and Tyres, through the planner's own start and complete.
+  assert.deepEqual([...rpcs].sort(), ['complete_workshop_work', 'get_pdc_workshop_tv_605', 'start_workshop_work']);
+  assert.match(js, /const ACTION_STATIONS = \['TINT', 'TYRE'\];/);
   assert.doesNotMatch(js, /\.from\(/, 'no direct table access, so no table writes');
   assert.doesNotMatch(js, /channel\(|subscribe\(/, 'no realtime channel');
   const html = fs.readFileSync('workshop-tv.html', 'utf8');
