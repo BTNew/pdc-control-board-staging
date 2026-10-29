@@ -830,7 +830,17 @@
     panel.querySelector('[data-vso-to-pmb]')?.addEventListener('click', async event => {
       event.stopPropagation();
       const button = event.currentTarget; button.disabled = true;
-      try { await root.transferYhVehicleToPmb(button.dataset.vsoToPmb); } finally { if (button.isConnected) button.disabled = false; }
+      // r705 (F315): once it is at PMB, close the panel and say so. A slow board (an import running) must never leave the
+      // old "IT, no key" panel open for a second press with an out-of-date vehicle.
+      const stock = panel.querySelector('.vso-id h3')?.textContent || '';
+      const target = vehicleFor(button.dataset.vsoToPmb); // the same object the transfer writes the new key onto
+      let sent = false;
+      try { sent = await root.transferYhVehicleToPmb(button.dataset.vsoToPmb) === true; } finally { if (button.isConnected) button.disabled = false; }
+      if (sent) {
+        const keyNo = String(target?.keyNumber || target?.key_number || '').trim();
+        close();
+        if (typeof root.pdcNotify === 'function') root.pdcNotify(`${stock || 'Vehicle'} sent to PMB${keyNo ? `, key ${keyNo}` : ''}. The PMB timer has started.`);
+      }
     });
     VLT.bindBoardHandlers(panel); // r461's export: the same listeners the board binds today
     // r485: Clear stoppage -> app.js clearPriorityStoppage() via bindFixFirstRows(), exactly as on the drop-down list.
