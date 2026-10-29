@@ -88,7 +88,7 @@ test('r427 / r418 accessory yard-hold delay unchanged: every Y code is still at 
 
 test('tile row: Yard Hold sits immediately right of Hold/Waiting; descriptions; cache-bust',()=>{
   const keys=sales.categories.map(c=>c[0]);
-  assert.deepEqual(keys,['all','unconfirmed','production','transit','hold','yardhold','released','autocare','dealer','unknown']);
+  assert.deepEqual(keys,['all','unconfirmed','production','transit','hold','yardhold','pmb','released','autocare','dealer','unknown']); // r737: At PMB between Yard Hold and Released
   assert.equal(keys.indexOf('yardhold'),keys.indexOf('hold')+1);
   const src=fs.readFileSync('sales/sales.js','utf8');
   assert.match(src,/yardhold:'Navision YH yard hold \(and any new Y code\)'/);

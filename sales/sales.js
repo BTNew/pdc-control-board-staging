@@ -18,7 +18,7 @@
   const categories = [
     ['all','All vehicles'],['unconfirmed','Awaiting stock'],['production','Production'],
     ['transit','In Transit'],['hold','Hold/Waiting'],['yardhold','YH / Yard Hold'],
-    ['released','Released'],['autocare','Dispatched Autocare'],['dealer','Dealer'],['unknown','Status not recorded']
+    ['pmb','At PMB'],['released','Released'],['autocare','Dispatched Autocare'],['dealer','Dealer'],['unknown','Status not recorded']
   ];
   function escapeHtml(value) {
     return String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -52,6 +52,17 @@
     if (/ready for shipment|in transit|wharf|shipment/.test(status)) return 'transit';
     if (/delivered.*dealer|at dealer/.test(status)) return 'dealer';
     return 'unknown';
+  }
+  function atPmbWithKey(row){
+    if(!row||!String(row.key_number||'').trim())return false;
+    return !(row.lifecycle_state==='completed'||String(row.pmb_location||'').trim().toLowerCase()==='completed');
+  }
+  // r737 (F346, Craig 30 Oct): an "At PMB" tile on the sales dashboard. A car with a key number is at Perth Motor Bodies
+  // and sits in At PMB instead of its Toyota status tile (mostly Released). Dealer and Dispatched Autocare still win.
+  // category() itself is unchanged, so the status pill colour and the server mirror (sales_tracker_tile) are untouched.
+  function tileOf(row){
+    const c=category(row);
+    return c!=='dealer'&&c!=='autocare'&&atPmbWithKey(row)?'pmb':c;
   }
   function flag(value) {
     if (value === true || /^(?:yes|true|1)$/i.test(String(value).trim())) return 'yes';
@@ -102,7 +113,7 @@
   function selectRows(rows, filters) {
     const search = String(filters.search || '').toLowerCase();
     return scopeRows(rows,filters.salesperson,filters.visibility||'visible').filter(row =>
-      (filters.category === 'all' || category(row) === filters.category) && quickMatch(row,filters.quick,filters.today) &&
+      (filters.category === 'all' || tileOf(row) === filters.category) && quickMatch(row,filters.quick,filters.today) &&
       (!filters.salesperson || row.salesperson_code === filters.salesperson) &&
       (!filters.month || row.production_month === filters.month) &&
       (!filters.status || row.toyota_status === filters.status) &&
@@ -155,12 +166,12 @@
     if(parts.required===true)return 'Parts required · order not confirmed';
     return 'Not recorded';
   }
-  const api = { vehicleReference, salespeople, categories, yardLocationCode, yardTextCodes, category, salesStatus, dispatchEligible, flag, scopeRows, selectRows, quickMatch, escapeHtml, pmbSummary, pmbStationsHtml, isRunningBooking, pmbStatusTone, pmbStatusCell, partsStatus, bookingStatus, orderingState, orderingControl, nextOrderingState };
+  const api = { vehicleReference, salespeople, categories, yardLocationCode, yardTextCodes, category, tileOf, atPmbWithKey, salesStatus, dispatchEligible, flag, scopeRows, selectRows, quickMatch, escapeHtml, pmbSummary, pmbStationsHtml, isRunningBooking, pmbStatusTone, pmbStatusCell, partsStatus, bookingStatus, orderingState, orderingControl, nextOrderingState };
   if (typeof module === 'object' && module.exports) module.exports = api;
   if (!root.document) return;
   const $ = id => root.document.getElementById(id);
   const defaultFilters=()=>({category:'all',search:'',salesperson:'',month:'',status:'',quick:'',sort:'stock',direction:1});
-  const state = { dispatchBusy:false,dispatchRequest:0,hiddenItems:[],showHidden:false,hiddenBusy:false,hiddenRequest:0,visibilitySaving:new Set(),visibilityConfirmed:new Map(),refreshQueued:false,branchFeedRows:0,items:[], context:null, generation:0, busy:false, accounts:null,view:'dashboard',selected:new Set(),detailId:null,reviewedOrders:null,importBusy:false,orderRevision:0,printBusy:false,printerBusy:false,printers:[],printerName:'',saving:new Map(),
+  const state = { keyAssigned:new Map(),keyAssignedBusy:false,dispatchBusy:false,dispatchRequest:0,hiddenItems:[],showHidden:false,hiddenBusy:false,hiddenRequest:0,visibilitySaving:new Set(),visibilityConfirmed:new Map(),refreshQueued:false,branchFeedRows:0,items:[], context:null, generation:0, busy:false, accounts:null,view:'dashboard',selected:new Set(),detailId:null,reviewedOrders:null,importBusy:false,orderRevision:0,printBusy:false,printerBusy:false,printers:[],printerName:'',saving:new Map(),
     filters:defaultFilters(),workspace:null,workspaceRequest:0,workspaceBusy:false,searchTimer:null,html:new Map() };
   const columns = [
     ['salesperson_code','SP'],['stock','Stock / Toyota Order'],['production_month','P/Month'],['client','Client'],
@@ -242,7 +253,7 @@
     for(const id of ['sales-month-filter','sales-status-filter'])$(id).innerHTML='';
 
   }
-  const categoryDescriptions={all:'COSI sold vehicles in this view',unconfirmed:'Rows without a stock number',production:'Production, line off and overseas wharf',transit:'Shipment, WA and Eastern States transit, wharf',yardhold:'Navision YH yard hold (and any new Y code)',hold:'Waiting PD1 / PD2, delayed and waiting for wholesale',released:'Body builder, TWA despatch and ready for transport',autocare:'Marked as dispatched by Autocare',dealer:'Delivered to the dealer',unknown:'Toyota status needs confirmation'};
+  const categoryDescriptions={all:'COSI sold vehicles in this view',unconfirmed:'Rows without a stock number',production:'Production, line off and overseas wharf',transit:'Shipment, WA and Eastern States transit, wharf',yardhold:'Navision YH yard hold (and any new Y code)',hold:'Waiting PD1 / PD2, delayed and waiting for wholesale',pmb:'Key number given · at Perth Motor Bodies',released:'Body builder, TWA despatch and ready for transport',autocare:'Marked as dispatched by Autocare',dealer:'Delivered to the dealer',unknown:'Toyota status needs confirmation'};
   function showView(view) {
     if(!viewNames.includes(view))return;
     if(state.detailId){state.detailId=null;$('sales-detail').close();$('sales-detail-content').innerHTML='';}
@@ -268,7 +279,7 @@
   function renderSecondaryViews() {
     const scoped=scopeRows(state.items,state.filters.salesperson);
     if(state.view==='pipeline')html('sales-pipeline',categories.filter(([key])=>key!=='all').map(([key,label])=>{
-      const rows=scoped.filter(r=>category(r)===key);
+      const rows=scoped.filter(r=>tileOf(r)===key);
       return '<section class="pipeline-column"><h2>'+label+' <span>'+rows.length+'</span></h2>'+
         (rows.length?rows.map(r=>'<button class="pipeline-card" type="button" data-open="'+escapeHtml(r.tracking_id)+'"><strong>'+escapeHtml(vehicleReference(r))+'</strong><p>'+escapeHtml(r.client||'Customer not recorded')+'</p><p>'+escapeHtml(r.vehicle||'Vehicle not recorded')+'</p><span class="status-pill '+key+'">'+escapeHtml(salesStatus(r))+'</span>'+(r.pmb_location?'<p>PMB: '+escapeHtml(r.pmb_location)+'</p>':'')+'</button>').join(''):'<div class="empty-state">No vehicles</div>')+'</section>';
     }).join(''));else html('sales-pipeline','');
@@ -313,7 +324,7 @@
     $('sales-tracker-help').textContent=state.showHidden?'These vehicles are hidden from the sales dashboard, My Day, labels and customer email lists. Choose Show on sales planner in the Action menu to restore a vehicle. Vehicles absent from the latest successful Navision update are removed from both lists.':'';
     html('status-tabs',categories.map(([key,label]) => '<button type="button" data-category="'+key+
       '" class="status-card '+key+(state.filters.category===key?' active':'')+'" aria-pressed="'+(state.filters.category===key)+'">'+
-      '<span>'+label+'</span><strong>'+scoped.filter(r=>key==='all'||category(r)===key).length+'</strong><small>'+categoryDescriptions[key]+'</small></button>').join(''));
+      '<span>'+label+'</span><strong>'+scoped.filter(r=>key==='all'||tileOf(r)===key).length+'</strong><small>'+categoryDescriptions[key]+'</small></button>').join(''));
     html('sales-summary','<span>'+rows.length+(state.showHidden?' hidden vehicles shown':' vehicles shown')+'</span><span>'+
       (state.showHidden?rows:scoped).filter(r=>r.canonical_vehicle_id).length+' linked to PMB</span><span>'+state.selected.size+' selected</span>');
     $('sales-data-count').textContent=scoped.length+' COSI vehicles · Navision';
@@ -331,7 +342,7 @@
         if (key==='stock') return '<td class="vehicle-reference-cell">'+(root.BROOME_VEHICLE_NOTES?.toggleHtml(row)||'')+'<button type="button" class="stock-button" '+(row.sales_hidden?'disabled ':'')+'data-open="'+escapeHtml(row.tracking_id)+'">'+
           escapeHtml(val||row.order||'Reference not recorded')+'</button>'+(val?'':('<span class="subtle">Toyota Order Number</span><span class="subtle">Awaiting stock number</span>'))+(row.source_current===false?'<span class="source-warning">Not in latest PDC import</span>':'')+(row.identity_conflict?'<span class="source-warning">Order link needs review</span>':'')+'</td>';
         if (key==='toyota_status') return '<td class="status-cell"><span class="status-pill '+category(row)+'" title="'+escapeHtml((row.toyota_status||'Not recorded')+(row.transport_number?' · Transport '+row.transport_number:''))+'">'+escapeHtml(salesStatus(row))+'</span></td>';
-        if (key==='kewdale_eta')return '<td class="eta-cell">'+etaHtml(val)+'</td>';
+        if (key==='kewdale_eta')return '<td class="eta-cell">'+etaOrKeyAgeHtml(row)+'</td>';
         if (key==='pmb_location') return pmbStatusCell(row);
         if(key==='navision_notes'){
           const manual=root.BROOME_VEHICLE_NOTES?.hasSavedNotes(row.tracking_id);
@@ -342,7 +353,7 @@
         return '<td title="'+escapeHtml(val||'')+'">'+escapeHtml(val||'—')+'</td>';
       }).join('')+'<td>'+actionHtml(row)+'</td></tr>'+(root.BROOME_VEHICLE_NOTES?.rowHtml(row)||'')).join(''):'<tr><td colspan="13"><div class="empty-state" data-empty-branch="'+escapeHtml(branchApi()?.current()?.key||'broome')+'">'+escapeHtml(emptyMessage())+'</div></td></tr>')+'</tbody>');
     columnWidths?.apply();
-    html('sales-mobile-vehicles',rows.length?rows.map(row=>'<article class="mobile-vehicle" data-note-row="'+escapeHtml(row.tracking_id)+'"><div class="mobile-vehicle-head"><input type="checkbox" data-select="'+escapeHtml(row.tracking_id)+'" aria-label="Select '+escapeHtml(row.stock||row.order)+'" '+(row.sales_hidden?'disabled ':state.selected.has(row.tracking_id)?'checked':'')+'><button class="stock-button" type="button" '+(row.sales_hidden?'disabled ':'')+'data-open="'+escapeHtml(row.tracking_id)+'">'+escapeHtml(vehicleReference(row))+'</button><span>'+escapeHtml(row.salesperson_code||'')+'</span></div>'+'<strong>'+escapeHtml(row.client||'Customer not recorded')+'</strong><p>'+escapeHtml(row.vehicle||'Vehicle not recorded')+'</p><span class="status-pill '+category(row)+'">'+escapeHtml(salesStatus(row))+'</span>'+(row.transport_number?'<p>Transport '+escapeHtml(row.transport_number)+'</p>':'')+pmbStationsHtml(row)+'<p class="mobile-pmb'+(pmbStatusTone(pmbSummary(row))?' pmb-running':'')+'">'+escapeHtml(pmbSummary(row).status)+'</p><p class="mobile-eta">Kewdale ETA: '+etaHtml(row.kewdale_eta)+'</p><p>Dealer ETA: '+escapeHtml(row.dealer_eta||'Not recorded')+'</p><div class="mobile-ordering">'+[...orderingKeys].map(key=>'<label><span>'+orderingLabels[key]+'</span>'+orderingControl(row,key,state.saving.get(row.tracking_id)||(state.visibilitySaving.has(row.tracking_id)?{}:null),canEditRow(row))+'</label>').join('')+'</div>'+mobileNavisionNotes(row)+(root.BROOME_VEHICLE_NOTES?.toggleHtml(row)||'')+'<button class="small-button" type="button" '+(row.sales_hidden?'disabled ':'')+'data-open="'+escapeHtml(row.tracking_id)+'">Vehicle and customer details</button>'+actionHtml(row)+(root.BROOME_VEHICLE_NOTES?.editorHtml(row)||'')+'</article>').join(''):'<div class="empty-state" data-empty-branch="'+escapeHtml(branchApi()?.current()?.key||'broome')+'">'+escapeHtml(emptyMessage())+'</div>');
+    html('sales-mobile-vehicles',rows.length?rows.map(row=>'<article class="mobile-vehicle" data-note-row="'+escapeHtml(row.tracking_id)+'"><div class="mobile-vehicle-head"><input type="checkbox" data-select="'+escapeHtml(row.tracking_id)+'" aria-label="Select '+escapeHtml(row.stock||row.order)+'" '+(row.sales_hidden?'disabled ':state.selected.has(row.tracking_id)?'checked':'')+'><button class="stock-button" type="button" '+(row.sales_hidden?'disabled ':'')+'data-open="'+escapeHtml(row.tracking_id)+'">'+escapeHtml(vehicleReference(row))+'</button><span>'+escapeHtml(row.salesperson_code||'')+'</span></div>'+'<strong>'+escapeHtml(row.client||'Customer not recorded')+'</strong><p>'+escapeHtml(row.vehicle||'Vehicle not recorded')+'</p><span class="status-pill '+category(row)+'">'+escapeHtml(salesStatus(row))+'</span>'+(row.transport_number?'<p>Transport '+escapeHtml(row.transport_number)+'</p>':'')+pmbStationsHtml(row)+'<p class="mobile-pmb'+(pmbStatusTone(pmbSummary(row))?' pmb-running':'')+'">'+escapeHtml(pmbSummary(row).status)+'</p><p class="mobile-eta">'+(atPmbWithKey(row)?keyAgeHtml(row):'Kewdale ETA: '+etaHtml(row.kewdale_eta))+'</p><p>Dealer ETA: '+escapeHtml(row.dealer_eta||'Not recorded')+'</p><div class="mobile-ordering">'+[...orderingKeys].map(key=>'<label><span>'+orderingLabels[key]+'</span>'+orderingControl(row,key,state.saving.get(row.tracking_id)||(state.visibilitySaving.has(row.tracking_id)?{}:null),canEditRow(row))+'</label>').join('')+'</div>'+mobileNavisionNotes(row)+(root.BROOME_VEHICLE_NOTES?.toggleHtml(row)||'')+'<button class="small-button" type="button" '+(row.sales_hidden?'disabled ':'')+'data-open="'+escapeHtml(row.tracking_id)+'">Vehicle and customer details</button>'+actionHtml(row)+(root.BROOME_VEHICLE_NOTES?.editorHtml(row)||'')+'</article>').join(''):'<div class="empty-state" data-empty-branch="'+escapeHtml(branchApi()?.current()?.key||'broome')+'">'+escapeHtml(emptyMessage())+'</div>');
     if(focusKey)root.document.querySelector?.((focusKey.mobile?'#sales-mobile-vehicles ':'#vehicle-table ')+'[data-ordering-id="'+focusKey.id+'"][data-ordering-flag="'+focusKey.flag+'"]')?.focus?.({preventScroll:true});
     if(noteFocus){
       const field=root.document.querySelector?.((noteFocus.mobile?'#sales-mobile-vehicles ':'#vehicle-table ')+'[data-notes-form="'+noteFocus.id+'"] [name="'+noteFocus.name+'"]');
@@ -383,6 +394,34 @@
     finally{if(generation===state.generation&&principal===root.PDC_AUTH_CONTEXT?.userId&&request===state.dispatchRequest){state.dispatchBusy=false;render();}}
   }
   function resizeHandle(index,label){return '<span class="column-resize" role="separator" tabindex="0" data-resize="'+index+'" aria-orientation="vertical" aria-label="Resize '+escapeHtml(label)+' column" aria-valuemin="40" aria-valuemax="600" title="Drag to resize. Arrow keys adjust width; Home or double-click resets."></span>';}
+  // r729 (F345, Craig 29 Oct): on the sales list, a car at PMB (it has a key number) shows its key age (days since the
+  // key number was given, the same count as the PMB board) in place of the Kewdale ETA. Cars not at PMB keep the ETA.
+  function keyAgeDays(raw){
+    const ms=raw?new Date(raw).getTime():NaN;
+    if(!Number.isFinite(ms))return null;
+    return Math.max(0,Math.floor((Date.now()+8*3600000)/86400000)-Math.floor((ms+8*3600000)/86400000));
+  }
+  function keyAgeHtml(row){
+    const at=state.keyAssigned.get(String(row.canonical_vehicle_id||''))||'';
+    const days=keyAgeDays(at);
+    const key=String(row.key_number).trim();
+    const title='Key '+key+(at?' given '+dateLabel(at)+'. Days at PMB since the key number was given.':'. Key date not recorded yet.');
+    return '<span class="key-age" title="'+escapeHtml(title)+'"><strong>Key age</strong> · '+(days===null?'—':days+' day'+(days===1?'':'s'))+'</span>';
+  }
+  function etaOrKeyAgeHtml(row){return atPmbWithKey(row)?keyAgeHtml(row):etaHtml(row.kewdale_eta);}
+  async function loadKeyAssigned(){
+    if(state.keyAssignedBusy||!root.PDC_SUPABASE)return;
+    state.keyAssignedBusy=true;
+    try{
+      const {data,error}=await root.PDC_SUPABASE.rpc('list_pmb_key_assigned_562');
+      if(error||!Array.isArray(data))return;
+      const next=new Map();
+      for(const r of data)if(r&&r.vehicle_id&&r.assigned_at)next.set(String(r.vehicle_id),r.assigned_at);
+      state.keyAssigned=next;
+      render();
+    }catch(_){/* key ages stay as dashes; the ETA view is unaffected */}
+    finally{state.keyAssignedBusy=false;}
+  }
   function etaHtml(value){
     const info=root.BROOME_SALES_TOOLS?.etaInfo(value);
     if(!info)return escapeHtml(value||'Not recorded');
@@ -581,6 +620,7 @@
       // r499b (F112): ONE batched station read for every linked vehicle, in parallel with the reads below; the final render uses it.
       const stationsRead=root.BROOME_SALES_PMB_STATIONS?.refresh?.(state.items.map(r=>r.canonical_vehicle_id).filter(Boolean));
       attachWorkspace();populateFilters();render();
+      if(state.items.some(atPmbWithKey))loadKeyAssigned();
       root.BROOME_VEHICLE_NOTES?.load();
       if(generation===state.generation&&principal===root.PDC_AUTH_CONTEXT?.userId)await root.BROOME_SALES_BUILDS?.refresh();
       if(generation===state.generation&&principal===root.PDC_AUTH_CONTEXT?.userId)await root.BROOME_SALES_ACCESSORIES?.refresh();

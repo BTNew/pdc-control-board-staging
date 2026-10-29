@@ -115,7 +115,7 @@ body.auth-pending .app-shell{display:none}body.auth-approved .pdc-auth-gate{disp
 .mobile-navision-notes strong,.manual-note-label{font-size:11px}
 .mobile-navision-notes p{white-space:pre-wrap;margin:5px 0}
 
-.status-card.autocare{background:#fff0de}.status-pill.autocare{background:#fff0de;color:#86541c;border:1px solid #e8c08b}
+.status-card.autocare{background:#fff0de}.status-card.pmb{background:#f2efff}.status-pill.autocare{background:#fff0de;color:#86541c;border:1px solid #e8c08b}
 
 /* Keep shared website controls and Sales actions on the same visual baseline. */
 .topbar-actions{align-items:flex-end;gap:10px}
