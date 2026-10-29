@@ -11,5 +11,5 @@ test('key first for the PMB age', () => {
 test('a keyed vehicle is always in PMB; New to PMB is extra', () => {
   assert.match(app, /if \(primary === 'newpmb' && pmbVehicleHasKey\(vehicle\)\) return \['pmb', 'newpmb'\];/);
   assert.match(app, /if \(primary === 'pmb' && pmbKeyIsNew\(vehicle\)\) return \['pmb', 'newpmb'\];/);
-  assert.match(fs.readFileSync('index.html', 'utf8'), /&amp;r707=2026\.10\.29\.r707"/);
+  assert.match(fs.readFileSync('index.html', 'utf8'), /&amp;r707=2026\.10\.29\.r707[&"]/);
 });
