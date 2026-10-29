@@ -9,7 +9,7 @@
  */
 (function (root) {
   'use strict';
-  const VERSION = '2026.10.29.r720';
+  const VERSION = '2026.10.29.r723';
   const PROJECT = 'cdsmnqxtyyoeoznmbidd';
   const POLL_MS = 5000;
   const FULL_MS = 120000;
@@ -38,35 +38,43 @@
     return (qKey && key === qKey) || String(car.s ?? '').toLowerCase().includes(q);
   };
 
+  // r723 (F333, Craig 13:39): X = "we looked at the car and this item is not there". A car is checked when every item
+  // is ticked (done) or X'd (seen, not done).
+  const carChecked = car => (car.l || []).length > 0 && (car.l || []).every(line => line.done || line.x);
   /** Cars to show for the search and the "open only" switch. */
   function visibleCars(payload, view) {
     const q = String(view?.search || '').trim().toLowerCase();
     return (payload?.cars || []).filter(car => {
       if (q && !keyMatch(car, q)) return false;
-      if (view?.openOnly && (car.l || []).every(line => line.done)) return false;
+      if (view?.openOnly && carChecked(car)) return false;
       if (view?.missingOnly && !car.missing) return false;
       return true;
     });
   }
   function totals(payload) {
-    let lines = 0; let done = 0; let carsDone = 0; let missing = 0;
+    let lines = 0; let done = 0; let carsDone = 0; let missing = 0; let xs = 0; let checked = 0;
     for (const car of payload?.cars || []) {
       if (car.missing) missing += 1;
+      if (carChecked(car)) checked += 1;
+      xs += (car.l || []).filter(line => line.x && !line.done).length;
       const n = (car.l || []).length; const d = (car.l || []).filter(line => line.done).length;
       lines += n; done += d; if (n && d === n) carsDone += 1;
     }
-    return { cars: (payload?.cars || []).length, carsDone, lines, done, missing };
+    return { cars: (payload?.cars || []).length, carsDone, lines, done, missing, xs, checked };
   }
   function lineHtml(car, line, canTick, view, now) {
     const id = `${car.id}|${line.id}`;
     const pending = view?.pending?.has(id);
     const fresh = line.done && line.at && now - Date.parse(line.at) < 120000;
     const who = line.done ? (line.by ? `${esc(line.by)}${line.at ? ` ${esc(hhmm(line.at))}` : ''}` : 'Done') : '';
+    const xed = line.x === true && !line.done;
+    const xWho = xed ? `${line.x_by ? esc(line.x_by) : ''}${line.x_at ? ` ${esc(hhmm(line.x_at))}` : ''}`.trim() : '';
     const hours = line.h != null && line.h !== '' ? `${esc(line.h)} h` : '';
-    return `<li class="st-line${line.done ? ' is-done' : ''}${fresh ? ' is-fresh' : ''}"><label>`
+    const xBtn = canTick ? `<button type="button" class="st-x" data-st-x="${esc(id)}" aria-pressed="${xed}"${line.done || pending ? ' disabled' : ''} aria-label="${esc(line.d)}: looked, not done" title="Looked at the car: this item is not done">✗</button>` : '';
+    return `<li class="st-line${line.done ? ' is-done' : ''}${xed ? ' is-x' : ''}${fresh ? ' is-fresh' : ''}"><div class="st-row"><label>`
       + `<input type="checkbox" data-st-tick="${esc(id)}"${line.done ? ' checked' : ''}${!canTick || pending ? ' disabled' : ''} aria-label="${esc(line.d)} done">`
       + `<span class="st-d">${esc(line.d)}${(view?.stations || []).length > 1 ? ` <em>${esc(STATION_LABEL[line.st] || line.st)}</em>` : ''}</span>`
-      + `<span class="st-meta">${who ? `<b>✓ ${who}</b>` : ''}${hours ? `<small>${hours}</small>` : ''}</span></label></li>`;
+      + `<span class="st-meta">${who ? `<b>✓ ${who}</b>` : ''}${xed ? `<b class="st-xwho">✗ Not done${xWho ? ` · ${xWho}` : ''}</b>` : ''}${hours ? `<small>${hours}</small>` : ''}</span></label>${xBtn}</div></li>`;
   }
   function carHtml(car, canTick, view, now) {
     const lines = car.l || [];
@@ -77,7 +85,7 @@
     const missBtn = canTick ? `<button type="button" class="st-missing" data-st-missing="${esc(car.id)}" aria-pressed="${car.missing === true}"${view?.pending?.has(`miss|${car.id}`) ? ' disabled' : ''}>${car.missing ? 'Found it' : 'Missing'}</button>` : '';
     const missNote = car.missing ? `<p class="st-miss-note">MISSING${car.missing_by ? ` · flagged by ${esc(car.missing_by)}${car.missing_at ? ` ${esc(hhmm(car.missing_at))}` : ''}` : ''}. Find it, then tap Found it.</p>` : '';
     return `<section class="st-car${all ? ' is-done' : ''}${car.missing ? ' is-missing' : ''}" data-st-car="${esc(car.id)}"><h3><span class="st-key">${car.k ? `Key ${esc(car.k)}` : 'No key'}</span>`
-      + `<span class="st-stock">${esc(car.s || '')}</span><span class="st-veh">${esc(car.v || '')}</span><span class="st-count">${done}/${lines.length}</span>${missBtn}</h3>`
+      + `<span class="st-stock">${esc(car.s || '')}</span><span class="st-veh">${esc(car.v || '')}</span>${carChecked(car) && !all ? '<span class="st-looked">✓ Looked at</span>' : ''}<span class="st-count">${done}/${lines.length}</span>${missBtn}</h3>`
       + `${missNote}${error ? `<p class="st-error" role="alert">${esc(error)}</p>` : ''}<ul>${lines.map(line => lineHtml(car, line, canTick, view, now)).join('')}</ul></section>`;
   }
   function panelHtml(payload, view, now = Date.now()) {
@@ -87,9 +95,9 @@
     const chips = STATIONS.map(([code, label]) => `<button type="button" class="st-chip" data-st-station="${code}" aria-pressed="${(view.stations || []).includes(code)}">${label}</button>`).join('');
     return `<div class="st-bar"><div class="st-chips" role="group" aria-label="Stations">${chips}</div>`
       + `<div class="st-tools"><input type="search" data-st-search placeholder="Key or stock number" aria-label="Find key or stock" value="${esc(view.search || '')}">`
-      + `<label class="st-open"><input type="checkbox" data-st-open${view.openOnly ? ' checked' : ''}> Hide finished cars</label>`
+      + `<label class="st-open"><input type="checkbox" data-st-open${view.openOnly ? ' checked' : ''}> Hide checked cars</label>`
       + `<label class="st-open st-open-miss"><input type="checkbox" data-st-missing-only${view.missingOnly ? ' checked' : ''}> Missing only</label></div>`
-      + `<p class="st-sum">${t.cars} cars at PMB · ${t.carsDone} finished · ${t.done} of ${t.lines} items ticked${t.missing ? ` · <b class="st-sum-miss">${t.missing} missing</b>` : ''}${canTick ? '' : ' · <b>view only: a controller login ticks items</b>'}`
+      + `<p class="st-sum">${t.cars} cars at PMB · ${t.checked} checked · ${t.carsDone} finished · ${t.done} of ${t.lines} items ticked${t.xs ? ` · <b class="st-sum-miss">${t.xs} not done</b>` : ''}${t.missing ? ` · <b class="st-sum-miss">${t.missing} missing</b>` : ''}${canTick ? '' : ' · <b>view only: a controller login ticks items</b>'}`
       + `<span class="st-live" title="Other people's ticks show here within about 5 seconds">Live${view.updated ? ` · ${esc(hhmm(view.updated))}` : ''}</span></p></div>`
       + (cars.length ? `<div class="st-list">${cars.map(car => carHtml(car, canTick, view, now)).join('')}</div>` : '<p class="st-empty">No cars match.</p>');
   }
@@ -186,12 +194,27 @@
         ? await root.setPanelLineCompletion(carId, lineId, completed)
         : await rpc('set_panel_line_completion_565', { p_vehicle_id: carId, p_line_identity: lineId, p_completed: completed });
       if (result?.ok !== true) state.view.errors.set(carId, ERRORS[result?.error] || 'Not saved. Try again.');
+      else if (completed && line.x) { line.x = false; await rpc('set_pdc_stock_take_x_723', { p_vehicle_id: carId, p_line_identity: lineId, p_x: false }).catch(() => null); } // r723: done clears the X
     } catch (_) {
       state.view.errors.set(carId, ERRORS.completion_unavailable);
     } finally {
       state.view.pending.delete(id);
       await load(); // everyone's latest, including this tick
     }
+  }
+  async function markX(id, on) {
+    const [carId, lineId] = id.split('|');
+    const car = (state.payload?.cars || []).find(entry => entry.id === carId);
+    const line = car?.l?.find(entry => entry.id === lineId);
+    if (!line || line.done || state.view.pending.has(id)) return;
+    state.view.pending.add(id); state.view.errors.delete(carId);
+    line.x = on; line.x_by = on ? (root.PDC_AUTH_CONTEXT?.displayName || 'You') : null; line.x_at = new Date().toISOString();
+    render();
+    try {
+      const result = await rpc('set_pdc_stock_take_x_723', { p_vehicle_id: carId, p_line_identity: lineId, p_x: on });
+      if (result?.ok !== true) state.view.errors.set(carId, ERRORS[result?.error] || 'Not saved. Try again.');
+    } catch (_) { state.view.errors.set(carId, ERRORS.completion_unavailable); }
+    finally { state.view.pending.delete(id); await load(); }
   }
   async function flagMissing(carId, missing) {
     const car = (state.payload?.cars || []).find(entry => entry.id === carId);
@@ -218,6 +241,8 @@
     });
     el.addEventListener('input', event => { if (event.target.matches?.('[data-st-search]')) { state.view.search = event.target.value; render(); } });
     el.addEventListener('click', event => {
+      const xb = event.target.closest?.('[data-st-x]');
+      if (xb) { event.preventDefault(); void markX(xb.dataset.stX, xb.getAttribute('aria-pressed') !== 'true'); return; }
       const miss = event.target.closest?.('[data-st-missing]');
       if (miss) { void flagMissing(miss.dataset.stMissing, miss.getAttribute('aria-pressed') !== 'true'); return; }
       const chip = event.target.closest?.('[data-st-station]');

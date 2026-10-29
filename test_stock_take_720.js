@@ -18,7 +18,7 @@ test('cars by key with who ticked, fresh ticks flash', () => {
   assert.ok(html.indexOf('Key 7') < html.indexOf('Key 12'));
   assert.match(html, /✓ Garrath 12:59/);
   assert.match(html, /st-line is-done is-fresh/);
-  assert.match(html, /2 cars at PMB · 1 finished · 2 of 3 items ticked/);
+  assert.match(html, /2 cars at PMB · 1 checked · 1 finished · 2 of 3 items ticked/);
   assert.match(html, /data-st-tick="v1\|source:b"/);
 });
 test('search by key (K7, 7) or stock; hide finished cars', () => {
@@ -69,4 +69,21 @@ test('Missing flag: shared, with who flagged it, and a Missing only filter', () 
   const sql = fs.readFileSync('supabase/migrations/20261029140000_r720_stock_take.sql', 'utf8');
   assert.match(sql, /CREATE FUNCTION public\.set_pdc_stock_take_missing_720\(p_vehicle_id uuid, p_missing boolean\)/);
   assert.match(sql, /IF v_role NOT IN \('operator', 'administrator'\) THEN RETURN jsonb_build_object\('ok', false, 'error', 'controller_required'\)/);
+});
+test('r723: X per item = looked at, not done; a car is checked when every item is ticked or X\'d', () => {
+  const p = { can_tick: true, cars: [{ id: 'v1', k: '7', s: 'S', v: 'HiLux', l: [
+    { id: 'source:a', st: 'FITTING', d: 'Towbar', h: 1, done: false, x: true, x_by: 'Oleg', x_at: '2026-10-29T05:40:00Z' },
+    { id: 'source:b', st: 'FITTING', d: 'Mats', h: 0.5, done: true, by: 'Craig', at: '2026-10-29T05:39:00Z' }] }] };
+  const html = st.panelHtml(p, view(), now);
+  assert.match(html, /st-line is-x/);
+  assert.match(html, /✗ Not done · Oleg 13:40/);
+  assert.match(html, /data-st-x="v1\|source:a" aria-pressed="true"/);
+  assert.match(html, /data-st-x="v1\|source:b" aria-pressed="false" disabled/, 'a ticked item has no X');
+  assert.match(html, /✓ Looked at/);
+  assert.match(html, /1 checked/);
+  assert.match(html, /1 not done/);
+  assert.equal(st.visibleCars(p, view({ openOnly: true })).length, 0, 'Hide checked cars hides it');
+  const js = fs.readFileSync('pdc-stock-take.js', 'utf8');
+  assert.match(js, /set_pdc_stock_take_x_723/);
+  assert.match(js, /r723: done clears the X/);
 });
