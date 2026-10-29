@@ -79,3 +79,13 @@ test('loads first after pdc-auto-reload.js and ships in the runtime', () => {
   assert.ok(html.indexOf('pdc-busy-overlay.js') < html.indexOf('pdc-deferred-script-order.js'));
   assert.ok(require('./scripts/build_pages_runtime.js').RUNTIME_FILES.includes('pdc-busy-overlay.js'));
 });
+
+test('r726 (F336): background calls and the Stock take page never raise the overlay', () => {
+  const o = require('./pdc-busy-overlay.js');
+  const u = 'https://x.supabase.co/rest/v1/rpc/';
+  assert.equal(o.quiet(u + 'record_pdc_usage_20260914', 'dashboard'), true);
+  assert.equal(o.quiet(u + 'record_pdc_login', 'dashboard'), true);
+  assert.equal(o.quiet(u + 'get_pdc_stock_take_rev_720', 'dashboard'), true);
+  assert.equal(o.quiet(u + 'set_panel_line_completion_565', 'stock-take'), true);
+  assert.equal(o.quiet(u + 'set_panel_line_completion_565', 'dashboard'), false, 'a real save elsewhere still shows it');
+});

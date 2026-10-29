@@ -18,6 +18,10 @@
   const HIDE_DELAY_MS = 150;
   const STEP_ASIDE_MS = 25000;
   const READ_RPC = /\/rpc\/(get_|list_|read_|load_|search_)/i;
+  // r726 (F336, Craig 29 Oct 14:06): background calls never raise the overlay. Moving between buckets logged page use
+  // (record_pdc_usage_*), which showed "Saving…" and blocked taps; the Stock take shows its own ticks at once.
+  const QUIET_RPC = /\/rpc\/(record_pdc_|pdc_my_sales_link|get_pdc_stock_take_|set_pdc_stock_take_)/i;
+  const QUIET_VIEWS = new Set(['stock-take']);
 
   function classify(url, method) {
     const text = String(url || '');
@@ -32,7 +36,10 @@
     if (!projectUrl) return /\.supabase\.co\/(rest|storage|functions)\/v1\//.test(text);
     return text.startsWith(String(projectUrl).replace(/\/$/, '') + '/');
   }
-  const api = { classify, isBoardRequest, INTENT_MS, SHOW_DELAY_MS, STEP_ASIDE_MS };
+  function quiet(url, view) {
+    return QUIET_RPC.test(String(url || '')) || QUIET_VIEWS.has(String(view || ''));
+  }
+  const api = { classify, isBoardRequest, quiet, INTENT_MS, SHOW_DELAY_MS, STEP_ASIDE_MS };
   if (typeof module === 'object' && module.exports) module.exports = api;
   if (!root || !root.document || typeof root.fetch !== 'function' || root.PDC_BUSY) return;
 
@@ -120,7 +127,7 @@
     const method = (init && init.method) || (input && typeof input === 'object' && input.method) || 'GET';
     const projectUrl = root.PDC_SUPABASE_CONFIG && root.PDC_SUPABASE_CONFIG.url;
     const userStarted = now() - lastIntent <= INTENT_MS || pending > 0;
-    if (!userStarted || !isBoardRequest(url, projectUrl)) return originalFetch(input, init);
+    if (!userStarted || !isBoardRequest(url, projectUrl) || quiet(url, doc.body && doc.body.dataset && doc.body.dataset.currentView)) return originalFetch(input, init);
     begin(classify(url, method));
     let result;
     try { result = originalFetch(input, init); } catch (error) { end(); throw error; }
