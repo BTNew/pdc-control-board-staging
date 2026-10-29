@@ -135,7 +135,8 @@ BEGIN
  LOOP
    INSERT INTO public.pdc_vehicle_key_assigned_562(vehicle_id,assigned_at,source,assigned_key)
    VALUES (r.id,(r.date_in::timestamp AT TIME ZONE 'Australia/Perth'),'assigned',r.key_number)
-   ON CONFLICT (vehicle_id) DO UPDATE SET assigned_at=EXCLUDED.assigned_at, source=EXCLUDED.source, assigned_key=EXCLUDED.assigned_key;
+   ON CONFLICT (vehicle_id) DO UPDATE SET assigned_at=EXCLUDED.assigned_at, source=EXCLUDED.source, assigned_key=EXCLUDED.assigned_key
+   WHERE public.pdc_vehicle_key_assigned_562.vehicle_id = EXCLUDED.vehicle_id;
    n_date:=n_date+1;
  END LOOP;
  RAISE NOTICE 'cleared %, set %, dated %', n_clear, n_set, n_date;
