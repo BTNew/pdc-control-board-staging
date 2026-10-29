@@ -11,5 +11,9 @@ test('panel header shows To PMB only when the vehicle can go to PMB', () => {
 });
 test('To PMB opens the same Send to PMB box (key number starts the timer)', () => {
   assert.match(js, /root\.transferYhVehicleToPmb\(button\.dataset\.vsoToPmb\)/);
-  assert.match(fs.readFileSync('canonical-entry.js', 'utf8'), /pdc-vehicle-slideout\.js\?[^']*&r696=2026\.10\.29\.r696(&r699=2026\.10\.29\.r699)?'/);
+  assert.match(fs.readFileSync('canonical-entry.js', 'utf8'), /pdc-vehicle-slideout\.js\?[^']*&r696=2026\.10\.29\.r696(&r699=2026\.10\.29\.r699)?(&r705=2026\.10\.29\.r705)?'/);
+});
+test('r705 (F315): after To PMB the panel closes and says sent, with the key', () => {
+  assert.match(js, /sent = await root\.transferYhVehicleToPmb\(button\.dataset\.vsoToPmb\) === true/);
+  assert.match(js, /if \(sent\) \{[\s\S]{0,200}close\(\);[\s\S]{0,200}sent to PMB\$\{keyNo \? `, key \$\{keyNo\}` : ''\}\. The PMB timer has started\./);
 });
