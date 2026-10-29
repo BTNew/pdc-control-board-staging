@@ -655,6 +655,19 @@
         });
         header.appendChild(button);
       }
+      // r721 (F331): Move all to ____ for this station's open lines.
+      header?.querySelectorAll('.vso-move-all').forEach(node => node.remove());
+      const openKeys = [...section.querySelectorAll('[data-vso-move]')].map(node => node.dataset.vsoMove).filter(Boolean);
+      if (header && openKeys.length && canMoveLines(key)) {
+        const current = section.querySelector('[data-vso-move]')?.dataset.vsoMoveFrom || move.category;
+        const choices = moveChoices(vehicle, openKeys[0]).filter(code => code !== current);
+        if (choices.length) {
+          header.insertAdjacentHTML('beforeend', `<label class="vso-move vso-move-all" title="Move every open line of this station (and their hours) to another station"><span>Move all to</span><select data-vso-move-all${edit.busy ? ' disabled' : ''}><option value="">Choose…</option>${choices.map(code => `<option value="${esc(code)}">${esc(categoryLabelOf(code))}</option>`).join('')}</select></label>`);
+          const all = header.querySelector('[data-vso-move-all]');
+          all?.addEventListener('click', event => event.stopPropagation());
+          all?.addEventListener('change', event => { event.stopPropagation(); if (all.value) void moveAllTo(key, openKeys, all.value, all); });
+        }
+      }
     });
   }
   function ensureCompletions(vehicle) {
@@ -741,8 +754,8 @@
       const line = (detailFor(vehicle)?.job_card_lines || []).find(row => row.line_identity === lineKey);
       if (!line) edit.note = 'This line could not be read. Nothing was moved.';
       else {
-        ok = (await root.saveVehicleWorkCategory({ value: category, disabled: false, dataset: { lineKey, categoryVersion: String(line.category_version || 0) }, closest: () => null })) === true;
-        edit.note = ok ? `Moved to ${label}. The hours went with it.` : 'Not moved: this line is done, or its station job has started or finished. Untick it or stop the job first. Nothing was changed.';
+        ok = (await root.saveVehicleWorkCategory({ value: category, disabled: false, dataset: { lineKey, categoryVersion: String(line.category_version || 0) }, closest: () => null }, { release: true })) === true; // r721: no confirm pop-up
+        edit.note = ok ? `Moved to ${label}. The hours went with it.` : 'Not moved: this line is ticked, or its station job is running. Untick it or stop the job first. Nothing was changed.';
       }
     } catch (_) {
       ok = false; edit.note = 'The line was not moved. Nothing was changed.';
@@ -750,11 +763,38 @@
     redraw(key);
     return ok;
   }
+  // r721 (F331, Craig 29 Oct 13:22): "Move all to ____" on a station heading moves every open line of that station
+  // (e.g. all Electrical to Fitting), one line at a time through the same save as the line's own Move to.
+  async function moveAllTo(key, lineKeys, category, select) {
+    const label = categoryLabelOf(category);
+    if (!category || !lineKeys.length) { if (select) select.value = ''; return false; }
+    if (edit.busy) { if (select) select.value = ''; return false; }
+    if (edit.key === key && editDirty()) { if (select) select.value = ''; edit.note = 'Save or cancel the hour changes first, then move the lines.'; redraw(key); return false; }
+    if (!selectForEdit(key)) { if (select) select.value = ''; edit.note = 'Close the vehicle card first. Nothing was moved.'; redraw(key); return false; }
+    edit.busy = true;
+    if (select) select.disabled = true;
+    let moved = 0; let left = 0;
+    try {
+      const vehicle = editVehicle(key);
+      for (const lineKey of lineKeys) {
+        edit.note = `Moving ${moved + left + 1} of ${lineKeys.length} to ${label}…`;
+        await readDetail(vehicle); // fresh vehicle version and the line's category version for each move
+        const line = (detailFor(vehicle)?.job_card_lines || []).find(row => row.line_identity === lineKey);
+        const ok = line ? (await root.saveVehicleWorkCategory({ value: category, disabled: false, dataset: { lineKey, categoryVersion: String(line.category_version || 0) }, closest: () => null }, { release: true })) === true : false;
+        if (ok) moved += 1; else left += 1;
+      }
+      edit.note = left ? `Moved ${moved} of ${lineKeys.length} to ${label}. ${left} stayed: ticked, or their station job is running.` : `Moved all ${moved} to ${label}. The hours went with them.`;
+    } catch (_) {
+      edit.note = `Moved ${moved} to ${label}. The rest were not moved.`;
+    } finally { edit.busy = false; }
+    redraw(key);
+    return left === 0;
+  }
   function loadStyles() {
     if (doc.querySelector('link[data-pdc-vehicle-slideout]')) return;
     const link = doc.createElement('link');
     link.rel = 'stylesheet';
-    link.href = `pdc-vehicle-slideout.css?vehicle-slideout=${VERSION}&r681=2026.10.29.r681&r699=2026.10.29.r699`; // r681 (F291): tidy Edit hours, description box on hover only. r695 (F305): Override location and Move to a bay styles
+    link.href = `pdc-vehicle-slideout.css?vehicle-slideout=${VERSION}&r681=2026.10.29.r681&r699=2026.10.29.r699&r721=2026.10.29.r721`; // r681 (F291): tidy Edit hours, description box on hover only. r695 (F305): Override location and Move to a bay styles
     link.dataset.pdcVehicleSlideout = '1';
     doc.head.appendChild(link);
   }

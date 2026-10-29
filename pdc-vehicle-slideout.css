@@ -167,3 +167,6 @@
 #vso-shell .vso-move span { white-space: nowrap; }
 #vso-shell .vso-move select { height: 26px; max-width: 9.5rem; padding: 0 4px; border: 1px solid #94a3b8; border-radius: 6px; background: #fff; font: 12px Arial, Helvetica, sans-serif; color: #0f172a; cursor: pointer; }
 #vso-shell .vso-move select:disabled { opacity: .6; cursor: progress; }
+/* r721 (F331): Move all to ____ on a station heading. */
+#vso-shell .vso-move-all { display: inline-flex; align-items: center; gap: 6px; margin-left: auto; margin-right: 8px; font-size: 12px; font-weight: 800; color: #1d4ed8; }
+#vso-shell .vso-move-all select { border-color: #1d4ed8; font-weight: 700; }
