@@ -157,7 +157,7 @@ const RUNTIME_FILES = Object.freeze([
   'pdc-running-row.css',
   'pdc-copyright.css',
   'pd-department-navigation.js',
-  'pdc-auto-reload.js',
+  'pdc-auto-reload.js', 'pdc-busy-overlay.js',
   'sales/assets/broome-toyota-logo.png', 'sales/assets/karratha-toyota-logo.svg', 'sales/build-requirements.css',
   'sales/build-requirements.js', 'sales/crm-workspace.css',
   'sales/crm-workspace.js', 'sales/customer-emails.js', 'sales/dashboard-tools.js',
