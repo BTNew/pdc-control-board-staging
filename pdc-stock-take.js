@@ -129,7 +129,8 @@
     }).join('')}</ul>`;
   }
   function foundBoxHtml(view, canTick) {
-    const rows = Array.isArray(view?.found) ? view.found : [];
+    if (!Array.isArray(view?.found)) return ''; // r725: the box shows once the server has the found list (r724 DB)
+    const rows = view.found;
     const form = canTick ? `<form class="st-found-form" data-st-found-form autocomplete="off">`
       + `<input data-st-found-key inputmode="numeric" maxlength="32" placeholder="Key number" aria-label="Key number">`
       + `<input data-st-found-stock maxlength="40" placeholder="Stock number" aria-label="Stock number">`
@@ -208,7 +209,7 @@
         rpc('get_pdc_stock_take_720', { p_stations: state.view.stations }),
         rpc('get_pdc_stock_take_found_724', {}).catch(() => null),
       ]);
-      if (found?.ok === true) state.view.found = found.found || [];
+      if (found?.ok === true) { if (!Array.isArray(state.view.found)) state.barDirty = true; state.view.found = found.found || []; }
       if (gen !== saveGen) return; // r725: a tick landed while this was loading; keep it, settle() loads again
       state.payload = payload; state.error = ''; state.rev = payload?.rev || ''; state.lastFull = Date.now(); state.view.updated = payload?.now || '';
     } catch (error) { state.error = error?.message || 'Could not load the stock take.'; }
