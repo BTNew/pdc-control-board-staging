@@ -18,7 +18,7 @@
   const categories = [
     ['all','All vehicles'],['unconfirmed','Awaiting stock'],['production','Production'],
     ['transit','In Transit'],['hold','Hold/Waiting'],['yardhold','YH / Yard Hold'],
-    ['released','Released'],['autocare','Dispatched Autocare'],['dealer','Dealer'],['unknown','Status not recorded']
+    ['pmb','At PMB'],['released','Released'],['autocare','Dispatched Autocare'],['dealer','Dealer'],['unknown','Status not recorded']
   ];
   function escapeHtml(value) {
     return String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -52,6 +52,17 @@
     if (/ready for shipment|in transit|wharf|shipment/.test(status)) return 'transit';
     if (/delivered.*dealer|at dealer/.test(status)) return 'dealer';
     return 'unknown';
+  }
+  function atPmbWithKey(row){
+    if(!row||!String(row.key_number||'').trim())return false;
+    return !(row.lifecycle_state==='completed'||String(row.pmb_location||'').trim().toLowerCase()==='completed');
+  }
+  // r737 (F346, Craig 30 Oct): an "At PMB" tile on the sales dashboard. A car with a key number is at Perth Motor Bodies
+  // and sits in At PMB instead of its Toyota status tile (mostly Released). Dealer and Dispatched Autocare still win.
+  // category() itself is unchanged, so the status pill colour and the server mirror (sales_tracker_tile) are untouched.
+  function tileOf(row){
+    const c=category(row);
+    return c!=='dealer'&&c!=='autocare'&&atPmbWithKey(row)?'pmb':c;
   }
   function flag(value) {
     if (value === true || /^(?:yes|true|1)$/i.test(String(value).trim())) return 'yes';
@@ -102,7 +113,7 @@
   function selectRows(rows, filters) {
     const search = String(filters.search || '').toLowerCase();
     return scopeRows(rows,filters.salesperson,filters.visibility||'visible').filter(row =>
-      (filters.category === 'all' || category(row) === filters.category) && quickMatch(row,filters.quick,filters.today) &&
+      (filters.category === 'all' || tileOf(row) === filters.category) && quickMatch(row,filters.quick,filters.today) &&
       (!filters.salesperson || row.salesperson_code === filters.salesperson) &&
       (!filters.month || row.production_month === filters.month) &&
       (!filters.status || row.toyota_status === filters.status) &&
@@ -155,7 +166,7 @@
     if(parts.required===true)return 'Parts required · order not confirmed';
     return 'Not recorded';
   }
-  const api = { vehicleReference, salespeople, categories, yardLocationCode, yardTextCodes, category, salesStatus, dispatchEligible, flag, scopeRows, selectRows, quickMatch, escapeHtml, pmbSummary, pmbStationsHtml, isRunningBooking, pmbStatusTone, pmbStatusCell, partsStatus, bookingStatus, orderingState, orderingControl, nextOrderingState };
+  const api = { vehicleReference, salespeople, categories, yardLocationCode, yardTextCodes, category, tileOf, atPmbWithKey, salesStatus, dispatchEligible, flag, scopeRows, selectRows, quickMatch, escapeHtml, pmbSummary, pmbStationsHtml, isRunningBooking, pmbStatusTone, pmbStatusCell, partsStatus, bookingStatus, orderingState, orderingControl, nextOrderingState };
   if (typeof module === 'object' && module.exports) module.exports = api;
   if (!root.document) return;
   const $ = id => root.document.getElementById(id);
@@ -242,7 +253,7 @@
     for(const id of ['sales-month-filter','sales-status-filter'])$(id).innerHTML='';
 
   }
-  const categoryDescriptions={all:'COSI sold vehicles in this view',unconfirmed:'Rows without a stock number',production:'Production, line off and overseas wharf',transit:'Shipment, WA and Eastern States transit, wharf',yardhold:'Navision YH yard hold (and any new Y code)',hold:'Waiting PD1 / PD2, delayed and waiting for wholesale',released:'Body builder, TWA despatch and ready for transport',autocare:'Marked as dispatched by Autocare',dealer:'Delivered to the dealer',unknown:'Toyota status needs confirmation'};
+  const categoryDescriptions={all:'COSI sold vehicles in this view',unconfirmed:'Rows without a stock number',production:'Production, line off and overseas wharf',transit:'Shipment, WA and Eastern States transit, wharf',yardhold:'Navision YH yard hold (and any new Y code)',hold:'Waiting PD1 / PD2, delayed and waiting for wholesale',pmb:'Key number given · at Perth Motor Bodies',released:'Body builder, TWA despatch and ready for transport',autocare:'Marked as dispatched by Autocare',dealer:'Delivered to the dealer',unknown:'Toyota status needs confirmation'};
   function showView(view) {
     if(!viewNames.includes(view))return;
     if(state.detailId){state.detailId=null;$('sales-detail').close();$('sales-detail-content').innerHTML='';}
@@ -268,7 +279,7 @@
   function renderSecondaryViews() {
     const scoped=scopeRows(state.items,state.filters.salesperson);
     if(state.view==='pipeline')html('sales-pipeline',categories.filter(([key])=>key!=='all').map(([key,label])=>{
-      const rows=scoped.filter(r=>category(r)===key);
+      const rows=scoped.filter(r=>tileOf(r)===key);
       return '<section class="pipeline-column"><h2>'+label+' <span>'+rows.length+'</span></h2>'+
         (rows.length?rows.map(r=>'<button class="pipeline-card" type="button" data-open="'+escapeHtml(r.tracking_id)+'"><strong>'+escapeHtml(vehicleReference(r))+'</strong><p>'+escapeHtml(r.client||'Customer not recorded')+'</p><p>'+escapeHtml(r.vehicle||'Vehicle not recorded')+'</p><span class="status-pill '+key+'">'+escapeHtml(salesStatus(r))+'</span>'+(r.pmb_location?'<p>PMB: '+escapeHtml(r.pmb_location)+'</p>':'')+'</button>').join(''):'<div class="empty-state">No vehicles</div>')+'</section>';
     }).join(''));else html('sales-pipeline','');
@@ -313,7 +324,7 @@
     $('sales-tracker-help').textContent=state.showHidden?'These vehicles are hidden from the sales dashboard, My Day, labels and customer email lists. Choose Show on sales planner in the Action menu to restore a vehicle. Vehicles absent from the latest successful Navision update are removed from both lists.':'';
     html('status-tabs',categories.map(([key,label]) => '<button type="button" data-category="'+key+
       '" class="status-card '+key+(state.filters.category===key?' active':'')+'" aria-pressed="'+(state.filters.category===key)+'">'+
-      '<span>'+label+'</span><strong>'+scoped.filter(r=>key==='all'||category(r)===key).length+'</strong><small>'+categoryDescriptions[key]+'</small></button>').join(''));
+      '<span>'+label+'</span><strong>'+scoped.filter(r=>key==='all'||tileOf(r)===key).length+'</strong><small>'+categoryDescriptions[key]+'</small></button>').join(''));
     html('sales-summary','<span>'+rows.length+(state.showHidden?' hidden vehicles shown':' vehicles shown')+'</span><span>'+
       (state.showHidden?rows:scoped).filter(r=>r.canonical_vehicle_id).length+' linked to PMB</span><span>'+state.selected.size+' selected</span>');
     $('sales-data-count').textContent=scoped.length+' COSI vehicles · Navision';
@@ -385,10 +396,6 @@
   function resizeHandle(index,label){return '<span class="column-resize" role="separator" tabindex="0" data-resize="'+index+'" aria-orientation="vertical" aria-label="Resize '+escapeHtml(label)+' column" aria-valuemin="40" aria-valuemax="600" title="Drag to resize. Arrow keys adjust width; Home or double-click resets."></span>';}
   // r729 (F345, Craig 29 Oct): on the sales list, a car at PMB (it has a key number) shows its key age (days since the
   // key number was given, the same count as the PMB board) in place of the Kewdale ETA. Cars not at PMB keep the ETA.
-  function atPmbWithKey(row){
-    if(!row||!String(row.key_number||'').trim())return false;
-    return !(row.lifecycle_state==='completed'||String(row.pmb_location||'').trim().toLowerCase()==='completed');
-  }
   function keyAgeDays(raw){
     const ms=raw?new Date(raw).getTime():NaN;
     if(!Number.isFinite(ms))return null;
