@@ -691,10 +691,16 @@
   }
 
   // ---- r694 (F304): "Move to a bay" box at the bottom of the panel ----
-  // One row per station that has bays and outstanding lines. Pick a bay, a date and a start time, press Book / Move.
-  // placeOnBay keeps the planner's own rules (moveWorkshopDroppedPlan for a booking, scheduleWorkshopVehicle otherwise).
+  // One row per station that has bays and open lines. Pick a bay, a date and a start time, press Book / Move.
+  // Administrators only: the panel sends the same receipt-backed commands the Workshop Planner sends for an
+  // administrator (administrator_schedule_workshop_vehicle for a new booking, administrator_move_workshop_booking
+  // for an existing one), with cascade on so later jobs in that bay move back. The server keeps every rule
+  // (versions, overlaps, running jobs, bay rules). A bay-rule question is asked with confirm(), as in the planner;
+  // a "place after the running job" or "push later jobs back" answer is accepted, as in the planner.
   const STAGE_LABEL = Object.freeze({ HOIST: 'Hoist', FITTING: 'Fitting', FABRICATION: 'Fab', ELECTRICAL: 'Electrical', TINT: 'Tint', TYRE: 'Tyres', BUS_4X4: 'Bus 4×4', PIT_INSPECTION: 'Pit' });
+  const BOOK_FIXED = new Set(['started', 'in_progress', 'running', 'stoppage', 'paused', 'completed', 'cancelled', 'deleted']);
   const bay = { busy: false, note: '', noteKey: '' };
+  const isAdministrator = () => String(root.PDC_AUTH_CONTEXT?.role || '').trim().toLowerCase() === 'administrator';
   function pad(n) { return String(n).padStart(2, '0'); }
   function bayLabelFor(stage, number) {
     try { return root.PDC_WORKSHOP_DEPARTMENTS?.bayLabel?.(stage, number) || `Bay ${pad(number)}`; } catch (_) { return `Bay ${pad(number)}`; }
@@ -704,41 +710,56 @@
     const now = Date.now();
     const at = startAt ? Date.parse(startAt) : NaN;
     if (Number.isFinite(at) && at > now) return perthParts(new Date(at).toISOString());
-    const next = new Date(Math.ceil(now / 900000) * 900000);
-    return perthParts(next.toISOString());
+    return perthParts(new Date(Math.ceil(now / 900000) * 900000).toISOString());
   }
-  function bayRows(block) {
+  function minutesText(value) { const n = Number(value) || 0; return `${pad(Math.floor(n / 60))}:${pad(n % 60)}`; }
+  function bookingFor(detail, move) {
+    const rows = Array.isArray(detail?.bookings) ? detail.bookings : [];
+    return rows.find(b => String(b.stage_code || '').toUpperCase() === move.stage
+      && (!b.work_category || !move.category || b.work_category === move.category)
+      && !['completed', 'cancelled', 'deleted'].includes(String(b.status || '').toLowerCase())) || null;
+  }
+  function bayNumbersFor(move) {
+    const fromDept = bayNumbers(move);
+    if (fromDept.length) return fromDept;
+    const count = Number(root.PDC_WORKSHOP_DEPARTMENTS?.PMB_BAY_COUNTS?.[move.stage] || 0);
+    return count > 0 ? Array.from({ length: count }, (_, i) => i + 1) : [];
+  }
+  function bayRows(block, detail) {
     const rows = [];
     block.querySelectorAll('[data-operation-station]').forEach(section => {
-      const stationKey = section.dataset.operationCategory || '';
-      const move = STATION_MOVE[stationKey];
+      const move = STATION_MOVE[section.dataset.operationCategory || ''];
       if (!move || !move.category || rows.some(row => row.move.stage === move.stage && row.move.category === move.category)) return;
-      const numbers = bayNumbers(move);
+      const numbers = bayNumbersFor(move);
       if (!numbers.length) return;
       const lines = [...section.querySelectorAll('li[data-operation-source-id]')];
       const open = lines.filter(li => !li.classList.contains('is-complete'));
       if (!lines.length || !open.length) return;
       const hours = open.reduce((sum, li) => sum + (Number(li.dataset.vsoHours) || 0), 0);
       const label = section.querySelector('header strong')?.textContent?.trim() || STAGE_LABEL[move.stage] || move.stage;
-      rows.push({ move, numbers, hours, label, found: planFor({ stage: move.stage, category: move.category }) });
+      rows.push({ move, numbers, hours, label, booking: bookingFor(detail, move) });
     });
     return rows;
   }
-  function minutesText(value) { const n = Number(value) || 0; return `${pad(Math.floor(n / 60))}:${pad(n % 60)}`; }
-  function bayBoxHtml(key, rows) {
+  function bayBoxHtml(key, rows, loading) {
     const items = rows.map((row, index) => {
-      const current = row.found && Number(row.found.bay) > 0
-        ? `In ${esc(bayLabelFor(row.move.stage, Number(row.found.bay)))}${row.found.startAt ? ` · ${esc(whenLabel(row.found.startAt))}` : ''}`
-        : row.found ? 'Booked, no bay yet' : 'Not booked';
-      const start = defaultStart(row.found?.startAt);
-      const options = row.numbers.map(number => `<option value="${number}"${Number(row.found?.bay) === number ? ' selected' : ''}>${esc(bayLabelFor(row.move.stage, number))}</option>`).join('');
+      const b = row.booking;
+      const inBay = b && Number(b.bay_number) > 0;
+      const fixed = b && BOOK_FIXED.has(String(b.status || '').toLowerCase());
+      const current = loading ? 'Pick a bay to book or move it'
+        : inBay ? `In ${esc(bayLabelFor(row.move.stage, Number(b.bay_number)))}${b.scheduled_start_at ? ` · ${esc(whenLabel(b.scheduled_start_at))}` : ''}`
+          : b ? 'Booked, no bay yet' : 'Not booked';
+      const start = defaultStart(b?.scheduled_start_at);
+      const options = row.numbers.map(number => `<option value="${number}"${Number(b?.bay_number) === number ? ' selected' : ''}>${esc(bayLabelFor(row.move.stage, number))}</option>`).join('');
+      const go = fixed ? `<span class="vso-book-fixed">${esc(String(b.status))}: move it in Workshop Planner</span>`
+        : `<button type="button" class="vso-book-go" data-vso-book-go${bay.busy ? ' disabled' : ''}>${loading ? 'Book / Move' : inBay ? 'Move' : 'Book'}</button>`;
       return `<li class="vso-bookrow" data-vso-book-row="${index}">
         <div class="vso-book-what"><strong>${esc(row.label)}</strong><small>${row.hours ? `${row.hours.toFixed(2)} h open · ` : ''}${current}</small></div>
         <div class="vso-book-pick">
-          <label><span>Bay</span><select data-vso-book-bay${row.found && Number(row.found.bay) > 0 ? '' : ' required'}>${row.found && Number(row.found.bay) > 0 ? '' : '<option value="">Choose…</option>'}${options}</select></label>
+          <label><span>Bay</span><select data-vso-book-bay>${inBay ? '' : '<option value="">Choose…</option>'}${options}</select></label>
           <label><span>Date</span><input type="date" data-vso-book-date value="${esc(start.dateKey)}"></label>
           <label><span>Start</span><input type="time" step="900" data-vso-book-time value="${esc(minutesText(start.startMinutes))}"></label>
-          <button type="button" class="vso-book-go" data-vso-book-go${bay.busy ? ' disabled' : ''}>${row.found && Number(row.found.bay) > 0 ? 'Move' : 'Book'}</button>
+          ${go}
         </div>
       </li>`;
     }).join('');
@@ -749,11 +770,16 @@
     const body = panel.querySelector('.vso-body');
     if (!body) return;
     let box = body.querySelector(':scope > .vso-book');
-    if (!isController() || (typeof root.moveWorkshopDroppedPlan !== 'function' && typeof root.scheduleWorkshopVehicle !== 'function')) { box?.remove(); return; }
-    const rows = bayRows(block);
+    const vehicle = editVehicle(key);
+    const ready = isAdministrator() && typeof root.loadVehicleWorkshopDetail === 'function' && typeof root.vehiclePanelBookingCommand === 'function' && !!canonicalIdFor(vehicle);
+    if (!ready) { box?.remove(); return; }
+    // Speed rule: opening the panel reads nothing extra. The bookings are read when Book / Move is pressed
+    // (or are already here after Edit or an earlier booking), so the current bay shows when it is known.
+    const detail = detailFor(vehicle);
+    const rows = bayRows(block, detail);
     if (!rows.length) { box?.remove(); return; }
-    const html = bayBoxHtml(key, rows);
-    if (box && box.dataset.vsoBookKey === key && box._vsoHtml === html) return; // nothing changed: keep what the user typed
+    const html = bayBoxHtml(key, rows, !detail);
+    if (box && box.dataset.vsoBookKey === key && box._vsoHtml === html) return; // nothing changed: keep what the user picked
     if (!box) { box = doc.createElement('section'); box.className = 'vso-book'; box.setAttribute('aria-label', 'Move to a bay'); }
     box.dataset.vsoBookKey = key;
     box.innerHTML = html;
@@ -764,29 +790,82 @@
       li.querySelector('[data-vso-book-go]')?.addEventListener('click', event => { event.stopPropagation(); void bookBay(key, row, li); });
     });
   }
+  // Writes go through app.js (vehiclePanelBookingCommand); this file still calls no RPC or fetch itself.
+  const bookingRpc = (name, params) => (typeof root.vehiclePanelBookingCommand === 'function'
+    ? Promise.resolve(root.vehiclePanelBookingCommand(name, params)).catch(() => ({ ok: false, error: 'unreachable' }))
+    : Promise.resolve({ ok: false, error: 'booking_unavailable' }));
+  const newRequestId = () => (root.crypto?.randomUUID ? root.crypto.randomUUID() : `${Date.now()}-${Math.random()}`);
+  const isWarning = (result, error) => Boolean(result && result.ok === false && result.warning === true && result.requires_confirmation === true
+    && (error ? result.error === error && typeof result.plan_hash === 'string' && result.plan_hash : Array.isArray(result.rules) && result.rules.length));
+  // The planner's own answer loop (workshopConfirmBayRuleWarning): ask a bay rule once; accept place-after / push-later once.
+  async function bookingWithAnswers(name, params) {
+    let current = params;
+    let result = await bookingRpc(name, current);
+    for (let round = 0; round < 3; round += 1) {
+      if (isWarning(result) && !current.p_metadata?.bay_rule_confirm) {
+        const rules = result.rules.map(rule => String(rule?.message || rule?.rule || '')).filter(Boolean);
+        if (typeof root.confirm !== 'function' || !root.confirm(`${result.message || 'This bay has a rule for this work.'}\n\n${rules.join('\n')}\n\nBook it here anyway?`)) return { ok: false, cancelled: true };
+        current = { ...current, p_metadata: { ...(current.p_metadata || {}), bay_rule_confirm: { rules: result.rules.map(rule => String(rule?.rule || '')).filter(Boolean) } }, p_request_id: newRequestId() };
+      } else if (isWarning(result, 'place_after_running') && !current.p_metadata?.place_after_confirm) {
+        current = { ...current, p_metadata: { ...(current.p_metadata || {}), place_after_confirm: { plan_hash: result.plan_hash } }, p_request_id: newRequestId() };
+      } else if (isWarning(result, 'later_bookings_warning') && !current.p_metadata?.push_later_confirm) {
+        current = { ...current, p_metadata: { ...(current.p_metadata || {}), push_later_confirm: { plan_hash: result.plan_hash } }, p_request_id: newRequestId() };
+      } else return result;
+      result = await bookingRpc(name, current);
+    }
+    return result;
+  }
+  // Only when Book / Move is pressed: this one vehicle's bookings and version (the read Edit makes).
+  const readBookings = vehicle => Promise.resolve(root.loadVehicleWorkshopDetail(vehicle, { force: true }));
   async function bookBay(key, row, li) {
-    if (bay.busy || edit.busy || !row) return false;
+    if (bay.busy || edit.busy || !row || !isAdministrator()) return false;
     const number = Number(li.querySelector('[data-vso-book-bay]')?.value);
     const dateKey = String(li.querySelector('[data-vso-book-date]')?.value || '');
     const [hh, mm] = String(li.querySelector('[data-vso-book-time]')?.value || '').split(':').map(Number);
     bay.noteKey = key;
     if (!Number.isInteger(number) || number < 1) { bay.note = `Choose a bay for ${row.label}.`; redraw(key); return false; }
     if (!/^\d{4}-\d{2}-\d{2}$/.test(dateKey) || !Number.isInteger(hh) || !Number.isInteger(mm)) { bay.note = 'Choose a date and start time.'; redraw(key); return false; }
+    const vehicle = editVehicle(key);
+    const vehicleId = canonicalIdFor(vehicle);
     const label = bayLabelFor(row.move.stage, number);
+    const startIso = new Date(`${dateKey}T${pad(hh)}:${pad(mm)}:00+08:00`).toISOString(); // Perth, no daylight saving
     bay.busy = true; edit.busy = true; bay.note = `Booking ${row.label} into ${label}…`;
     li.querySelector('[data-vso-book-go]').disabled = true;
     const msg = li.closest('.vso-book')?.querySelector('.vso-book-msg');
     if (msg) msg.textContent = bay.note;
-    let ok = false;
-    edit.note = '';
+    let result = null;
     try {
-      ok = await placeOnBay({ action: 'bay', stage: row.move.stage, category: row.move.category, bay: number, hours: row.hours || null,
-        planId: row.found?.id || '', bookingId: row.found?.sharedBookingId || '' }, { dateKey, startMinutes: hh * 60 + mm });
-    } catch (_) { ok = false; }
+      // Read the vehicle's bookings and version again just before writing, so the command carries the current versions.
+      await readBookings(vehicle);
+      const detail = detailFor(vehicle);
+      const booking = bookingFor(detail, row.move);
+      if (!detail) result = { ok: false, error: 'This vehicle\'s bookings could not be read. Nothing was changed.' };
+      else if (booking && BOOK_FIXED.has(String(booking.status || '').toLowerCase())) result = { ok: false, error: `${row.label} has already started. Move it in Workshop Planner.` };
+      else if (booking) {
+        result = await bookingWithAnswers('administrator_move_workshop_booking', {
+          p_booking_id: booking.booking_id, p_expected_version: Number(booking.booking_version ?? booking.version),
+          p_stage_code: row.move.stage, p_bay_number: number, p_scheduled_start_at: startIso,
+          p_duration_minutes: Math.max(15, Number(booking.default_duration_minutes) || Math.round((row.hours || 0) * 60) || 60),
+          p_override_reason: null, p_metadata: { source: 'vehicle_panel_move_694', reason: 'website_drag_drop' },
+          p_request_id: newRequestId(), p_cascade: true,
+        });
+      } else {
+        result = await bookingWithAnswers('administrator_schedule_workshop_vehicle', {
+          p_vehicle_id: vehicleId, p_vehicle_expected_version: Number(detail.vehicle_version),
+          p_stage_code: row.move.stage, p_bay_number: number, p_scheduled_start_at: startIso,
+          p_duration_minutes: Math.max(15, Math.round((row.hours || 0) * 60) || 60), p_technician_id: null,
+          p_metadata: { source: 'vehicle_panel_book_694', reason: 'website_drag_drop', work_category: row.move.category },
+          p_request_id: newRequestId(), p_cascade: true,
+        });
+      }
+    } catch (_) { result = { ok: false, error: 'unreachable' }; }
     finally { bay.busy = false; edit.busy = false; }
-    bay.note = ok ? `${row.label} booked into ${label}.` : (edit.note && edit.note !== 'Nothing was moved.' ? edit.note : `${row.label} was not booked. Nothing was changed.`);
-    edit.note = '';
-    redraw(key);
+    const ok = result?.ok === true;
+    bay.note = ok ? `${row.label} booked into ${label} at ${pad(hh)}:${pad(mm)} on ${dateKey}.`
+      : result?.cancelled ? 'Cancelled. Nothing was changed.'
+        : `${row.label} was not booked: ${String(result?.message || result?.error || 'the server refused it')}. Nothing was changed.`;
+    try { await readBookings(vehicle); } catch (_) { /* the box redraws from what it has */ }
+    redraw(key); // the board itself picks up the new booking on its next live refresh
     return ok;
   }
   function loadStyles() {

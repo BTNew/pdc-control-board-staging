@@ -310,7 +310,8 @@ test('4. speed guard: the board reads nothing; a panel open reads the completion
   assert.equal(b.reads().length, 1);
   assert.equal(b.reads()[0].body.p_vehicle_id, b.rows[7].id);
   assert.equal(b.spies.tableRenders + b.spies.boardRenders, 0, 'Edit draws the panel only');
-  assert.equal((CODE.match(/loadVehicleWorkshopDetail\(/g) || []).length, 1);
+  assert.equal((CODE.match(/loadVehicleWorkshopDetail\(/g) || []).length, 2, 'Edit, and r694 (F304) Move to a bay when Book / Move is pressed');
+  assert.match(CODE, /const readBookings = vehicle => Promise\.resolve\(root\.loadVehicleWorkshopDetail\(vehicle, \{ force: true \}\)\);/);
   assert.match(/function startEdit\(key\) \{[\s\S]*?\n {2}\}/.exec(CODE)[0], /root\.loadVehicleWorkshopDetail\(vehicle, \{ force: true \}\)/);
   const r496 = CODE.slice(CODE.indexOf('const EDIT_NEEDS'), CODE.indexOf('function loadStyles'));
   assert.doesNotMatch(r496, /VLT\.render|renderAll|renderIncomingDashboardBoard|refreshEmailVehicleLocations|renderDetail\(/);

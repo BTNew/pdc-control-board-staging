@@ -16209,6 +16209,28 @@ async function setStationCompletionOverride(vehicleId, workKey, completed) {
   }
 }
 
+// r694 (F304): the vehicle side panel's "Move to a bay" box. Only the two receipt-backed administrator booking
+// commands the Workshop Planner sends for an administrator; the server checks role, versions, overlaps and bay rules.
+const VEHICLE_PANEL_BOOKING_COMMANDS = Object.freeze(['administrator_schedule_workshop_vehicle', 'administrator_move_workshop_booking']);
+async function vehiclePanelBookingCommand(name, params) {
+  if (!VEHICLE_PANEL_BOOKING_COMMANDS.includes(name)) return { ok: false, error: 'unknown_command' };
+  const config = window.PDC_SUPABASE_CONFIG || {};
+  const token = typeof getPdcSupabaseAccessToken === 'function' ? getPdcSupabaseAccessToken() : null;
+  if (!token || !config.url || !config.publishableKey) return { ok: false, error: 'not_signed_in' };
+  try {
+    const response = await fetch(`${String(config.url).replace(/\/$/, '')}/rest/v1/rpc/${name}`, {
+      method: 'POST',
+      headers: { apikey: config.publishableKey, Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify(params || {}),
+    });
+    const body = await response.json().catch(() => null);
+    if (!response.ok) return { ok: false, error: body?.message || body?.code || `HTTP ${response.status}`, http: response.status };
+    return body && typeof body === 'object' ? body : { ok: false, error: 'no_reply' };
+  } catch (_) {
+    return { ok: false, error: 'unreachable' };
+  }
+}
+
 // r399: Mechanical, Electrical or Accessories work finished before the board
 // went live has no booking to press Done on, so it would sit in Unallocated
 // forever. Operators record it as done with a reason; the server keeps the

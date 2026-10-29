@@ -177,3 +177,4 @@
 #vso-shell .vso-book-go { height: 32px; padding: 0 18px; border: 0; border-radius: 8px; background: #1d4ed8; color: #fff; font: 700 13px Arial, Helvetica, sans-serif; cursor: pointer; }
 #vso-shell .vso-book-go:hover { background: #1e40af; }
 #vso-shell .vso-book-go:disabled { opacity: .6; cursor: progress; }
+#vso-shell .vso-book-fixed { font-size: 12px; font-weight: 700; color: #92400e; text-transform: capitalize; }

@@ -238,6 +238,8 @@ r494c (F107b, site slow after the stack went live): the board's **PO to raise** 
 - A red **Override location** button sits in the top row (operator, administrator). It opens the same dialog as the
   vehicle card (pdc-location-override.js, `PDC_OPEN_LOCATION_OVERRIDE`).
 - Station lists show the jobs only: no booking chips and no bay chips. Edit still drags a line onto another station.
-- **Move to a bay** at the bottom: one row per station with bays and open lines. Pick bay, date and start time, then
-  Book (no booking yet) or Move (booked). It calls `placeOnBay`, so planner rules (resequence, push later jobs) apply.
+- **Move to a bay** at the bottom (administrators): one row per station with bays and open lines. Pick bay, date and
+  start time, then Book / Move. It reads this vehicle's bookings once, then sends `administrator_move_workshop_booking`
+  (existing booking) or `administrator_schedule_workshop_vehicle` (none) through app.js `vehiclePanelBookingCommand`,
+  cascade on. The server keeps every planner rule. Started jobs are moved in Workshop Planner.
 - Saved ticks now show as soon as the panel opens.

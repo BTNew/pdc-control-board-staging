@@ -82,6 +82,8 @@ function board({ role = 'administrator' } = {}) {
       reply = { ok: true, code: 'saved', ...row };
     }
     if (name === 'get_vehicle_workshop_detail_scoped') reply = server.details.get(body.p_vehicle_id);
+    if (name === 'administrator_move_workshop_booking') reply = server.moveReply || { ok: true, booking_id: body.p_booking_id };
+    if (name === 'administrator_schedule_workshop_vehicle') reply = (server.scheduleReplies || []).shift() || { ok: true, booking_id: 'new' };
     if (name === 'set_vehicle_work_category') {
       const detail = server.details.get(body.p_vehicle_id);
       const line = detail.job_card_lines.find(item => item.line_identity === body.p_line_identity);
@@ -203,58 +205,74 @@ test('r694: the station lists show jobs only (no bay or booking chips), in and o
   assert.ok(b.panel().querySelector('.vso-edit [data-vehicle-workshop-hours-batch-page]'), 'Edit still works');
 });
 
-test('r694: Move to a bay moves a loaded booking to the picked bay, date and time', async () => {
+test('r694: Move to a bay moves an existing booking with the administrator move command (cascade on)', async () => {
   const b = board();
+  b.server.details.get(b.rows[0].id).bookings[0].booking_version = 4;
   b.openPanel();
   await b.settle();
   const box = b.panel().querySelector('.vso-book');
-  assert.ok(box, 'Move to a bay box drawn for a controller');
+  assert.ok(box, 'Move to a bay box drawn for an administrator');
   assert.equal(box.parentNode, b.panel().querySelector('.vso-body'), 'inside the panel body, after the operations');
   const hoist = bookRow(b.panel(), 'Hoist');
-  assert.ok(hoist, 'Hoist row');
-  assert.match(hoist.querySelector('[data-vso-book-go]').textContent, /Book|Move/);
+  assert.match(hoist.textContent, /Pick a bay to book or move it/, 'opening the panel reads no bookings');
   pick(hoist, 2, '2026-11-03', '09:30');
   await b.settle();
-  assert.equal(b.schedules.length, 0, 'a loaded plan uses the planner move only');
-  assert.deepEqual(b.moves, [['plan-hoist', 'HOIST', 2, '2026-11-03', 570]]);
-  assert.match(b.panel().querySelector('.vso-book-msg').textContent, /Hoist .*booked into Express · Bay 02/);
-  assert.equal(b.writes().length, 0, 'the panel itself sends no RPC for the bay move');
+  const sent = b.server.calls.filter(call => call.name === 'administrator_move_workshop_booking');
+  assert.equal(sent.length, 1);
+  assert.equal(sent[0].body.p_booking_id, '00000000-0000-4000-8000-000000000099');
+  assert.equal(sent[0].body.p_expected_version, 4);
+  assert.equal(sent[0].body.p_stage_code, 'HOIST');
+  assert.equal(sent[0].body.p_bay_number, 2);
+  assert.equal(sent[0].body.p_scheduled_start_at, '2026-11-03T01:30:00.000Z', '09:30 Perth');
+  assert.equal(sent[0].body.p_duration_minutes, 90);
+  assert.equal(sent[0].body.p_cascade, true);
+  assert.match(b.panel().querySelector('.vso-book-msg').textContent, /Hoist .*booked into Express · Bay 02 at 09:30 on 2026-11-03/);
+  assert.equal(b.moves.length + b.schedules.length, 0, 'the planner page is not needed');
 });
 
-test('r694: with no loaded plan, Move to a bay schedules the vehicle with the open hours', async () => {
+test('r694: with no booking, Move to a bay books the vehicle with the open hours; a place-after answer is accepted once', async () => {
   const b = board();
-  b.c.workshopLoadPlans = () => [];
-  b.c.moveWorkshopDroppedPlan = undefined;
+  b.server.details.get(b.rows[0].id).bookings = [];
+  b.server.scheduleReplies = [{ ok: false, warning: true, requires_confirmation: true, error: 'place_after_running', plan_hash: 'h1', message: 'Running job' }, { ok: true, booking_id: 'new' }];
   b.openPanel();
   await b.settle();
   const hoist = bookRow(b.panel(), 'Hoist');
-  assert.match(hoist.textContent, /Not booked/, 'no plan: Not booked');
+  assert.match(hoist.textContent, /Book \/ Move/);
   pick(hoist, 2, '2026-11-03', '07:00');
   await b.settle();
-  assert.equal(b.schedules.length, 1);
-  assert.equal(b.schedules[0].hoursValue, 1.5);
-  assert.equal(b.schedules[0].stage, 'HOIST');
-  assert.equal(b.schedules[0].bay, 2);
-  assert.equal(b.schedules[0].dateKey, '2026-11-03');
-  assert.equal(b.schedules[0].startMinutes, 420);
-  assert.equal(b.schedules[0].workCategoryValue, 'HOIST');
+  const sent = b.server.calls.filter(call => call.name === 'administrator_schedule_workshop_vehicle');
+  assert.equal(sent.length, 2, 'sent, then sent again with the place-after answer');
+  assert.equal(sent[0].body.p_vehicle_id, b.rows[0].id);
+  assert.equal(sent[0].body.p_vehicle_expected_version, 7);
+  assert.equal(sent[0].body.p_bay_number, 2);
+  assert.equal(sent[0].body.p_duration_minutes, 90);
+  assert.equal(sent[0].body.p_metadata.work_category, 'HOIST');
+  assert.equal(sent[1].body.p_metadata.place_after_confirm.plan_hash, 'h1');
+  assert.notEqual(sent[1].body.p_request_id, sent[0].body.p_request_id);
+  assert.match(b.panel().querySelector('.vso-book-msg').textContent, /booked into Express · Bay 02/);
 });
 
-test('r694: no bay chosen books nothing; other roles get no Move to a bay box', async () => {
+test('r694: no bay chosen books nothing; a refusal says nothing changed; operators and viewers get no box', async () => {
   const b = board();
-  b.c.workshopLoadPlans = () => [];
   b.openPanel();
   await b.settle();
-  const hoist = bookRow(b.panel(), 'Hoist');
+  let hoist = bookRow(b.panel(), 'Hoist');
   hoist.querySelector('[data-vso-book-bay]').value = '';
   hoist.querySelector('[data-vso-book-go]').dispatch('click');
   await b.settle();
-  assert.equal(b.schedules.length + b.moves.length, 0);
+  assert.equal(b.server.calls.filter(call => /administrator_(move|schedule)/.test(call.name)).length, 0);
   assert.match(b.panel().querySelector('.vso-book-msg').textContent, /Choose a bay for Hoist/);
-  const viewer = board({ role: 'viewer' });
-  viewer.openPanel();
-  await viewer.settle();
-  assert.equal(viewer.panel().querySelector('.vso-book'), null);
+  b.server.moveReply = { ok: false, error: 'bay_overlap', message: 'That bay is taken' };
+  hoist = bookRow(b.panel(), 'Hoist');
+  pick(hoist, 1, '2026-11-03', '07:00');
+  await b.settle();
+  assert.match(b.panel().querySelector('.vso-book-msg').textContent, /was not booked: That bay is taken\. Nothing was changed\./);
+  for (const role of ['operator', 'viewer']) {
+    const other = board({ role });
+    other.openPanel();
+    await other.settle();
+    assert.equal(other.panel().querySelector('.vso-book'), null, role);
+  }
 });
 
 test('a controller can tick and untick a line; another role sees a read-only tick', async () => {
