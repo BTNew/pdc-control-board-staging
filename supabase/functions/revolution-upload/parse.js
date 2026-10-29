@@ -5,7 +5,7 @@
  * The rows and apply functions are not in this file. They stay pinned.
  */
 export const PINS = {
-  rows: '9be0883b1a555f48f3c1ba9fa111c891',
+  rows: 'd832a5edecb969656f10bd813f59a2f8',
   apply: 'b62fb7c29ffd2a1629f214f696e5cb14',
   department135: 'fd05b9eef69498002ac06dd68e01cdff',
   karrathaAccessories: 'c70dc4234952dfb58cbc022c98bcecdb',
