@@ -951,7 +951,18 @@ function createPdcEmailVehicleLocationService(options = {}) {
     if (!best || best.blob.size > 1024 * 1024) throw new Error('qc_photo_compression_limit');
     return { file: new File([best.blob], `${String(file.name || 'completion-photo').replace(/\.[^.]+$/, '')}.jpg`, { type: 'image/jpeg', lastModified: Date.now() }), originalByteLength, width: best.width, height: best.height };
   }
+  // r711 (F320): a re-upload refused as qc_photo_already_recorded returns the photo that is already stored for this
+  // QC (readQcPhotoReceipt, the r414 read), so the phone QC screen and the desktop page both sign off with it instead
+  // of staying blocked. Retest cycles keep their own receipts and are not changed.
   async function uploadQcPhotoEvidence(vehicleId = '', vehicleVersion = 0, cycleIdOrFile, maybeFile) {
+    const result = await uploadQcPhotoEvidenceOnce(vehicleId, vehicleVersion, cycleIdOrFile, maybeFile);
+    if (result?.ok || result?.code !== 'qc_photo_already_recorded' || typeof cycleIdOrFile === 'string') return result;
+    const vehicle = String(vehicleId || '').trim();
+    const stored = await readQcPhotoReceipt(vehicle).catch(() => null);
+    if (!stored?.ok || !stored.data?.photo_receipt_id || String(stored.data.vehicle_id || vehicle) !== vehicle) return result;
+    return { ok: true, code: 'qc_photo_already_stored', data: { ...stored.data, vehicle_id: vehicle } };
+  }
+  async function uploadQcPhotoEvidenceOnce(vehicleId = '', vehicleVersion = 0, cycleIdOrFile, maybeFile) {
     const token = getAccessToken();
     if (!token) return { ok: false, code: 'not_authenticated', data: null };
     const retest = typeof cycleIdOrFile === 'string';
