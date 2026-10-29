@@ -383,6 +383,7 @@
     const missing = [], zero = [], byKey = new Map();
     for (const { key, stock } of items || []) {
       const k = String(key ?? '').replace(/\s+/g, '').toUpperCase();
+      if (k === 'WPC') continue; // r693: WPC = overflow outside PD; the key tag is in the customer name
       if (!k) missing.push(stock);
       else if (/^0+$/.test(k)) zero.push(stock);
       else byKey.set(k, [...(byKey.get(k) || []), stock]);
@@ -415,7 +416,7 @@
     if (doc.querySelector('link[data-pdc-vehicle-locations-table]')) return;
     const link = doc.createElement('link');
     link.rel = 'stylesheet';
-    link.href = `pdc-vehicle-locations-table.css?vehicle-locations-table=${VERSION}&r622=2026.10.28.r622&r672=2026.10.28.r672&r685=2026.10.29.r685`; // r672 (F281) red PMB key alert; r622 (F237): new Parts ETA and Pit cell styles
+    link.href = `pdc-vehicle-locations-table.css?vehicle-locations-table=${VERSION}&r622=2026.10.28.r622&r672=2026.10.28.r672&r685=2026.10.29.r685&r693=2026.10.29.r693`; // r672 (F281) red PMB key alert; r622 (F237): new Parts ETA and Pit cell styles
     link.dataset.pdcVehicleLocationsTable = '1';
     doc.head.appendChild(link);
   }
@@ -786,7 +787,11 @@
         : 'No vehicles match this tile and the search filters'}</td></tr>`;
     const keepDrawer = !drawerOpener && ui.keepDrawer && state.openKey && shown.some(entry => entry.key === state.openKey) ? ui.drawerNode : null;
     const ageReport = typeof root.pmbArrivalAgeReportHtml === 'function' ? root.pmbArrivalAgeReportHtml(rows) : '';
-    host.innerHTML = `${tilesHtml}${ageReport}${elsewhereHtml(elsewhere)}
+    // r693 (F303): spare key tags (yard bay ranges, out-of-service excluded), for new stock and lost tags.
+    const spare = typeof root.pmbFreeKeyNumbers === 'function' ? root.pmbFreeKeyNumbers() : [];
+    const spareGroups = (root.PMB_KEY_RANGES || []).map(([from, to]) => [from, to, spare.filter(k => Number(k) >= from && Number(k) <= to)]);
+    const spareHtml = loading || !spare.length ? '' : `<details class="vlt-spare-keys"><summary>Spare key numbers <strong>${spare.length}</strong> <small>lowest ${esc(spare[0])}</small></summary>${spareGroups.map(([from, to, keys]) => `<p><b>${from}-${to}</b> <span>${keys.length ? keys.map(esc).join(', ') : 'none spare'}</span></p>`).join('')}<p><small>Out of service: 335-337, 433-443. WPC vehicles are not counted.</small></p></details>`;
+    host.innerHTML = `${tilesHtml}${spareHtml}${ageReport}${elsewhereHtml(elsewhere)}
       <section class="vlt-panel" aria-label="Vehicle locations table">
         <div class="vlt-panel-header"><h2>Vehicle locations</h2><p>${filterNote}${stationNote}</p>${root.workStatusLegendHtml()}<button type="button" class="vlt-reset-cols" data-vlt-reset-cols${Object.keys(state.widths).length ? '' : ' disabled'} title="Put every column back to its standard width">Reset columns</button></div>
         <div class="vlt-table-wrap"><table class="vlt-table${Object.keys(state.widths).length ? ' has-custom-widths' : ''}${/data-select-stock/.test(bodyHtml) ? ' has-select' : ''}">

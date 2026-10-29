@@ -13711,8 +13711,27 @@ async function transferSelectedYhVehiclesToPmb() {
   renderAll();
 }
 
+// r693 (F303): PMB key tags follow the yard bays (Ron, 29 Oct). Spare keys = keys in these ranges not on any vehicle
+// on the board, lowest first. Out-of-service tags are never offered. WPC (overflow outside PD) is not a key tag.
+const PMB_KEY_RANGES = Object.freeze([[1, 40], [101, 152], [201, 282], [301, 370], [401, 462], [501, 520], [601, 650]]);
+const PMB_KEY_OUT_OF_SERVICE = Object.freeze([335, 336, 337, 433, 434, 435, 436, 437, 438, 439, 440, 441, 442, 443]);
+if (typeof window !== 'undefined' && window) window.PMB_KEY_RANGES = PMB_KEY_RANGES;
+function pmbFreeKeyNumbers(rows = (typeof app !== 'undefined' && Array.isArray(app.data)) ? app.data : []) {
+  const used = new Set();
+  for (const vehicle of rows || []) {
+    const token = boardKeyToken(vehicleKeyNumber(vehicle));
+    if (/^\d+$/.test(token)) used.add(Number(token));
+  }
+  const out = new Set(PMB_KEY_OUT_OF_SERVICE);
+  const free = [];
+  for (const [from, to] of PMB_KEY_RANGES) {
+    for (let n = from; n <= to; n += 1) if (!used.has(n) && !out.has(n)) free.push(String(n));
+  }
+  return free;
+}
+
 // r692 (F302): Send to PMB box. Step 1 confirm, step 2 key number. Resolves { key } or null (cancelled).
-function pmbSendToPmbDialog({ stock = '', customer = '', warning = '', existingKey = '' } = {}) {
+function pmbSendToPmbDialog({ stock = '', customer = '', warning = '', existingKey = '', freeKeys = [] } = {}) {
   return new Promise(resolve => {
     const doc = document;
     if (!doc.getElementById('pmb-send-dialog-style')) {
@@ -13721,7 +13740,7 @@ function pmbSendToPmbDialog({ stock = '', customer = '', warning = '', existingK
       style.textContent = '.pmb-send-overlay{position:fixed;inset:0;z-index:4000;background:rgba(15,23,42,.45);display:flex;align-items:center;justify-content:center;padding:16px}'
         + '.pmb-send-box{background:#fff;border-radius:12px;box-shadow:0 20px 50px rgba(15,23,42,.35);width:min(420px,100%);padding:18px 20px;font:14px/1.4 Arial,Helvetica,sans-serif;color:#142334}'
         + '.pmb-send-box h2{margin:0 0 6px;font-size:18px}.pmb-send-box p{margin:0 0 10px}.pmb-send-warn{background:#fef2f2;color:#991b1b;border-radius:8px;padding:8px 10px;white-space:pre-line}'
-        + '.pmb-send-box label{display:block;font-weight:700;margin:4px 0}.pmb-send-box input{box-sizing:border-box;width:100%;font:700 22px/1 Arial,Helvetica,sans-serif;padding:10px 12px;border:2px solid #1d4ed8;border-radius:8px;text-transform:uppercase}'
+        + '.pmb-send-box label{display:block;font-weight:700;margin:4px 0}.pmb-send-box input,.pmb-send-box select{box-sizing:border-box;width:100%;margin-top:4px;background:#fff;font:700 22px/1 Arial,Helvetica,sans-serif;padding:10px 12px;border:2px solid #1d4ed8;border-radius:8px;text-transform:uppercase}'
         + '.pmb-send-box small{display:block;color:#475569;margin-top:6px}.pmb-send-err{color:#b91c1c;font-weight:700;min-height:1.2em;margin-top:6px}'
         + '.pmb-send-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:14px}.pmb-send-actions button{font:700 14px/1 Arial,Helvetica,sans-serif;height:40px;padding:0 18px;border-radius:8px;cursor:pointer;border:1px solid #cbd5e1;background:#fff;color:#142334}'
         + '.pmb-send-actions .pmb-send-yes{background:#16a34a;border-color:#15803d;color:#fff}';
@@ -13742,11 +13761,17 @@ function pmbSendToPmbDialog({ stock = '', customer = '', warning = '', existingK
       step = 'confirm';
     };
     const keyStep = () => {
-      overlay.innerHTML = `<div class="pmb-send-box"><h2>Key number</h2><label for="pmb-send-key">Key number for ${esc(stock)}</label><input id="pmb-send-key" type="text" inputmode="numeric" autocomplete="off" maxlength="32" value="${esc(existingKey)}"><small>The key number starts the PMB timer. The vehicle shows in New to PMB for 24 hours.</small><div class="pmb-send-err" role="alert"></div><div class="pmb-send-actions"><button type="button" data-pmb-send="no">Cancel</button><button type="button" class="pmb-send-yes" data-pmb-send="go">Send to PMB</button></div></div>`;
+      // r693 (F303): pick a spare key (lowest first); typing another key is still possible.
+      const options = [...new Set([existingKey, ...freeKeys].filter(Boolean))];
+      overlay.innerHTML = `<div class="pmb-send-box"><h2>Key number</h2><label for="pmb-send-key-pick">Spare key for ${esc(stock)}</label><select id="pmb-send-key-pick">${options.map(k => `<option value="${esc(k)}">${esc(k)}${k === existingKey ? ' (current key)' : ''}</option>`).join('')}<option value="">Other key…</option></select><input id="pmb-send-key" type="text" inputmode="numeric" autocomplete="off" maxlength="32" placeholder="Type a key number" hidden><small>Lowest spare key tag is picked (yard bay ranges). The key starts the PMB timer; the vehicle shows in New to PMB for 24 hours.</small><div class="pmb-send-err" role="alert"></div><div class="pmb-send-actions"><button type="button" data-pmb-send="no">Cancel</button><button type="button" class="pmb-send-yes" data-pmb-send="go">Send to PMB</button></div></div>`;
+      const pick = overlay.querySelector('#pmb-send-key-pick');
       const input = overlay.querySelector('#pmb-send-key');
       const err = overlay.querySelector('.pmb-send-err');
+      if (!options.length) { pick.value = ''; input.hidden = false; }
+      pick.addEventListener('change', () => { input.hidden = pick.value !== ''; if (!input.hidden) input.focus(); });
+      pick.addEventListener('keydown', event => { if (event.key === 'Enter') { event.preventDefault(); go(); } });
       const go = () => {
-        const key = String(input.value || '').replace(/\s+/g, '').toUpperCase();
+        const key = String(pick.value || input.value || '').replace(/\s+/g, '').toUpperCase();
         if (!key) { err.textContent = 'Enter the key number.'; input.focus(); return; }
         if (!/^[A-Z0-9][A-Z0-9_-]{0,31}$/.test(key) || /^0+$/.test(key)) { err.textContent = 'Use letters and numbers only (up to 32). 0 is not a key.'; input.focus(); return; }
         done({ key });
@@ -13754,7 +13779,7 @@ function pmbSendToPmbDialog({ stock = '', customer = '', warning = '', existingK
       overlay.querySelector('[data-pmb-send="go"]').addEventListener('click', go);
       overlay.querySelector('[data-pmb-send="no"]').addEventListener('click', () => done(null));
       input.addEventListener('keydown', event => { if (event.key === 'Enter') { event.preventDefault(); go(); } });
-      input.focus(); input.select();
+      if (input.hidden) pick.focus(); else input.focus();
       step = 'key';
     };
     let step = 'confirm';
@@ -13786,7 +13811,7 @@ async function transferYhVehicleToPmb(key = '') {
   let enteredKey = '';
   const dialogReady = typeof pmbSendToPmbDialog === 'function' && typeof document !== 'undefined' && document && document.body && typeof document.createElement === 'function';
   if (dialogReady) {
-    const answer = await pmbSendToPmbDialog({ stock, customer, warning: partsWarning, existingKey });
+    const answer = await pmbSendToPmbDialog({ stock, customer, warning: partsWarning, existingKey, freeKeys: typeof pmbFreeKeyNumbers === 'function' ? pmbFreeKeyNumbers() : [] });
     if (!answer || !answer.key) return false;
     enteredKey = answer.key;
   } else {

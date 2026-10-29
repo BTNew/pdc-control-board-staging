@@ -265,3 +265,10 @@ body.vlt-table-on #vlt-nav-status { flex: 0 1 250px; }
 .vlt-table thead [data-vlt-station].vlt-station-active > span { color: #fff; }
 .vlt-station-note { font-weight: 700; color: #b91c1c; }
 .vlt-station-clear { margin-left: 4px; font: inherit; font-size: 11px; padding: 1px 8px; border: 1px solid #cbd5e1; border-radius: 999px; background: #fff; cursor: pointer; }
+
+/* r693 (F303): spare key numbers list. */
+.vlt-spare-keys { margin: 0 0 10px; padding: 6px 10px; border: 1px solid #cbd5e1; border-radius: 8px; background: #f8fafc; font-size: 12px; }
+.vlt-spare-keys summary { cursor: pointer; font-weight: 700; color: #142334; }
+.vlt-spare-keys summary small { color: #475569; font-weight: 400; margin-left: 6px; }
+.vlt-spare-keys p { margin: 4px 0; line-height: 1.5; }
+.vlt-spare-keys p b { display: inline-block; min-width: 5.5em; color: #1d4ed8; }
