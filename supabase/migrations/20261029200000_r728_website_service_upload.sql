@@ -111,6 +111,8 @@ DECLARE v_old text; v_new text; v_def text; v_sig text; v_old_md5 text; v_new_md
     IF jsonb_array_length(coalesce(scope_rows,'[]'))<>m.source_rows OR NOT revolution_service_rows_20261006(scope_rows) THEN RETURN false; END IF;
    END IF;$b$;
 BEGIN
+  -- r728: a Windows paste turns line breaks into CR LF; the functions use LF.
+  a1 := replace(a1, chr(13), ''); b1 := replace(b1, chr(13), ''); b4 := replace(b4, chr(13), ''); b5 := replace(b5, chr(13), ''); b6 := replace(b6, chr(13), '');
   -- 2a. Row validator (pinned): keep every rule, add the receipted website delivery as the alternative to the email.
   v_sig := 'pdc_codex_intake_private.revolution_service_rows_20261006(jsonb)';
   SELECT prosrc, md5(prosrc) INTO v_old, v_old_md5 FROM pg_proc WHERE oid = v_sig::regprocedure;
