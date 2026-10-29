@@ -225,7 +225,7 @@ const approvedRootImportPatch = Object.freeze({
   // r630: canonical-entry.js adds r630=2026.10.28.r630 to the pit loader (time and place box on the pit calendar; F245). Department 135 is not tagged.
   // r632: canonical-entry.js adds r632=2026.10.28.r632 to the pit loader (Welshpool, quarter hours; F247). Department 135 is not tagged.
   // r685: canonical-entry.js adds r685=2026.10.29.r685 to the table loader (station headings filter; F295). Department 135 is not tagged.
-  "canonical-entry.js": "94fe0fcb89b12afd5b8beb94eb8768f64e625d6e728ea49834937570957038e0", // r695 (F305) cache tags
+  "canonical-entry.js": "3a3c4d67bdf1229c8aed567a8a3f136bf3e4122a799a9b89128c5948ef3645cd", // r695 (F305) cache tags
   "pdc-workshop-vehicle-search.js": "d0be4a60c5ca2213ba71d4cd31cb7019736db3d7e0470d22b3fa88243e56eb4c",
   // Owner-authorised PMG fitter read recovery, 13 October 2026.
   // Coaster and HiAce conversions: one Start / Done tick per section in a
@@ -311,7 +311,7 @@ const approvedRootImportPatch = Object.freeze({
   // r593: a recent key is listed in New to PMB and stays in the PMB bucket. No department tick (F207). Department 135 keeps its frozen app.js.
   // r591: Admin > Revolution uploads is administrators only (F205). Department 135 is not tagged.
   // r687: ".2" hours save as 0.2 in Edit hours and jobs (F297). Department 135 keeps its frozen app.js.
-  "app.js": "207f80c870b3928f77fc197a49b2c2c6b029a3097a8dca3c4ea448e1265556ad", // r710 (F320): key list keys never offered as spare at To PMB
+  "app.js": "7d4be990929d7ed410b9b65600e1f515afae90175ef88d1504b0895bfeb358bf", // r710 (F320): key list keys never offered as spare at To PMB
   "vehicle-requirements-guard.js": "7462e178c839df0ce1bd2509b838dab61fd739172f20fd0c34a419e011052658",
   // r464: a booking that runs past the day divider is one bar (joined per-day pieces, display only; F77). The Karratha copy stays frozen.
   // r465: overview bar labels show Key · JC and the customer only (Stock and the vehicle description stay in the hover title); the customer span is classed for the Running layout (F78).
@@ -462,7 +462,7 @@ const approvedRootImportPatch = Object.freeze({
   // r604: index.html adds r604=2026.10.28.r604 on canonical-entry.js (pit bookings, F218). Department 135 is not tagged.
   // r616: pdc-auth.js, pdc-bay-manager.js and canonical-entry.js carry r616=2026.10.28.r616 (fitter sessions send only Fitters bay requests, F231). Department 135 is not tagged.
   // r642: Sublet · MMT nav and view, pdc-mmt-sublet.css/js, r642 on app.js and pdc-staff-usage.js (F257). Department 135 is not tagged.
-  "index.html": "f36baeb7889c8f576be3e29536220643e4794a0c80ce54dc9b2a6e77242dae0b", // r710 (F320) app.js tag
+  "index.html": "4266b4c391b55e64a1b20b373c4308ca4cb0b90c3c7c1016d0737382f8ee8d8d", // r710 (F320) app.js tag
   "pdc-conversions.js": "0a99e7a5306f15e434b293a3ca9a318ffad4b78eb814c27144d75ff98821d810",
   // r401: Pit tick and read RPCs (set_pdc_pit_line_tick_401, get_pdc_pit_line_ticks_401).
   // r414: readQcPhotoReceipt (get_pdc_qc_photo_receipt_414) for the QC page (F30).
@@ -489,7 +489,7 @@ const approvedRootImportPatch = Object.freeze({
   // r525: Period option Last 24 hours (p_days 1) on Website activity (F139). The Karratha copy stays frozen.
   // r570: bay-manager counts under the Update History bucket (F184). The Karratha copy stays frozen.
   // r591: revolution-upload counts under the Update History bucket (F205). The Karratha copy stays frozen.
-  "pdc-staff-usage.js": "e2d8753aefa23d3bd3668cef868d1bb5232a2e32451130611cb76ed9624df632",
+  "pdc-staff-usage.js": "c83fb834972bf2057608eae60495c64694152d2fd7317f6e6bc85b0eaad55724",
   "site-switcher.css": "84882066f9ff13057de368d8af1418788e82b2723ec68683166e2f8ded6c8348",
   // r403: the own-role monitor reconnects instead of locking on a realtime blip
   // (F11); index.html and app.js/canonical-entry.js add r403=2026.10.21.01 for
@@ -500,7 +500,7 @@ const approvedRootImportPatch = Object.freeze({
   // r432: a controller linked to a salesperson record stays on the Sales site (pdc_my_sales_link_432) (F43).
   // r495: on the Sales page only, sends the x-pdc-sales-branch header for a non-Broome Sales branch (Karratha) (F108).
   // r616: fitter sessions answer non-Fitters-bay RPCs locally with 42501 and never send them (F231). Department 135 keeps its frozen auth script.
-  "pdc-auth.js": "187b38565e34f7c5a73cf597b12e3fa36fb27da94a52133a74e33e16a53cacbf",
+  "pdc-auth.js": "ce132ae2f35d533bec75a5c591c31280c016f82daf0ffc37b4c9ca2ffed5a92e",
   // r417: administrator move/schedule ask the planner to confirm a bay rule warning, then resend confirmed (F32).
   // r424: push-back warning confirm; bay re-order and undo actions (F38).
   // r569: pauseBayForOther calls pause_bay_job_for_other_566 (F183). Department 135 keeps its frozen copy.

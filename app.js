@@ -5190,6 +5190,7 @@ function showView(view, options) {
   if (app.currentView === 'fitting-stats' && nextView !== 'fitting-stats') window.PdcFittingStats?.close();
   if (app.currentView === 'bay-manager' && nextView !== 'bay-manager') window.PdcBayManager?.close();
   if (app.currentView === 'mmt-sublet' && nextView !== 'mmt-sublet') window.PdcMmtSublet?.close(); // r642 (F257)
+  if (app.currentView === 'psc-sublet' && nextView !== 'psc-sublet') window.PdcPscSublet?.close(); // r711 (F321)
   if (app.currentView === 'revolution-upload' && nextView !== 'revolution-upload') window.PdcRevolutionUpload?.reset();
   if (app.currentView === 'lists' && nextView !== 'lists') window.PdcWorkshopHours?.reset();
   app.currentRequestedView = requestedView;
@@ -5217,6 +5218,7 @@ function showView(view, options) {
     'ai-auditor': 'BETA – AI Auditor',
     sublet: 'Sublet',
     'mmt-sublet': 'Sublet · Malaga Motor Trimmers',
+    'psc-sublet': 'Sublet · Perth Sign Craft',
     rft: 'RFT',
     completed: 'Completed vehicles',
     collected: 'Collected Vehicles',
@@ -5996,6 +5998,16 @@ window.addEventListener?.('pdc-auth-ready', () => {
     teardownWorkshopEligibilityOverview({ clearSnapshot: true });
     closeVehicleModal();
     showView('mmt-sublet', { historyMode: 'replace' });
+    return;
+  }
+  // r711 (F321): the PSC login opens Sublet · PSC only.
+  const pscOnly = typeof window.pdcIsPscSession === 'function' && window.pdcIsPscSession();
+  document.body.classList.toggle('psc-only', pscOnly);
+  if (pscOnly) {
+    teardownWorkshopPlannerScope();
+    teardownWorkshopEligibilityOverview({ clearSnapshot: true });
+    closeVehicleModal();
+    showView('psc-sublet', { historyMode: 'replace' });
     return;
   }
   // Auth-ready also represents live token/role changes. Existing planner
@@ -7036,6 +7048,9 @@ function renderActiveView() {
       break;
     case 'mmt-sublet': // r642 (F257)
       window.PdcMmtSublet?.open();
+      break;
+    case 'psc-sublet': // r711 (F321)
+      window.PdcPscSublet?.open();
       break;
     case 'revolution-upload':
       window.PdcRevolutionUpload?.open();

@@ -25,7 +25,7 @@ test('database: pre-request hook keeps the fitter branch and adds the MMT branch
 
 test('phones: Sublet · MMT is not forced to QC (like Fitters bay); shared QC phone file untouched', () => {
   const entry = fs.readFileSync('canonical-entry.js', 'utf8');
-  assert.match(entry, /\['#\/fitters', '#\/mmt-sublet'\]\.includes\(location\.hash\)/);
+  assert.match(entry, /\['#\/fitters', '#\/mmt-sublet'(, '#\/psc-sublet')?\]\.includes\(location\.hash\)/);
   const page = fs.readFileSync('pdc-mmt-sublet.js', 'utf8');
   assert.match(page, /view === 'qc' && phone\?\.matches && \(wantMmt \|\| mmtLogin\) \? 'mmt-sublet' : view/);
   assert.equal(fs.readFileSync('pdc-qc-mobile.js', 'utf8'), fs.readFileSync('karratha/pdc-qc-mobile.js', 'utf8'));
