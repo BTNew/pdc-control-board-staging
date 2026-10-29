@@ -951,7 +951,7 @@ function createPdcEmailVehicleLocationService(options = {}) {
     if (!best || best.blob.size > 1024 * 1024) throw new Error('qc_photo_compression_limit');
     return { file: new File([best.blob], `${String(file.name || 'completion-photo').replace(/\.[^.]+$/, '')}.jpg`, { type: 'image/jpeg', lastModified: Date.now() }), originalByteLength, width: best.width, height: best.height };
   }
-  // r711 (F320): a re-upload refused as qc_photo_already_recorded returns the photo that is already stored for this
+  // r711 (F321): a re-upload refused as qc_photo_already_recorded returns the photo that is already stored for this
   // QC (readQcPhotoReceipt, the r414 read), so the phone QC screen and the desktop page both sign off with it instead
   // of staying blocked. Retest cycles keep their own receipts and are not changed.
   async function uploadQcPhotoEvidence(vehicleId = '', vehicleVersion = 0, cycleIdOrFile, maybeFile) {

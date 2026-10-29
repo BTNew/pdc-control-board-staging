@@ -1,5 +1,5 @@
 'use strict';
-// r711 (F320): an upload refused as qc_photo_already_recorded hands back the photo already stored for this QC.
+// r711 (F321): an upload refused as qc_photo_already_recorded hands back the photo already stored for this QC.
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const { PDC_QC_PHOTO_BUCKET, createPdcEmailVehicleLocationService } = require('./pdc-email-vehicle-location-service');
