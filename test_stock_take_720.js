@@ -51,7 +51,7 @@ test('wired: menu, page, iPad route, short link, board tick, server reads', () =
 });
 test('updates never jump the screen and a release does not reload a tablet mid stock take', () => {
   const js = fs.readFileSync('pdc-stock-take.js', 'utf8');
-  assert.match(js, /if \(fresh && ids\(list\.children\) === ids\(fresh\.children\)\)/);
+  assert.match(js, /if \(list && fresh && ids\(list\.children\) === ids\(fresh\.children\)\)/);
   assert.match(js, /old\.replaceWith\(car\.cloneNode\(true\)\)/);
   assert.match(js, /state\.open = true; root\.PDC_UNSAVED_WORK = true;/);
   assert.match(js, /state\.open = false; root\.PDC_UNSAVED_WORK = false;/);
@@ -86,4 +86,20 @@ test('r723: X per item = looked at, not done; a car is checked when every item i
   const js = fs.readFileSync('pdc-stock-take.js', 'utf8');
   assert.match(js, /set_pdc_stock_take_x_723/);
   assert.match(js, /r723: done clears the X/);
+});
+test('r724: found a car not on the list, with where the board has it; typing is never redrawn', () => {
+  const html = st.foundListHtml([
+    { id: 'f1', k: '505', s: 'ZZ1', by: 'Oleg', at: '2026-10-29T05:59:00Z', board: null },
+    { id: 'f2', k: '142', s: '13077203', note: 'Bay 3', by: 'Craig', at: '2026-10-29T05:58:00Z', board: { on_board: true, where: 'PMB', key: '142' } },
+  ], true);
+  assert.match(html, /Key 505<\/span><span class="st-fs">ZZ1<\/span><span class="st-fw"><b class="st-fb-none">Not on the board<\/b>/);
+  assert.match(html, /On the board: <b>PMB<\/b>/);
+  assert.match(html, /data-st-sorted="f2"/);
+  assert.doesNotMatch(st.foundListHtml([{ id: 'f1', k: '1', s: 'S', board: null }], false), /data-st-sorted/, 'view-only logins cannot sort');
+  const js = fs.readFileSync('pdc-stock-take.js', 'utf8');
+  assert.match(js, /rpc\('set_pdc_stock_take_found_724'/);
+  assert.match(js, /if \(!el\.querySelector\('\.st-bar'\) \|\| state\.barDirty\) \{/);
+  assert.match(js, /swap\('\.st-sum'\); swap\('\.st-found-list'\);/);
+  const sql = fs.readFileSync('supabase/migrations/20261029180000_r724_stock_take_found.sql', 'utf8');
+  assert.match(sql, /REVOKE ALL ON FUNCTION public\.set_pdc_stock_take_found_724\(text, text, text, uuid\) FROM PUBLIC, anon;/);
 });

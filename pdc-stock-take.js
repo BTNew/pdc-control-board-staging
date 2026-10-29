@@ -9,7 +9,7 @@
  */
 (function (root) {
   'use strict';
-  const VERSION = '2026.10.29.r723';
+  const VERSION = '2026.10.29.r724';
   const PROJECT = 'cdsmnqxtyyoeoznmbidd';
   const POLL_MS = 5000;
   const FULL_MS = 120000;
@@ -99,10 +99,40 @@
       + `<label class="st-open st-open-miss"><input type="checkbox" data-st-missing-only${view.missingOnly ? ' checked' : ''}> Missing only</label></div>`
       + `<p class="st-sum">${t.cars} cars at PMB · ${t.checked} checked · ${t.carsDone} finished · ${t.done} of ${t.lines} items ticked${t.xs ? ` · <b class="st-sum-miss">${t.xs} not done</b>` : ''}${t.missing ? ` · <b class="st-sum-miss">${t.missing} missing</b>` : ''}${canTick ? '' : ' · <b>view only: a controller login ticks items</b>'}`
       + `<span class="st-live" title="Other people's ticks show here within about 5 seconds">Live${view.updated ? ` · ${esc(hhmm(view.updated))}` : ''}</span></p></div>`
-      + (cars.length ? `<div class="st-list">${cars.map(car => carHtml(car, canTick, view, now)).join('')}</div>` : '<p class="st-empty">No cars match.</p>');
+      + foundBoxHtml(view, canTick)
+      + `<div class="st-list-wrap">${listHtml(cars, canTick, view, now)}</div>`;
+  }
+  function listHtml(cars, canTick, view, now) {
+    return cars.length ? `<div class="st-list">${cars.map(car => carHtml(car, canTick, view, now)).join('')}</div>` : '<p class="st-empty">No cars match.</p>';
+  }
+  // r724 (F334, Craig 13:53): a box for a car that is out there but not on the list: key and stock number (and a note).
+  // Shared list with who added it and where the board has that stock now; "Sorted" takes it off.
+  function foundListHtml(found, canTick) {
+    const rows = Array.isArray(found) ? found : [];
+    if (!rows.length) return '<p class="st-found-none">No extra cars logged.</p>';
+    return `<ul class="st-found-rows">${rows.map(f => {
+      const b = f.board;
+      const where = !b ? '<b class="st-fb-none">Not on the board</b>'
+        : b.on_board ? `On the board: <b>${esc(b.where)}</b>${b.key && b.key !== f.k ? ` (board key ${esc(b.key)})` : ''}`
+        : `On the board as <b>${esc(b.state)}</b> (not active)`;
+      return `<li><span class="st-fk">${f.k ? `Key ${esc(f.k)}` : 'No key'}</span><span class="st-fs">${esc(f.s || 'no stock')}</span>`
+        + `<span class="st-fw">${where}</span>${f.note ? `<span class="st-fn">${esc(f.note)}</span>` : ''}`
+        + `<small>${esc(f.by || '')} ${esc(hhmm(f.at))}</small>`
+        + `${canTick ? `<button type="button" class="st-sorted" data-st-sorted="${esc(f.id)}">Sorted</button>` : ''}</li>`;
+    }).join('')}</ul>`;
+  }
+  function foundBoxHtml(view, canTick) {
+    const rows = Array.isArray(view?.found) ? view.found : [];
+    const form = canTick ? `<form class="st-found-form" data-st-found-form autocomplete="off">`
+      + `<input data-st-found-key inputmode="numeric" maxlength="32" placeholder="Key number" aria-label="Key number">`
+      + `<input data-st-found-stock maxlength="40" placeholder="Stock number" aria-label="Stock number">`
+      + `<input data-st-found-note maxlength="300" placeholder="Where / note (optional)" aria-label="Note">`
+      + `<button type="submit">Add car</button><span class="st-found-msg" data-st-found-msg role="status"></span></form>` : '';
+    return `<details class="st-found" data-st-found${rows.length ? ' open' : ''}><summary>Found a car not on the list?${rows.length ? ` <b>${rows.length} logged</b>` : ''}</summary>`
+      + `${form}<div class="st-found-list">${foundListHtml(rows, canTick)}</div></details>`;
   }
 
-  const api = { VERSION, STATIONS, visibleCars, totals, panelHtml, carHtml, keyMatch };
+  const api = { VERSION, STATIONS, visibleCars, totals, panelHtml, carHtml, keyMatch, foundListHtml };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   root.PdcStockTake = api;
   if (typeof document === 'undefined') return;
@@ -141,35 +171,37 @@
     if (state.error && !state.payload) { el.innerHTML = `<p class="st-error">${esc(state.error)}</p>`; return; }
     if (!state.payload) { el.innerHTML = '<p class="st-empty">Loading the cars at PMB…</p>'; return; }
     if (state.payload.ok === false) { el.innerHTML = `<p class="st-error">${state.payload.error === 'not_authorized' ? 'This login cannot see the stock take.' : 'Not available.'}</p>`; return; }
-    const searching = document.activeElement?.matches?.('[data-st-search]');
     const scroll = root.scrollY;
-    // Craig 29 Oct 13:13: an update must never reload or jump anyone's screen while they walk around. When the same cars
-    // are on screen, only the cars that changed are swapped in place (and the summary line); the rest of the page,
-    // the search box and the scroll position are left alone. A full redraw happens only when the list itself changes
-    // (station chips, search, hide finished cars, a car arriving or leaving).
-    const list = el.querySelector('.st-list');
-    if (list) {
+    // Craig 29 Oct 13:13: an update must never reload or jump anyone's screen while they walk around. After the first
+    // draw the bar (station chips, search, switches) and the found-a-car box are never redrawn, so typing and focus are
+    // kept; only the summary, the found list and the cars that changed are swapped in place.
+    if (!el.querySelector('.st-bar') || state.barDirty) {
+      state.barDirty = false;
+      el.innerHTML = panelHtml(state.payload, state.view);
+    } else {
       const next = document.createElement('div');
       next.innerHTML = panelHtml(state.payload, state.view);
-      const fresh = next.querySelector('.st-list');
+      const swap = sel => { const a = el.querySelector(sel); const b = next.querySelector(sel); if (a && b && a.innerHTML !== b.innerHTML) a.innerHTML = b.innerHTML; };
+      swap('.st-sum'); swap('.st-found-list');
+      const summary = el.querySelector('.st-found > summary'); const newSummary = next.querySelector('.st-found > summary');
+      if (summary && newSummary && summary.innerHTML !== newSummary.innerHTML) summary.innerHTML = newSummary.innerHTML;
+      const list = el.querySelector('.st-list'); const fresh = next.querySelector('.st-list');
       const ids = nodes => [...nodes].map(node => node.dataset.stCar).join(',');
-      if (fresh && ids(list.children) === ids(fresh.children)) {
-        const sum = el.querySelector('.st-sum'); const newSum = next.querySelector('.st-sum');
-        if (sum && newSum && sum.innerHTML !== newSum.innerHTML) sum.innerHTML = newSum.innerHTML;
+      if (list && fresh && ids(list.children) === ids(fresh.children)) {
         [...fresh.children].forEach((car, i) => { const old = list.children[i]; if (old.innerHTML !== car.innerHTML || old.className !== car.className) old.replaceWith(car.cloneNode(true)); });
-        if (Math.abs(root.scrollY - scroll) > 2) root.scrollTo(0, scroll);
-        return;
-      }
+      } else swap('.st-list-wrap');
     }
-    el.innerHTML = panelHtml(state.payload, state.view);
-    if (searching) { const input = el.querySelector('[data-st-search]'); input?.focus(); input?.setSelectionRange?.(input.value.length, input.value.length); }
     if (Math.abs(root.scrollY - scroll) > 2) root.scrollTo(0, scroll);
   }
   async function load() {
     if (state.loading) return;
     state.loading = true;
     try {
-      const payload = await rpc('get_pdc_stock_take_720', { p_stations: state.view.stations });
+      const [payload, found] = await Promise.all([
+        rpc('get_pdc_stock_take_720', { p_stations: state.view.stations }),
+        rpc('get_pdc_stock_take_found_724', {}).catch(() => null),
+      ]);
+      if (found?.ok === true) state.view.found = found.found || [];
       state.payload = payload; state.error = ''; state.rev = payload?.rev || ''; state.lastFull = Date.now(); state.view.updated = payload?.now || '';
     } catch (error) { state.error = error?.message || 'Could not load the stock take.'; }
     finally { state.loading = false; render(); }
@@ -216,6 +248,23 @@
     } catch (_) { state.view.errors.set(carId, ERRORS.completion_unavailable); }
     finally { state.view.pending.delete(id); await load(); }
   }
+  async function addFound(form) {
+    const key = form.querySelector('[data-st-found-key]'); const stock = form.querySelector('[data-st-found-stock]'); const note = form.querySelector('[data-st-found-note]');
+    const msg = form.querySelector('[data-st-found-msg]'); const button = form.querySelector('button');
+    if (!key.value.trim() && !stock.value.trim()) { msg.textContent = 'Put in the key or the stock number.'; return; }
+    button.disabled = true; msg.textContent = 'Adding…';
+    try {
+      const result = await rpc('set_pdc_stock_take_found_724', { p_key: key.value, p_stock: stock.value, p_note: note.value || null });
+      if (result?.ok === true) { key.value = ''; stock.value = ''; note.value = ''; msg.textContent = 'Added. Everyone can see it.'; key.focus(); }
+      else msg.textContent = ERRORS[result?.error] || 'Not added. Try again.';
+    } catch (_) { msg.textContent = ERRORS.completion_unavailable; }
+    finally { button.disabled = false; await load(); }
+  }
+  async function sortFound(id, button) {
+    button.disabled = true;
+    try { await rpc('set_pdc_stock_take_found_724', { p_key: null, p_stock: null, p_note: null, p_sorted_id: id }); } catch (_) { /* reload shows the truth */ }
+    await load();
+  }
   async function flagMissing(carId, missing) {
     const car = (state.payload?.cars || []).find(entry => entry.id === carId);
     const key = `miss|${carId}`;
@@ -241,6 +290,8 @@
     });
     el.addEventListener('input', event => { if (event.target.matches?.('[data-st-search]')) { state.view.search = event.target.value; render(); } });
     el.addEventListener('click', event => {
+      const sorted = event.target.closest?.('[data-st-sorted]');
+      if (sorted) { void sortFound(sorted.dataset.stSorted, sorted); return; }
       const xb = event.target.closest?.('[data-st-x]');
       if (xb) { event.preventDefault(); void markX(xb.dataset.stX, xb.getAttribute('aria-pressed') !== 'true'); return; }
       const miss = event.target.closest?.('[data-st-missing]');
@@ -252,7 +303,13 @@
       if (on.has(code)) { if (on.size > 1) on.delete(code); } else on.add(code);
       state.view.stations = STATIONS.map(([c]) => c).filter(c => on.has(c));
       try { root.localStorage.setItem(PICK_KEY, JSON.stringify(state.view.stations)); } catch (_) { /* this device only */ }
-      state.payload = null; render(); void load();
+      state.payload = null; state.barDirty = true; render(); void load();
+    });
+    el.addEventListener('submit', event => {
+      const form = event.target.closest?.('[data-st-found-form]');
+      if (!form) return;
+      event.preventDefault();
+      void addFound(form);
     });
   }
   // While the Stock take is open, a new board release does not reload the tablet (pdc-auto-reload.js waits while
