@@ -19,6 +19,8 @@
 #stock-take .st-veh { color: #64748b; font-weight: 500; }
 #stock-take .st-count { margin-left: auto; font-weight: 800; color: #475569; }
 #stock-take .st-car ul { list-style: none; margin: 0; padding: 2px 0; }
+#stock-take .st-row { display: flex; align-items: stretch; }
+#stock-take .st-row > label { flex: 1; }
 #stock-take .st-line label { display: flex; gap: 12px; align-items: flex-start; padding: 10px 12px; min-height: 48px; cursor: pointer; }
 #stock-take .st-line + .st-line label { border-top: 1px solid #f1f5f9; }
 #stock-take .st-line input { width: 28px; height: 28px; flex: none; margin: 0; accent-color: #16a34a; }
@@ -38,3 +40,11 @@
 #stock-take .st-car.is-missing { border: 2px solid #dc2626; background: #fef2f2; }
 #stock-take .st-miss-note { margin: 0; padding: 8px 12px; background: #dc2626; color: #fff; font-weight: 800; }
 #stock-take .st-sum-miss { color: #b91c1c; }
+/* r723 (F333): X = looked at, not done */
+#stock-take .st-x { flex: none; width: 56px; margin: 6px 8px 6px 0; border-radius: 10px; border: 2px solid #cbd5e1; background: #fff; color: #94a3b8; font-size: 24px; font-weight: 900; cursor: pointer; }
+#stock-take .st-x[aria-pressed="true"] { border-color: #dc2626; background: #dc2626; color: #fff; }
+#stock-take .st-x:disabled { opacity: .35; cursor: default; }
+#stock-take .st-line.is-x { background: #fef2f2; }
+#stock-take .st-line.is-x .st-d { color: #991b1b; font-weight: 700; }
+#stock-take .st-meta .st-xwho { color: #b91c1c; }
+#stock-take .st-looked { font-weight: 800; color: #1d4ed8; }
