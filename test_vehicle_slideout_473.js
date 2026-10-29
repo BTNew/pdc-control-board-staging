@@ -27,9 +27,9 @@ test('1. the open panel hides its summary row (station strip, PMB status / strea
 test('2. Open Vehicle button under the header line opens the card; no clickable stock number is left in the panel', () => {
   assert.match(CODE, /<div class="vso-open-row"><\/div><\/div>/, 'the button row sits inside the stock / key / JC block');
   assert.doesNotMatch(CODE, /vso-open-slot|cloneNode/, 'the old top-right stock link copy is gone');
-  assert.match(CODE, /button\.textContent = 'More details';/);
-  assert.match(CODE, /button\.addEventListener\('click', event => \{ event\.stopPropagation\(\); root\.openVehicleCardFromVisibleBoard\(openStock, button\); \}\);/,
-    'same call the stock number made');
+  // r699 (F309): More details is removed; Edit sits in the top row instead.
+  assert.doesNotMatch(CODE, /'More details'|openVehicleCardFromVisibleBoard/);
+  assert.match(CODE, /function mountTopEdit\(panel, key\)/);
   assert.match(CODE, /panel\.querySelectorAll\('\.vso-body \[data-open-stock\]'\)\.forEach\(stockButton => \{[\s\S]*?stockButton\.replaceWith\(plain\);/);
   assert.match(CSS, /#vso-shell \.vso-open-vehicle \{[^}]*background: #1d4ed8; color: #fff;/);
   assert.match(CSS, /#vso-shell \.vso-open-vehicle:focus-visible/);
@@ -81,7 +81,7 @@ test('4. everything else stays: board handlers, Key No. (Edit / History) in the 
 });
 
 test('loader and docs: r473 cache-bust tags, FAULT_LOG F86, panel doc; no real stock numbers here', () => {
-  assert.match(fs.readFileSync('canonical-entry.js', 'utf8'), /slideout\.src = 'pdc-vehicle-slideout\.js\?vehicle-slideout=2026\.10\.28\.r588&r595=2026\.10\.28\.r595(&r681=2026\.10\.29\.r681)?(&r695=2026\.10\.29\.r695)?(&r696=2026\.10\.29\.r696)?';/ /* r588 grid stays; r595 opens once */);
+  assert.match(fs.readFileSync('canonical-entry.js', 'utf8'), /slideout\.src = 'pdc-vehicle-slideout\.js\?vehicle-slideout=2026\.10\.28\.r588&r595=2026\.10\.28\.r595(&r681=2026\.10\.29\.r681)?(&r695=2026\.10\.29\.r695)?(&r696=2026\.10\.29\.r696)?(&r699=2026\.10\.29\.r699)?';/ /* r588 grid stays; r595 opens once */);
   assert.match(fs.readFileSync('index.html', 'utf8'), /canonical-entry\.js\?[^"]*&amp;r473=2026\.10\.22\.r473&amp;/);
   assert.match(SRC, /pdc-vehicle-slideout\.css\?vehicle-slideout=\$\{VERSION\}/);
   const row = fs.readFileSync('docs/FAULT_LOG.md', 'utf8').split('\n').find(line => line.startsWith('| F86 |'));

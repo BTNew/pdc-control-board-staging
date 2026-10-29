@@ -114,7 +114,8 @@ test('1. the heading shows Edit only (r695, F305: Open full editor removed from 
   const heading = panel.querySelector('.authenticated-email-operations-heading');
   assert.ok(heading, 'operations block drawn');
   assert.equal(heading.querySelector('[data-auth-operation-work]'), null, 'the old button is replaced');
-  assert.equal(heading.querySelector('[data-vso-edit-toggle]').textContent, 'Edit');
+  assert.equal(heading.querySelector('[data-vso-top-edit]'), null, 'r699: Edit moved to the top row');
+  assert.equal(panel.querySelector('.vso-open-row [data-vso-top-edit]').textContent, 'Edit');
   assert.equal(panel.querySelector('[data-vso-full-editor]'), null, 'r695: no Open full editor button');
   assert.doesNotMatch(panel.textContent, /Open full editor/, 'r695: no Open full editor anywhere in the panel');
   assert.deepEqual(b.spies.opened, [], 'the old window is not opened from the panel');
@@ -128,7 +129,7 @@ test('1b. same role gate as the window: viewers and fitters get neither Edit nor
   for (const role of ['viewer', 'workshop', 'importer', '']) {
     const b = board({ role });
     const panel = b.openPanel(b.rows[0]);
-    assert.equal(panel.querySelector('[data-vso-edit-toggle]'), null, `${role || 'no role'}: no Edit`);
+    assert.equal(panel.querySelector('[data-vso-top-edit]'), null, `${role || 'no role'}: no Edit`);
     assert.equal(panel.querySelector('[data-vso-full-editor]'), null, `${role || 'no role'}: no Open full editor`);
     assert.equal(panel.querySelector('.vso-edit'), null);
     assert.equal(b.reads().length, 0);
@@ -139,7 +140,7 @@ test('2. Edit loads this one vehicle and keeps the same chip list, with hours in
   const b = board();
   let panel = b.openPanel(b.rows[1]);
   assert.equal(b.reads().length, 0, 'opening the panel does not read workshop detail');
-  click(panel.querySelector('[data-vso-edit-toggle]'));
+  click(panel.querySelector('[data-vso-top-edit]'));
   panel = b.panel();
   assert.match(panel.querySelector('.vso-edit').textContent, /Loading this vehicle's jobs and hours/);
   assert.equal(panel.querySelector('.vehicle-workshop-page'), null, 'Edit does not open the Work & bookings layout');
@@ -168,7 +169,7 @@ test('2. Edit loads this one vehicle and keeps the same chip list, with hours in
 test('3. Save runs Save all hours for the changed chip and leaves the line in its job', async () => {
   const b = board();
   b.openPanel(b.rows[0]);
-  click(b.panel().querySelector('[data-vso-edit-toggle]'));
+  click(b.panel().querySelector('[data-vso-top-edit]'));
   await b.settle();
   const page = b.panel().querySelector('.vso-edit [data-vehicle-workshop-hours-batch-page]');
   type(page.querySelectorAll('[data-vehicle-workshop-hours-batch-input]')[1], '4.5');
@@ -200,7 +201,7 @@ test('3a. dragging a chip onto another station asks confirm_release, then saves 
   const sentence = 'The running Fitting job (Fitting - PMB Bay 06, Mon 26 Oct) stays on the bay. These 7.25 h move onto that job.';
   b.c.releaseMode = sentence;
   b.openPanel(b.rows[0]);
-  click(b.panel().querySelector('[data-vso-edit-toggle]'));
+  click(b.panel().querySelector('[data-vso-top-edit]'));
   await b.settle();
   const chip = b.panel().querySelector(`li[data-operation-source-id="${U(1, 1)}"]`);
   const target = b.panel().querySelector('[data-operation-category="bus_accessories"]');
@@ -226,7 +227,7 @@ test('3a2. declining the confirm leaves the chip where it is', async () => {
   const b = board();
   b.c.releaseMode = 'This will release the unstarted Electrical booking (no bay, Tue 20 Oct).';
   b.openPanel(b.rows[0]);
-  click(b.panel().querySelector('[data-vso-edit-toggle]'));
+  click(b.panel().querySelector('[data-vso-top-edit]'));
   await b.settle();
   const chip = b.panel().querySelector(`li[data-operation-source-id="${U(1, 1)}"]`);
   const target = b.panel().querySelector('[data-operation-category="bus_accessories"]');
@@ -245,7 +246,7 @@ test('3a2. declining the confirm leaves the chip where it is', async () => {
 test('3b. Cancel drops the drafts and sends nothing; a refused drop keeps the editor open', async () => {
   const b = board();
   b.openPanel(b.rows[0]);
-  click(b.panel().querySelector('[data-vso-edit-toggle]'));
+  click(b.panel().querySelector('[data-vso-top-edit]'));
   await b.settle();
   const page = b.panel().querySelector('.vso-edit [data-vehicle-workshop-hours-batch-page]');
   type(page.querySelectorAll('[data-vehicle-workshop-hours-batch-input]')[0], '9');
@@ -253,7 +254,7 @@ test('3b. Cancel drops the drafts and sends nothing; a refused drop keeps the ed
   assert.equal(b.panel().querySelector('.vso-edit'), null);
   assert.equal(b.writes().length, 0);
   assert.equal(b.c.app.vehicleWorkshopHoursBatchDrafts.has(b.rows[0].id), false, 'draft dropped');
-  click(b.panel().querySelector('[data-vso-edit-toggle]'));
+  click(b.panel().querySelector('[data-vso-top-edit]'));
   await b.settle();
   b.server.details.get(b.rows[0].id).job_card_lines[2].category_version = 5;
   const chip = b.panel().querySelector(`li[data-operation-source-id="${U(1, 3)}"]`);
@@ -271,7 +272,7 @@ test('3b. Cancel drops the drafts and sends nothing; a refused drop keeps the ed
 test('3c. closing the panel or opening another vehicle with unsaved changes asks first', async () => {
   const b = board();
   b.openPanel(b.rows[0]);
-  click(b.panel().querySelector('[data-vso-edit-toggle]'));
+  click(b.panel().querySelector('[data-vso-top-edit]'));
   await b.settle();
   type(b.panel().querySelector('[data-vehicle-workshop-hours-batch-input]'), '3');
   b.spies.confirmAnswer = false;
@@ -305,13 +306,13 @@ test('4. speed guard: the board reads nothing; a panel open reads the completion
   assert.equal(b.reads().length, 0, 'workshop detail is not read on open');
   assert.equal(b.c.PDC_VEHICLE_SLIDEOUT.edit.loads, 0);
   b.openPanel(b.rows[7]);
-  click(b.panel().querySelector('[data-vso-edit-toggle]'));
+  click(b.panel().querySelector('[data-vso-top-edit]'));
   await b.settle();
   assert.equal(b.reads().length, 1);
   assert.equal(b.reads()[0].body.p_vehicle_id, b.rows[7].id);
   assert.equal(b.spies.tableRenders + b.spies.boardRenders, 0, 'Edit draws the panel only');
-  assert.equal((CODE.match(/loadVehicleWorkshopDetail\(/g) || []).length, 2, 'Edit, and r695 (F305) Move to a bay when Book / Move is pressed');
-  assert.match(CODE, /const readBookings = vehicle => Promise\.resolve\(root\.loadVehicleWorkshopDetail\(vehicle, \{ force: true \}\)\);/);
+  assert.equal((CODE.match(/loadVehicleWorkshopDetail\(/g) || []).length, 2, 'Edit, and r699 (F309) Move to when a station is picked');
+  assert.match(CODE, /const readDetail = vehicle => Promise\.resolve\(root\.loadVehicleWorkshopDetail\(vehicle, \{ force: true \}\)\);/);
   assert.match(/function startEdit\(key\) \{[\s\S]*?\n {2}\}/.exec(CODE)[0], /root\.loadVehicleWorkshopDetail\(vehicle, \{ force: true \}\)/);
   const r496 = CODE.slice(CODE.indexOf('const EDIT_NEEDS'), CODE.indexOf('function loadStyles'));
   assert.doesNotMatch(r496, /VLT\.render|renderAll|renderIncomingDashboardBoard|refreshEmailVehicleLocations|renderDetail\(/);
@@ -333,7 +334,7 @@ test('5. slimWorkPage keeps inputs and selectors, removes every button, keeps dr
 
 test('6. loader, styles and docs: r565 cache-bust tags, FAULT_LOG F109 and F179, panel doc; no real stock numbers here', () => {
   assert.equal(slideout.VERSION, '2026.10.28.r588');
-  assert.match(fs.readFileSync('canonical-entry.js', 'utf8'), /pdc-vehicle-slideout\.js\?vehicle-slideout=2026\.10\.28\.r588&r595=2026\.10\.28\.r595(&r681=2026\.10\.29\.r681)?(&r695=2026\.10\.29\.r695)?(&r696=2026\.10\.29\.r696)?'/);
+  assert.match(fs.readFileSync('canonical-entry.js', 'utf8'), /pdc-vehicle-slideout\.js\?vehicle-slideout=2026\.10\.28\.r588&r595=2026\.10\.28\.r595(&r681=2026\.10\.29\.r681)?(&r695=2026\.10\.29\.r695)?(&r696=2026\.10\.29\.r696)?(&r699=2026\.10\.29\.r699)?'/);
   assert.match(fs.readFileSync('index.html', 'utf8'), /canonical-entry\.js\?[^"]*&amp;r496=2026\.10\.22\.r496&amp;/);
   assert.match(fs.readFileSync('index.html', 'utf8'), /&amp;r563=2026\.10\.27\.r563&amp;/);
   assert.match(fs.readFileSync('index.html', 'utf8'), /&amp;r565=2026\.10\.27\.r565&amp;/);
