@@ -236,7 +236,7 @@ test('r699: a refused move says nothing changed; viewers get no drop-down', asyn
   select.dispatch('change');
   await b.settle();
   assert.equal(original, 99);
-  assert.match(b.panel().textContent, /Not moved: this line is done, or its station job has started or finished\..*Nothing was changed\./);
+  assert.match(b.panel().textContent, /Not moved: this line is ticked, or its station job is running\..*Nothing was changed\./);
   const viewer = board({ role: 'viewer' });
   viewer.openPanel();
   await viewer.settle();

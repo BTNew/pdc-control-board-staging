@@ -13644,6 +13644,9 @@ function canTransferVehicleToPmb(vehicle) {
   const current = statusCategory(vehicle);
   if (['pmb', 'pit', 'qc', 'rft', 'collected', 'completed'].includes(current)) return false;
   if (['PMB', 'PIT', 'QC', 'RFT'].includes(vehiclePdcLocation(vehicle))) return false;
+  // r722 (F332, Craig 29 Oct 13:37, 13097784): every vehicle not already at PMB, PIT, QC or RFT can be sent To PMB,
+  // including the Other tile (a Navision status the board does not map). The server applies the same rule.
+  return true;
   if (!vehicleHasNavisionSource(vehicle)) return true;
   if (current === 'yardhold' || current === 'prodtransit') return true;
   const text = [
