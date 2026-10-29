@@ -41,7 +41,8 @@ test('a recent key is in both places and an old or missing key stays in PMB only
   assert.equal(c.vehicleLocationsDisplayBuckets(aged).join(','), 'pmb');
   assert.equal(c.pmbKeyIsNew(bare), false);
   assert.equal(c.vehicleLocationsDisplayBuckets(bare).join(','), 'pmb');
-  assert.equal(c.vehicleLocationsDisplayBuckets(held).join(','), 'newpmb');
+  // r707 (F317): a body-builder car with a key is in PMB too, and stays listed in New to PMB for its To PMB button.
+  assert.equal(c.vehicleLocationsDisplayBuckets(held).join(','), 'pmb,newpmb');
   assert.match(c.pmbNewTagHtml(recent), /class="badge pmb-new-tag"/);
   assert.match(c.pmbNewTagHtml(recent), /New to PMB/);
   assert.doesNotMatch(c.pmbNewTagHtml(recent), /orange|#f59e0b|#ff8/i);

@@ -40,8 +40,9 @@ assert.equal(age(bare,'pmb').label,'No key');
 assert.equal(age(bare,'pmb').title,'No key history and no Tune import, so there is no PMB age');
 assert.equal(age({...bare, tuneImportedAt: '2026-09-14T08:00:00+08:00'},'pmb').label,'1 day');
 assert.equal(age({...bare, tuneImportedAt: '2026-09-14T08:00:00+08:00'},'pmb').title,'Days since this vehicle first appeared in a Tune import');
-assert.equal(age({...bare, keyAssignedAt: '2026-09-15T08:00:00+08:00', tuneImportedAt: '2026-09-01T08:00:00+08:00'},'pmb').label,'14 days');
-assert.equal(age({...bare, keyAssignedAt: '2026-09-15T08:00:00+08:00', tuneImportedAt: '2026-09-01T08:00:00+08:00'},'pmb').title,'Days since this vehicle first appeared in a Tune import');
+// r707 (F317, Craig 29 Oct): a key always wins; the age counts from the key, not an earlier Tune import.
+assert.equal(age({...bare, keyAssignedAt: '2026-09-15T08:00:00+08:00', tuneImportedAt: '2026-09-01T08:00:00+08:00'},'pmb').label,'0 days');
+assert.equal(age({...bare, keyAssignedAt: '2026-09-15T08:00:00+08:00', tuneImportedAt: '2026-09-01T08:00:00+08:00'},'pmb').title,'Days since the key number was assigned');
 for (const missing of [undefined,'','bad date']) {
   const result = age({keyNumber: '205', keyAssignedAt: missing},'pmb');
   assert.equal(result.label,'—'); assert.equal(result.colourClass,'pmb-age-unknown');

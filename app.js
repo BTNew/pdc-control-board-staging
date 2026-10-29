@@ -751,6 +751,10 @@ function pmbTuneImportedTimestamp(vehicle = {}) {
 }
 
 function pmbArrivalAgeBasis(vehicle = {}) {
+  // r707 (F317, Craig 29 Oct, standing rule): at PMB the age is days since the key number was given. A key always wins
+  // over the Tune import date; the Tune date and board arrival are only used when there is no key.
+  const keyFirst = vehicle.keyAssignedAt || vehicle.key_assigned_at || (pmbVehicleHasKey(vehicle) ? pmbKeyAssignedTimestamp(vehicle) : '');
+  if (keyFirst && Number.isFinite(parseIsoTimestamp(keyFirst)?.getTime())) return 'key';
   const directKey = vehicle.keyAssignedAt || vehicle.key_assigned_at || '';
   const directTune = vehicle.tuneImportedAt || vehicle.tune_imported_at || '';
   const row = pmbArrivalAgeRow(vehicle);
@@ -8533,6 +8537,10 @@ function vehicleLocationsDisplayBucket(vehicle = {}) {
 // A body-builder hold is only in New to PMB until someone presses To PMB.
 function vehicleLocationsDisplayBuckets(vehicle = {}) {
   const primary = vehicleLocationsDisplayBucket(vehicle);
+  // r707 (F317, Craig 29 Oct, standing rule): a vehicle at PMB with a key number is in the PMB bucket. New to PMB is
+  // only a second list of the keys under 24 hours (200 in PMB + 10 new = PMB 210, New to PMB 10).
+  // A body-builder car still waiting for To PMB stays listed in New to PMB as well, so its To PMB button is there.
+  if (primary === 'newpmb' && pmbVehicleHasKey(vehicle)) return ['pmb', 'newpmb'];
   if (primary === 'newpmb') return ['newpmb'];
   if (primary === 'pmb' && pmbKeyIsNew(vehicle)) return ['pmb', 'newpmb'];
   return [primary];
