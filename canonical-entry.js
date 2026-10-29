@@ -161,7 +161,7 @@
     const loadVehicleSlideout = () => {
       if (document.querySelector('script[data-pdc-vehicle-slideout]')) return;
       const slideout = document.createElement('script');
-      slideout.src = 'pdc-vehicle-slideout.js?vehicle-slideout=2026.10.28.r588&r595=2026.10.28.r595&r681=2026.10.29.r681'; // r588 (F202): five-column grid cache-bust stays; r595 (F209): panel opens once; r578 (F192): green complete tick; r560 (F174): More details; r565 (F179): chip edit
+      slideout.src = 'pdc-vehicle-slideout.js?vehicle-slideout=2026.10.28.r588&r595=2026.10.28.r595&r681=2026.10.29.r681&r695=2026.10.29.r695'; // r695 (F305): vehicle card panel; r588 (F202): five-column grid cache-bust stays; r595 (F209): panel opens once; r578 (F192): green complete tick; r560 (F174): More details; r565 (F179): chip edit
       slideout.dataset.pdcVehicleSlideout = '1';
       document.head.appendChild(slideout);
     };
@@ -211,7 +211,7 @@
     bookAllStations.src = 'pdc-book-all-stations.js?v=2026.09.14.01-book-all-speed&render-cost=2026.09.14.01&one-hour-gap=2026.09.14.01&r483=2026.10.22.r483&r482=2026.10.22.r482';
     document.head.appendChild(bookAllStations);
     const locationOverride = document.createElement('script');
-    locationOverride.src = 'pdc-location-override.js?v=2026.09.11.01&review-fixes=2026.09.13.01&separate-screens-pmb-warning=2026.09.16.01';
+    locationOverride.src = 'pdc-location-override.js?v=2026.09.11.01&review-fixes=2026.09.13.01&separate-screens-pmb-warning=2026.09.16.01&r695=2026.10.29.r695';
     document.head.appendChild(locationOverride);
     const subletIntake = document.createElement('script');
     // r501 (F114): r501=2026.10.23.r501 on the Sublet intake (Sublet page create hidden; book in Manage sublets).
