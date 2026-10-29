@@ -9,7 +9,10 @@
  */
 (function (root) {
   'use strict';
-  const VERSION = '2026.10.29.r686';
+  const VERSION = '2026.10.29.r706';
+  // r706 (F316, Craig 29 Oct): Tint and Tyres sit side by side at the bottom with each job's full key and Start / Stop.
+  // They have one line and no iPad. Every other station stays view-only.
+  const ACTION_STATIONS = ['TINT', 'TYRE'];
   const PROJECT = 'cdsmnqxtyyoeoznmbidd';
   const HIDDEN_KEY = 'pdc.workshop-tv.hidden.v1';
   const REFRESH_MS = 60 * 1000;
@@ -87,6 +90,7 @@
     return list.map(d => ({ date: d.date, from: ms(d.from), to: ms(d.to) })).filter(w => w.from !== null && w.to !== null && w.to > w.from);
   }
   const bayKey = id => `BAY:${String(id || '').toUpperCase()}`;
+  const isAction = s => ACTION_STATIONS.includes(String(s?.code || '').toUpperCase());
   function visibleStations(data, hidden) {
     return (data?.stations || [])
       .filter(s => !hidden.has(String(s.code).toUpperCase()))
@@ -101,7 +105,10 @@
     const stations = visibleStations(data, hidden);
     if (!stations.length) return '<p class="tv-msg">Every station is hidden. Use the gear to show some.</p>';
     const head = wins.map((w, i) => `<div class="tv-hours"><em>${i === 0 ? 'Today' : esc(dayLabel(w.from))}</em>${hoursHtml(w.from, w.to)}</div>`).join('');
-    return stations.map(s => {
+    const timeline = stations.filter(s => !isAction(s));
+    const action = ACTION_STATIONS.map(code => stations.find(s => String(s.code).toUpperCase() === code)).filter(Boolean);
+    const actionHtml = action.length ? `<div class="tv-actions">${action.map(s => actionStationHtml(s, data, wins, now)).join('')}</div>` : '';
+    return timeline.map(s => {
       const bays = s.bays.map(b => {
         const tracks = wins.map((w, i) => {
           const jobs = (b.jobs || []).map(j => barHtml(j, { from: w.from, to: w.to, now, edge: i === 0 })).join('');
@@ -113,14 +120,50 @@
       }).join('');
       const over = s.bays.flatMap(b => (b.jobs || []).map(j => jobState(j, now))).filter(x => x === 'over').length;
       return `<section class="tv-station" data-station="${esc(s.code)}"><header><h2>${esc(s.name)}${over ? ` <span class="tv-over-count">${over} over time</span>` : ''}</h2>${head}</header>${bays}</section>`;
+    }).join('') + actionHtml;
+  }
+
+  /** r706: the jobs a Tint / Tyres fitter can act on: running ones, then today's (and the next day's) by start. */
+  function actionJobs(bay, wins, now) {
+    const today = wins[0];
+    const last = wins[wins.length - 1];
+    return (bay.jobs || []).filter(j => {
+      const state = jobState(j, now);
+      if (state === 'live' || state === 'over' || state === 'stop') return true;
+      if (state === 'done') { const e = ms(j.actual_end); return e !== null && today && e >= today.from; }
+      const st = ms(j.start);
+      return st !== null && last && st < last.to;
+    }).sort((a, b) => {
+      const ra = ['live', 'over', 'stop'].includes(jobState(a, now)) ? 0 : jobState(a, now) === 'done' ? 2 : 1;
+      const rb = ['live', 'over', 'stop'].includes(jobState(b, now)) ? 0 : jobState(b, now) === 'done' ? 2 : 1;
+      return ra - rb || (ms(a.start) ?? 0) - (ms(b.start) ?? 0);
+    }).slice(0, 6);
+  }
+  function actionStationHtml(s, data, wins, now) {
+    const canAct = data?.can_act === true;
+    const bays = (s.bays || []).map(b => {
+      const jobs = actionJobs(b, wins, now);
+      const rows = jobs.map(j => {
+        const state = jobState(j, now);
+        const key = j.key ? String(j.key) : '';
+        const when = ms(j.start) !== null ? `${dayLabel(ms(j.start)) === dayLabel(now) ? '' : `${dayLabel(ms(j.start))} `}${hhmm(ms(j.start))}` : '';
+        let act = '';
+        if (canAct && j.id && Number.isInteger(Number(j.booking_version))) {
+          if (state === 'plan') act = `<button type="button" class="tv-act tv-act-start" data-tv-act="start" data-id="${esc(j.id)}" data-v="${esc(j.booking_version)}" data-work="${esc(s.work_key || '')}" aria-label="Start key ${esc(key)}">Start</button>`;
+          else if (state === 'live' || state === 'over' || state === 'stop') act = `<button type="button" class="tv-act tv-act-stop" data-tv-act="stop" data-id="${esc(j.id)}" data-v="${esc(j.booking_version)}" data-work="${esc(s.work_key || '')}" aria-label="Stop key ${esc(key)}">Stop</button>`;
+        }
+        return `<li class="tv-aj is-${state}"><strong class="tv-aj-key">${key ? `Key ${esc(key)}` : 'No key'}</strong><span class="tv-aj-info">${esc(j.stock || '')}${j.vehicle ? ` · ${esc(j.vehicle)}` : ''}</span><span class="tv-aj-when">${state === 'done' ? 'Done' : state === 'plan' ? esc(when) : STATE_LABEL[state]}</span>${act}</li>`;
+      }).join('');
+      return `<div class="tv-abay"><div class="tv-abay-name"><strong>${esc(b.name)}</strong>${b.technician ? `<small>${esc(b.technician)}</small>` : ''}</div><ul>${rows || '<li class="tv-aj is-empty">No jobs booked</li>'}</ul></div>`;
     }).join('');
+    return `<section class="tv-astation" data-station="${esc(s.code)}"><h2>${esc(s.name)}</h2>${bays}</section>`;
   }
 
   function rowCount(data, hidden) {
-    return visibleStations(data, hidden).reduce((sum, s) => sum + s.bays.length + 1.4, 0);
+    return visibleStations(data, hidden).filter(s => !isAction(s)).reduce((sum, s) => sum + s.bays.length + 1.4, 0);
   }
 
-  const api = { VERSION, jobState, barHtml, boardHtml, hoursHtml, parseHidden, pct, perth, hhmm, dayLabel, rowCount, windows, visibleStations, bayKey };
+  const api = { VERSION, ACTION_STATIONS, actionJobs, actionStationHtml, jobState, barHtml, boardHtml, hoursHtml, parseHidden, pct, perth, hhmm, dayLabel, rowCount, windows, visibleStations, bayKey };
   if (typeof module !== 'undefined') module.exports = api;
   if (typeof window === 'undefined' || typeof document === 'undefined') return;
 
@@ -137,7 +180,8 @@
   function layout() {
     const rows = rowCount(data, hidden);
     const board = $('tv-board');
-    const avail = window.innerHeight - ($('tv-head')?.offsetHeight || 60) - 16;
+    const actions = board.querySelector('.tv-actions');
+    const avail = window.innerHeight - ($('tv-head')?.offsetHeight || 60) - 16 - (actions ? actions.offsetHeight + 8 : 0);
     const cols = 1; // two day tracks need the full width
     board.classList.toggle('two-col', cols === 2);
     const per = Math.ceil(rows / cols) + (cols === 2 ? 2 : 0);
@@ -182,6 +226,30 @@
       paint();
     } catch (_) {
       tickNow(); // keep the last picture; the status line turns stale after 5 minutes
+    }
+  }
+  // r706: Start / Stop for Tint and Tyres. Stop finishes the booking (complete), the same as Complete on the planner.
+  let acting = false;
+  async function act(button) {
+    if (acting || !client) return;
+    const id = button.dataset.id, version = Number(button.dataset.v), kind = button.dataset.tvAct;
+    if (!id || !Number.isInteger(version)) return;
+    acting = true;
+    button.disabled = true;
+    button.textContent = kind === 'start' ? 'Starting…' : 'Stopping…';
+    let note = '';
+    try {
+      const { data: result, error } = kind === 'start'
+        ? await client.rpc('start_workshop_work', { p_booking_id: id, p_expected_version: version, p_actual_start_at: null, p_metadata: { source: 'workshop_tv_706' } })
+        : await client.rpc('complete_workshop_work', { p_booking_id: id, p_expected_version: version, p_work_key: button.dataset.work || null, p_actual_end_at: null, p_metadata: { source: 'workshop_tv_706' } });
+      if (error || result?.ok !== true) note = `Not ${kind === 'start' ? 'started' : 'stopped'}: ${String(error?.message || result?.message || result?.error || result?.code || 'refresh and try again').slice(0, 120)}`;
+      else note = kind === 'start' ? 'Started' : 'Done';
+    } catch (e) {
+      note = 'Not saved. Check the connection and try again.';
+    } finally {
+      acting = false;
+      $('tv-status').textContent = note;
+      await load();
     }
   }
   function showGate(message, signIn = true) {
@@ -231,6 +299,7 @@
     });
     document.addEventListener('fullscreenchange', () => { $('tv-full').textContent = document.fullscreenElement ? 'Exit full screen' : 'Full screen'; if (data) layout(); });
     window.addEventListener('resize', () => { if (data) layout(); });
+    $('tv-board').addEventListener('click', event => { const b = event.target.closest?.('[data-tv-act]'); if (b) act(b); });
     document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') load(); });
     setInterval(() => { tickNow(); if (data && document.visibilityState === 'visible') paint(); }, TICK_MS);
     tickNow();
