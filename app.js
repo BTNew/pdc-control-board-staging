@@ -9993,7 +9993,7 @@ function incomingVehicleDetailRow(vehicle = {}, bucketKey = '', options = {}) {
     ? (rftAction || (locationReadOnly ? `<span class="badge neutral">${readOnlyBadge}</span>` : `<button class="small-button incoming-open-button" type="button" data-open-stock="${escapeHtml(key)}">Open</button>`))
     : locationReadOnly && !protectedLifecycleAllowed
     ? `<span class="badge neutral">${readOnlyBadge}</span>`
-    : bucketKey === 'yardhold' || bucketKey === 'nonnavision'
+    : bucketKey === 'yardhold' || bucketKey === 'nonnavision' || (bucketKey === 'transit' && canTransferVehicleToPmb(vehicle)) // r692: In transit vehicles that arrive can go To PMB too
     ? `${sharedVehicleLocationMutationUnavailable('transfer to PMB', vehicle, { silent: true }) || !canTransferVehicleToPmb(vehicle) ? '<span class="badge neutral">Shared move unavailable</span>' : `<button class="primary incoming-transfer-pmb" type="button" data-yh-transfer-pmb="${escapeHtml(key)}" title="${bucketKey === 'nonnavision' ? 'Confirm this non-division vehicle at PMB' : 'Transfer this Yard Hold vehicle to PMB'}">To PMB</button>`}<button class="small-button incoming-open-button" type="button" data-open-stock="${escapeHtml(key)}">Open</button>`
     : bucketKey === 'newpmb' && bodybuilderWaiting
       ? `<button class="small-button incoming-open-button" type="button" data-open-stock="${escapeHtml(key)}">Open</button>`
@@ -13711,6 +13711,64 @@ async function transferSelectedYhVehiclesToPmb() {
   renderAll();
 }
 
+// r692 (F302): Send to PMB box. Step 1 confirm, step 2 key number. Resolves { key } or null (cancelled).
+function pmbSendToPmbDialog({ stock = '', customer = '', warning = '', existingKey = '' } = {}) {
+  return new Promise(resolve => {
+    const doc = document;
+    if (!doc.getElementById('pmb-send-dialog-style')) {
+      const style = doc.createElement('style');
+      style.id = 'pmb-send-dialog-style';
+      style.textContent = '.pmb-send-overlay{position:fixed;inset:0;z-index:4000;background:rgba(15,23,42,.45);display:flex;align-items:center;justify-content:center;padding:16px}'
+        + '.pmb-send-box{background:#fff;border-radius:12px;box-shadow:0 20px 50px rgba(15,23,42,.35);width:min(420px,100%);padding:18px 20px;font:14px/1.4 Arial,Helvetica,sans-serif;color:#142334}'
+        + '.pmb-send-box h2{margin:0 0 6px;font-size:18px}.pmb-send-box p{margin:0 0 10px}.pmb-send-warn{background:#fef2f2;color:#991b1b;border-radius:8px;padding:8px 10px;white-space:pre-line}'
+        + '.pmb-send-box label{display:block;font-weight:700;margin:4px 0}.pmb-send-box input{box-sizing:border-box;width:100%;font:700 22px/1 Arial,Helvetica,sans-serif;padding:10px 12px;border:2px solid #1d4ed8;border-radius:8px;text-transform:uppercase}'
+        + '.pmb-send-box small{display:block;color:#475569;margin-top:6px}.pmb-send-err{color:#b91c1c;font-weight:700;min-height:1.2em;margin-top:6px}'
+        + '.pmb-send-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:14px}.pmb-send-actions button{font:700 14px/1 Arial,Helvetica,sans-serif;height:40px;padding:0 18px;border-radius:8px;cursor:pointer;border:1px solid #cbd5e1;background:#fff;color:#142334}'
+        + '.pmb-send-actions .pmb-send-yes{background:#16a34a;border-color:#15803d;color:#fff}';
+      doc.head.appendChild(style);
+    }
+    const esc = value => escapeHtml(String(value || ''));
+    const overlay = doc.createElement('div');
+    overlay.className = 'pmb-send-overlay';
+    overlay.setAttribute('role', 'dialog');
+    overlay.setAttribute('aria-modal', 'true');
+    overlay.setAttribute('aria-label', 'Send to PMB');
+    const done = value => { doc.removeEventListener('keydown', onKey, true); overlay.remove(); resolve(value); };
+    const confirmStep = () => {
+      overlay.innerHTML = `<div class="pmb-send-box"><h2>Send to PMB?</h2><p>Confirm send <strong>${esc(stock)}</strong>${customer ? ` - ${esc(customer)}` : ''} to PMB.</p>${warning ? `<p class="pmb-send-warn">${esc(warning)}</p>` : ''}<div class="pmb-send-actions"><button type="button" data-pmb-send="no">Cancel</button><button type="button" class="pmb-send-yes" data-pmb-send="yes">Yes, send to PMB</button></div></div>`;
+      overlay.querySelector('[data-pmb-send="yes"]').addEventListener('click', keyStep);
+      overlay.querySelector('[data-pmb-send="no"]').addEventListener('click', () => done(null));
+      overlay.querySelector('[data-pmb-send="yes"]').focus();
+      step = 'confirm';
+    };
+    const keyStep = () => {
+      overlay.innerHTML = `<div class="pmb-send-box"><h2>Key number</h2><label for="pmb-send-key">Key number for ${esc(stock)}</label><input id="pmb-send-key" type="text" inputmode="numeric" autocomplete="off" maxlength="32" value="${esc(existingKey)}"><small>The key number starts the PMB timer. The vehicle shows in New to PMB for 24 hours.</small><div class="pmb-send-err" role="alert"></div><div class="pmb-send-actions"><button type="button" data-pmb-send="no">Cancel</button><button type="button" class="pmb-send-yes" data-pmb-send="go">Send to PMB</button></div></div>`;
+      const input = overlay.querySelector('#pmb-send-key');
+      const err = overlay.querySelector('.pmb-send-err');
+      const go = () => {
+        const key = String(input.value || '').replace(/\s+/g, '').toUpperCase();
+        if (!key) { err.textContent = 'Enter the key number.'; input.focus(); return; }
+        if (!/^[A-Z0-9][A-Z0-9_-]{0,31}$/.test(key) || /^0+$/.test(key)) { err.textContent = 'Use letters and numbers only (up to 32). 0 is not a key.'; input.focus(); return; }
+        done({ key });
+      };
+      overlay.querySelector('[data-pmb-send="go"]').addEventListener('click', go);
+      overlay.querySelector('[data-pmb-send="no"]').addEventListener('click', () => done(null));
+      input.addEventListener('keydown', event => { if (event.key === 'Enter') { event.preventDefault(); go(); } });
+      input.focus(); input.select();
+      step = 'key';
+    };
+    let step = 'confirm';
+    const onKey = event => {
+      if (event.key === 'Escape') { event.preventDefault(); done(null); }
+      else if (event.key === 'Enter' && step === 'confirm') { event.preventDefault(); keyStep(); }
+    };
+    doc.addEventListener('keydown', onKey, true);
+    overlay.addEventListener('click', event => { if (event.target === overlay) done(null); });
+    doc.body.appendChild(overlay);
+    confirmStep();
+  });
+}
+
 async function transferYhVehicleToPmb(key = '') {
   const vehicle = selectedVehicle(key);
   if (sharedVehicleLocationMutationUnavailable('transfer to PMB', vehicle)) return false;
@@ -13722,21 +13780,32 @@ async function transferYhVehicleToPmb(key = '') {
   const stock = displayStockNumber(vehicle) || 'No stock';
   const customer = vehicleCustomerName(vehicle) || 'Unknown customer';
   const partsWarning = pmbPartsReleaseWarning([vehicle]);
-  if (!window.confirm(`${partsWarning ? partsWarning + '\n\n' : ''}Transfer ${stock} - ${customer} to PMB?\n\nThis is a manual PDC location change. Future Navision uploads will not move it back.`)) return;
-
   const existingKey = String(vehicle.keyNumber || vehicle.keyNo || vehicle.key_number || vehicle.keyTag || vehicle.pdcKeyNumber || '').trim();
-  if (!existingKey) {
-    const ask = typeof window.prompt === 'function' ? window.prompt.bind(window) : null;
-    if (!ask) {
-      if (typeof pdcNotify === 'function') pdcNotify('Enter a key number, then press To PMB. The vehicle stayed where it is.');
-      return false;
+  // r692 (F302): one in-page box: "Confirm send to PMB?" then "Key number"; Enter sends. The key starts the PMB timer
+  // and keeps the vehicle in New to PMB for 24 hours. Browsers without the box keep the old confirm / prompt.
+  let enteredKey = '';
+  const dialogReady = typeof pmbSendToPmbDialog === 'function' && typeof document !== 'undefined' && document && document.body && typeof document.createElement === 'function';
+  if (dialogReady) {
+    const answer = await pmbSendToPmbDialog({ stock, customer, warning: partsWarning, existingKey });
+    if (!answer || !answer.key) return false;
+    enteredKey = answer.key;
+  } else {
+    if (!window.confirm(`${partsWarning ? partsWarning + '\n\n' : ''}Transfer ${stock} - ${customer} to PMB?\n\nThis is a manual PDC location change. Future Navision uploads will not move it back.`)) return;
+    if (!existingKey) {
+      const ask = typeof window.prompt === 'function' ? window.prompt.bind(window) : null;
+      if (!ask) {
+        if (typeof pdcNotify === 'function') pdcNotify('Enter a key number, then press To PMB. The vehicle stayed where it is.');
+        return false;
+      }
+      const typed = ask(`Key number for ${stock}. It goes straight to the PMB bucket. No acknowledgement.`);
+      if (typed == null || !String(typed).trim()) {
+        if (typeof pdcNotify === 'function') pdcNotify('No key number was entered. The vehicle stayed where it is.');
+        return false;
+      }
+      enteredKey = String(typed).replace(/\s+/g, '').toUpperCase();
     }
-    const typed = ask(`Key number for ${stock}. It goes straight to the PMB bucket. No acknowledgement.`);
-    if (typed == null || !String(typed).trim()) {
-      if (typeof pdcNotify === 'function') pdcNotify('No key number was entered. The vehicle stayed where it is.');
-      return false;
-    }
-    const enteredKey = String(typed).replace(/\s+/g, '').toUpperCase();
+  }
+  if (enteredKey && enteredKey.toUpperCase() !== existingKey.toUpperCase()) {
     if (!/^[A-Z0-9][A-Z0-9_-]{0,31}$/.test(enteredKey) || /^0+$/.test(enteredKey)) {
       if (typeof pdcNotify === 'function') pdcNotify('Use letters and numbers only (up to 32). The vehicle stayed where it is.');
       return false;
