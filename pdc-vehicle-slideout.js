@@ -894,6 +894,17 @@
       .replace('<details class="incoming-vehicle-card', '<details open class="incoming-vehicle-card vlt-drawer-card vso-card');
   };
 
+  // r696 (F306): To PMB in the panel header for In Transit / Yard Hold / Non-Navision vehicles that are already here
+  // (Navision not updated yet). It opens the same Send to PMB box (key drop-down); the key starts the PMB timer.
+  const toPmbHtml = vehicle => {
+    try {
+      if (typeof root.canTransferVehicleToPmb !== 'function' || typeof root.transferYhVehicleToPmb !== 'function') return '';
+      if (!root.canTransferVehicleToPmb(vehicle)) return '';
+      if (typeof root.sharedVehicleLocationMutationUnavailable === 'function' && root.sharedVehicleLocationMutationUnavailable('transfer to PMB', vehicle, { silent: true })) return '';
+      return `<button type="button" class="primary vso-to-pmb" data-vso-to-pmb="${esc(root.vehicleKey(vehicle))}" title="Vehicle is here: send it to PMB and give it a key number">To PMB</button>`;
+    } catch (error) { return ''; }
+  };
+
   function render(key, bucket, { keepScroll = false } = {}) {
     const vehicle = vehicleFor(key);
     if (!vehicle) { close(); return false; }
@@ -914,11 +925,16 @@
           <h3>${esc(root.displayStockNumber(vehicle) || key)}</h3><p>${esc(root.displayVehicle(vehicle) || '')}</p>
           <div class="vso-facts"><span><b>Key</b> ${esc(keyNo)}</span><span><b>JC</b> ${esc(jobs)}</span><span><b>Dept</b> ${depts}</span></div>
           <div class="vso-open-row"></div></div>
-        <div class="vso-head-actions"><button type="button" class="vso-close" data-vso-close aria-label="Close">✕</button></div>
+        <div class="vso-head-actions">${toPmbHtml(vehicle)}<button type="button" class="vso-close" data-vso-close aria-label="Close">✕</button></div>
       </header>
       ${stoppageHtml(key)}<div class="vso-body">${cardHtml}</div>`;
     const card = panel.querySelector('details.vso-card');
     card.querySelector('summary')?.addEventListener('click', event => { if (!event.target.closest('button, a, input, select, label')) event.preventDefault(); });
+    panel.querySelector('[data-vso-to-pmb]')?.addEventListener('click', async event => {
+      event.stopPropagation();
+      const button = event.currentTarget; button.disabled = true;
+      try { await root.transferYhVehicleToPmb(button.dataset.vsoToPmb); } finally { if (button.isConnected) button.disabled = false; }
+    });
     VLT.bindBoardHandlers(panel); // r461's export: the same listeners the board binds today
     // r485: Clear stoppage -> app.js clearPriorityStoppage() via bindFixFirstRows(), exactly as on the drop-down list.
     const stoppages = panel.querySelector('.vso-stoppages');
