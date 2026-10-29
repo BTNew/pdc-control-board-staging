@@ -969,3 +969,6 @@ function callPlan(kind) {
 export function previewAllowsApply() {
   return false;
 }
+
+// r728: shared with service_rows.js (website preparation of the Service as a Whole rows).
+export { norm, unwrapHeader, headerNames, checkServiceHeaders, checkWholeParameters, BASE_HEADERS, SUBLET_HEADERS, SERVICE_WHOLE };
