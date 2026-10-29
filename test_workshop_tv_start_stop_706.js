@@ -36,3 +36,14 @@ test('the read carries ids, version and can_act; the page cache-busts', () => {
   assert.match(sql, /''can_act'', coalesce\(public\.workshop_is_planner_operator\(\), false\)/);
   assert.match(fs.readFileSync('workshop-tv.html', 'utf8'), /&amp;r706=2026\.10\.29\.r706(&amp;r710=2026\.10\.29\.r710)?"/);
 });
+test('r710: each zone shows the current job, the next and the one after; no done jobs', () => {
+  const jobs = [
+    job({ id: 'd', status: 'completed', actual_start: '2026-10-29T00:00:00Z', actual_end: '2026-10-29T01:00:00Z', key: '900' }),
+    job({ id: 'c', status: 'started', start: '2026-10-29T02:00:00Z', key: '901' }),
+    job({ id: 'n1', start: '2026-10-29T04:00:00Z', key: '902' }),
+    job({ id: 'n2', start: '2026-10-29T05:00:00Z', key: '903' }),
+    job({ id: 'n3', start: '2026-10-29T06:00:00Z', key: '904' }),
+  ];
+  const zone = tv.boardHtml(data(true, jobs), { now }).split('data-bay="t1"')[1].split('</section>')[0];
+  assert.deepEqual([...zone.matchAll(/Key (\d+)/g)].map(m => m[1]), ['901', '902', '903']);
+});

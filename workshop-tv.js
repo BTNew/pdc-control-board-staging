@@ -126,19 +126,18 @@
 
   /** r706: the jobs a Tint / Tyres fitter can act on: running ones, then today's (and the next day's) by start. */
   function actionJobs(bay, wins, now) {
-    const today = wins[0];
     const last = wins[wins.length - 1];
     return (bay.jobs || []).filter(j => {
       const state = jobState(j, now);
       if (state === 'live' || state === 'over' || state === 'stop') return true;
-      if (state === 'done') { const e = ms(j.actual_end); return e !== null && today && e >= today.from; }
+      if (state === 'done') return false; // r710 (F320): current job, next and the one after only
       const st = ms(j.start);
       return st !== null && last && st < last.to;
     }).sort((a, b) => {
       const ra = ['live', 'over', 'stop'].includes(jobState(a, now)) ? 0 : jobState(a, now) === 'done' ? 2 : 1;
       const rb = ['live', 'over', 'stop'].includes(jobState(b, now)) ? 0 : jobState(b, now) === 'done' ? 2 : 1;
       return ra - rb || (ms(a.start) ?? 0) - (ms(b.start) ?? 0);
-    }).slice(0, 6);
+    }).slice(0, 3);
   }
   function actionStationHtml(s, data, wins, now) {
     const canAct = data?.can_act === true;
