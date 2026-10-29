@@ -5070,9 +5070,26 @@ function workshopBayAwareCategory(candidate = {}, stageCode = '', bayNumber = 0)
   }
   return null;
 }
+// r707 (F318): a bay hidden in Bay Manager (workshop_bays.is_active = false) leaves the
+// planner. Only a confirmed 'inactive' bay is dropped; loading or unknown bays stay, and a
+// hidden bay that still holds open work stays so nothing on the board disappears.
 function workshopVisibleBays(stage) {
   const selected = stage === 'BUS_4X4' ? workshopSelectedBusGroup() : null;
-  return selected ? [...selected.bays] : Array.from({length:workshopStageBayCount(stage)},(_,i)=>i+1);
+  const bays = selected ? [...selected.bays] : Array.from({length:workshopStageBayCount(stage)},(_,i)=>i+1);
+  const statusOf = typeof workshopBayAvailabilityStatus === 'function' ? workshopBayAvailabilityStatus : null;
+  if (!statusOf) return bays;
+  let openRows = null;
+  return bays.filter(bay => {
+    let status = 'active';
+    try { status = statusOf(stage, bay); } catch (_error) { status = 'active'; }
+    if (status !== 'inactive') return true;
+    if (openRows === null) {
+      try { openRows = typeof workshopLoadPlans === 'function' ? workshopLoadPlans() : []; } catch (_error) { openRows = []; }
+      if (!Array.isArray(openRows)) openRows = [];
+    }
+    return openRows.some(entry => entry && entry.stage === stage && Number(entry.bay) === Number(bay)
+      && !['completed', 'deleted', 'cancelled'].includes(String(entry.status || '').toLowerCase()));
+  });
 }
 function workshopBayStoredName(stage, bay) {
   // Extracted tests may omit workshopSharedBayRef. Prefer the local binding when present.
