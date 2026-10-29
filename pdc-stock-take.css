@@ -48,3 +48,34 @@
 #stock-take .st-line.is-x .st-d { color: #991b1b; font-weight: 700; }
 #stock-take .st-meta .st-xwho { color: #b91c1c; }
 #stock-take .st-looked { font-weight: 800; color: #1d4ed8; }
+/* r724 (F334): found a car not on the list */
+#stock-take .st-found { margin-top: 10px; border: 2px dashed #1d4ed8; border-radius: 12px; background: #eff6ff; padding: 6px 12px; }
+#stock-take .st-found > summary { cursor: pointer; font-weight: 800; color: #1d4ed8; min-height: 40px; display: flex; align-items: center; gap: 8px; }
+#stock-take .st-found > summary b { background: #1d4ed8; color: #fff; border-radius: 999px; padding: 1px 10px; font-size: 13px; }
+#stock-take .st-found-form { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 6px 0 8px; }
+#stock-take .st-found-form input { min-height: 44px; font: inherit; font-size: 17px; padding: 8px 10px; border: 1px solid #93c5fd; border-radius: 10px; background: #fff; flex: 1 1 140px; }
+#stock-take .st-found-form input[data-st-found-note] { flex: 2 1 220px; }
+#stock-take .st-found-form button { min-height: 44px; padding: 8px 18px; border: 0; border-radius: 10px; background: #1d4ed8; color: #fff; font: inherit; font-weight: 800; cursor: pointer; }
+#stock-take .st-found-msg { font-weight: 700; color: #1e3a8a; }
+#stock-take .st-found-rows { list-style: none; margin: 0 0 6px; padding: 0; display: grid; gap: 6px; }
+#stock-take .st-found-rows li { display: flex; flex-wrap: wrap; gap: 4px 12px; align-items: center; background: #fff; border: 1px solid #bfdbfe; border-radius: 10px; padding: 8px 10px; }
+#stock-take .st-fk { font-size: 20px; font-weight: 900; }
+#stock-take .st-fs { font-weight: 700; }
+#stock-take .st-fn { color: #334155; }
+#stock-take .st-fb-none { color: #b91c1c; }
+#stock-take .st-found-rows small { color: #64748b; margin-left: auto; }
+#stock-take .st-sorted { min-height: 36px; padding: 4px 12px; border: 2px solid #16a34a; border-radius: 8px; background: #fff; color: #15803d; font: inherit; font-weight: 800; cursor: pointer; }
+#stock-take .st-found-none { color: #64748b; margin: 4px 0 8px; }
+/* r725 (F335): collapsed car rows with status; tap to open */
+#stock-take .st-car h3 { padding: 0; align-items: stretch; }
+#stock-take .st-toggle { flex: 1; display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px; padding: 12px; border: 0; background: transparent; font: inherit; text-align: left; cursor: pointer; color: inherit; min-height: 56px; }
+#stock-take .st-car h3 .st-missing { align-self: center; margin-right: 10px; }
+#stock-take .st-status { font-size: 13px; font-weight: 800; border-radius: 999px; padding: 2px 10px; background: #e2e8f0; color: #334155; }
+#stock-take .st-car.is-part .st-status { background: #fef3c7; color: #92400e; }
+#stock-take .st-car.is-looked .st-status { background: #dbeafe; color: #1d4ed8; }
+#stock-take .st-car.is-done .st-status { background: #dcfce7; color: #166534; }
+#stock-take .st-car.is-missing .st-status { background: #dc2626; color: #fff; }
+#stock-take .st-chev { color: #64748b; font-size: 14px; margin-left: 4px; }
+#stock-take .st-car.is-open { border: 2px solid #1d4ed8; box-shadow: 0 4px 14px rgba(15, 23, 42, .12); }
+#stock-take .st-car:not(.is-open) { border-bottom-width: 1px; }
+#stock-take .st-list { gap: 6px; }
