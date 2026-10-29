@@ -9,7 +9,7 @@
  */
 (function (root) {
   'use strict';
-  const VERSION = '2026.10.29.r724';
+  const VERSION = '2026.10.29.r725';
   const PROJECT = 'cdsmnqxtyyoeoznmbidd';
   const POLL_MS = 5000;
   const FULL_MS = 120000;
@@ -64,15 +64,14 @@
   }
   function lineHtml(car, line, canTick, view, now) {
     const id = `${car.id}|${line.id}`;
-    const pending = view?.pending?.has(id);
     const fresh = line.done && line.at && now - Date.parse(line.at) < 120000;
     const who = line.done ? (line.by ? `${esc(line.by)}${line.at ? ` ${esc(hhmm(line.at))}` : ''}` : 'Done') : '';
     const xed = line.x === true && !line.done;
     const xWho = xed ? `${line.x_by ? esc(line.x_by) : ''}${line.x_at ? ` ${esc(hhmm(line.x_at))}` : ''}`.trim() : '';
     const hours = line.h != null && line.h !== '' ? `${esc(line.h)} h` : '';
-    const xBtn = canTick ? `<button type="button" class="st-x" data-st-x="${esc(id)}" aria-pressed="${xed}"${line.done || pending ? ' disabled' : ''} aria-label="${esc(line.d)}: looked, not done" title="Looked at the car: this item is not done">✗</button>` : '';
+    const xBtn = canTick ? `<button type="button" class="st-x" data-st-x="${esc(id)}" aria-pressed="${xed}"${line.done ? ' disabled' : ''} aria-label="${esc(line.d)}: looked, not done" title="Looked at the car: this item is not done">✗</button>` : '';
     return `<li class="st-line${line.done ? ' is-done' : ''}${xed ? ' is-x' : ''}${fresh ? ' is-fresh' : ''}"><div class="st-row"><label>`
-      + `<input type="checkbox" data-st-tick="${esc(id)}"${line.done ? ' checked' : ''}${!canTick || pending ? ' disabled' : ''} aria-label="${esc(line.d)} done">`
+      + `<input type="checkbox" data-st-tick="${esc(id)}"${line.done ? ' checked' : ''}${!canTick ? ' disabled' : ''} aria-label="${esc(line.d)} done">`
       + `<span class="st-d">${esc(line.d)}${(view?.stations || []).length > 1 ? ` <em>${esc(STATION_LABEL[line.st] || line.st)}</em>` : ''}</span>`
       + `<span class="st-meta">${who ? `<b>✓ ${who}</b>` : ''}${xed ? `<b class="st-xwho">✗ Not done${xWho ? ` · ${xWho}` : ''}</b>` : ''}${hours ? `<small>${hours}</small>` : ''}</span></label>${xBtn}</div></li>`;
   }
@@ -84,9 +83,17 @@
     // Craig 13:15: "if we go to a bay and that vehicle isn't here, put down missing so we have to find it later".
     const missBtn = canTick ? `<button type="button" class="st-missing" data-st-missing="${esc(car.id)}" aria-pressed="${car.missing === true}"${view?.pending?.has(`miss|${car.id}`) ? ' disabled' : ''}>${car.missing ? 'Found it' : 'Missing'}</button>` : '';
     const missNote = car.missing ? `<p class="st-miss-note">MISSING${car.missing_by ? ` · flagged by ${esc(car.missing_by)}${car.missing_at ? ` ${esc(hhmm(car.missing_at))}` : ''}` : ''}. Find it, then tap Found it.</p>` : '';
-    return `<section class="st-car${all ? ' is-done' : ''}${car.missing ? ' is-missing' : ''}" data-st-car="${esc(car.id)}"><h3><span class="st-key">${car.k ? `Key ${esc(car.k)}` : 'No key'}</span>`
-      + `<span class="st-stock">${esc(car.s || '')}</span><span class="st-veh">${esc(car.v || '')}</span>${carChecked(car) && !all ? '<span class="st-looked">✓ Looked at</span>' : ''}<span class="st-count">${done}/${lines.length}</span>${missBtn}</h3>`
-      + `${missNote}${error ? `<p class="st-error" role="alert">${esc(error)}</p>` : ''}<ul>${lines.map(line => lineHtml(car, line, canTick, view, now)).join('')}</ul></section>`;
+    // r725 (F335, Craig 14:05): each car is one collapsed row with its status; tap it to open its accessories, tick or
+    // X them, and when every item is done it closes and the next car opens.
+    const open = view?.openCar === car.id;
+    const xs = lines.filter(line => line.x && !line.done).length;
+    const status = car.missing ? ['missing', 'Missing'] : all ? ['done', 'All done'] : carChecked(car) ? ['looked', 'Looked at']
+      : (done || xs) ? ['part', 'In progress'] : ['todo', 'Not checked'];
+    return `<section class="st-car is-${status[0]}${open ? ' is-open' : ''}${all ? ' is-done' : ''}${car.missing ? ' is-missing' : ''}" data-st-car="${esc(car.id)}">`
+      + `<h3><button type="button" class="st-toggle" data-st-toggle="${esc(car.id)}" aria-expanded="${open}"><span class="st-key">${car.k ? `Key ${esc(car.k)}` : 'No key'}</span>`
+      + `<span class="st-stock">${esc(car.s || '')}</span><span class="st-veh">${esc(car.v || '')}</span>`
+      + `<span class="st-status">${esc(status[1])}</span><span class="st-count">✓ ${done}/${lines.length}${xs ? ` · ✗ ${xs}` : ''}</span><span class="st-chev" aria-hidden="true">${open ? '▲' : '▼'}</span></button>${missBtn}</h3>`
+      + `${missNote}${error ? `<p class="st-error" role="alert">${esc(error)}</p>` : ''}${open ? `<ul>${lines.map(line => lineHtml(car, line, canTick, view, now)).join('')}</ul>` : ''}</section>`;
   }
   function panelHtml(payload, view, now = Date.now()) {
     const canTick = payload?.can_tick === true;
@@ -148,7 +155,7 @@
     return ['FITTING', 'FABRICATION'];
   }
   const state = { payload: null, error: '', loading: false, rev: '', timer: null, lastFull: 0, open: false,
-    view: { stations: readPick(), search: '', openOnly: false, missingOnly: false, pending: new Set(), errors: new Map(), updated: '' } };
+    view: { stations: readPick(), search: '', openOnly: false, missingOnly: false, openCar: '', pending: new Set(), errors: new Map(), updated: '' } };
   const host = () => document.getElementById('stock-take-content');
 
   async function rpc(name, body) {
@@ -195,58 +202,75 @@
   }
   async function load() {
     if (state.loading) return;
-    state.loading = true;
+    state.loading = true; const gen = saveGen;
     try {
       const [payload, found] = await Promise.all([
         rpc('get_pdc_stock_take_720', { p_stations: state.view.stations }),
         rpc('get_pdc_stock_take_found_724', {}).catch(() => null),
       ]);
       if (found?.ok === true) state.view.found = found.found || [];
+      if (gen !== saveGen) return; // r725: a tick landed while this was loading; keep it, settle() loads again
       state.payload = payload; state.error = ''; state.rev = payload?.rev || ''; state.lastFull = Date.now(); state.view.updated = payload?.now || '';
     } catch (error) { state.error = error?.message || 'Could not load the stock take.'; }
     finally { state.loading = false; render(); }
   }
   async function poll() {
-    if (!state.open || document.visibilityState === 'hidden' || state.loading || state.view.pending.size) return;
+    if (!state.open || document.visibilityState === 'hidden' || state.loading || state.view.pending.size || inflight) return;
     try {
       const rev = await rpc('get_pdc_stock_take_rev_720', {});
       if ((rev && rev !== state.rev) || Date.now() - state.lastFull > FULL_MS) await load();
     } catch (_) { /* keep the last list; the next poll tries again */ }
   }
-  async function tick(id, completed) {
-    const [carId, lineId] = id.split('|');
-    const car = (state.payload?.cars || []).find(entry => entry.id === carId);
-    const line = car?.l?.find(entry => entry.id === lineId);
-    if (!line || state.view.pending.has(id)) return;
-    state.view.pending.add(id); state.view.errors.delete(carId);
-    line.done = completed; line.by = completed ? (root.PDC_AUTH_CONTEXT?.displayName || 'You') : null; line.at = new Date().toISOString();
-    render();
-    try {
-      const result = typeof root.setPanelLineCompletion === 'function'
-        ? await root.setPanelLineCompletion(carId, lineId, completed)
-        : await rpc('set_panel_line_completion_565', { p_vehicle_id: carId, p_line_identity: lineId, p_completed: completed });
-      if (result?.ok !== true) state.view.errors.set(carId, ERRORS[result?.error] || 'Not saved. Try again.');
-      else if (completed && line.x) { line.x = false; await rpc('set_pdc_stock_take_x_723', { p_vehicle_id: carId, p_line_identity: lineId, p_x: false }).catch(() => null); } // r723: done clears the X
-    } catch (_) {
-      state.view.errors.set(carId, ERRORS.completion_unavailable);
-    } finally {
-      state.view.pending.delete(id);
-      await load(); // everyone's latest, including this tick
-    }
+  // r725 (F335): a tick or X shows at once and saves in the background (no "Saving" wait, no reload per tick). One
+  // refresh runs a few seconds after the last save, so other people's changes still come in.
+  let inflight = 0; let settleTimer = null; let saveGen = 0;
+  function settle() {
+    clearTimeout(settleTimer);
+    settleTimer = setTimeout(() => { if (!inflight) void load(); }, 2500);
   }
-  async function markX(id, on) {
+  function findLine(id) {
     const [carId, lineId] = id.split('|');
     const car = (state.payload?.cars || []).find(entry => entry.id === carId);
-    const line = car?.l?.find(entry => entry.id === lineId);
-    if (!line || line.done || state.view.pending.has(id)) return;
-    state.view.pending.add(id); state.view.errors.delete(carId);
+    return { carId, lineId, car, line: car?.l?.find(entry => entry.id === lineId) };
+  }
+  // When the open car is fully checked, close it and open the next car in the list that still needs checking.
+  function advance(car) {
+    if (!car || state.view.openCar !== car.id || !carChecked(car)) return;
+    const cars = visibleCars(state.payload, state.view);
+    const at = cars.findIndex(entry => entry.id === car.id);
+    const next = cars.slice(at + 1).find(entry => !carChecked(entry) && !entry.missing) || null;
+    state.view.openCar = next ? next.id : '';
+    render();
+    const node = next && document.querySelector(`[data-st-car="${CSS.escape(next.id)}"]`);
+    node?.scrollIntoView?.({ block: 'start', behavior: 'smooth' });
+  }
+  async function save(name, body, onFail, carId) {
+    inflight += 1; saveGen += 1; state.view.errors.delete(carId);
+    try {
+      const result = await rpc(name, body);
+      if (result?.ok !== true) { onFail(); state.view.errors.set(carId, ERRORS[result?.error] || 'Not saved. Try again.'); render(); }
+    } catch (_) { onFail(); state.view.errors.set(carId, ERRORS.completion_unavailable); render(); }
+    finally { inflight -= 1; settle(); }
+  }
+  function tick(id, completed) {
+    const { carId, lineId, car, line } = findLine(id);
+    if (!line) return;
+    const before = { done: line.done, by: line.by, at: line.at, x: line.x };
+    line.done = completed; line.by = completed ? (root.PDC_AUTH_CONTEXT?.displayName || 'You') : null; line.at = new Date().toISOString();
+    if (completed && line.x) { line.x = false; void save('set_pdc_stock_take_x_723', { p_vehicle_id: carId, p_line_identity: lineId, p_x: false }, () => {}, carId); } // r723: done clears the X
+    render();
+    void save('set_panel_line_completion_565', { p_vehicle_id: carId, p_line_identity: lineId, p_completed: completed },
+      () => Object.assign(line, before), carId);
+    advance(car);
+  }
+  function markX(id, on) {
+    const { carId, lineId, car, line } = findLine(id);
+    if (!line || line.done) return;
+    const before = { x: line.x, x_by: line.x_by, x_at: line.x_at };
     line.x = on; line.x_by = on ? (root.PDC_AUTH_CONTEXT?.displayName || 'You') : null; line.x_at = new Date().toISOString();
     render();
-    try {
-      const result = await rpc('set_pdc_stock_take_x_723', { p_vehicle_id: carId, p_line_identity: lineId, p_x: on });
-      if (result?.ok !== true) state.view.errors.set(carId, ERRORS[result?.error] || 'Not saved. Try again.');
-    } catch (_) { state.view.errors.set(carId, ERRORS.completion_unavailable); }
-    finally { state.view.pending.delete(id); await load(); }
+    void save('set_pdc_stock_take_x_723', { p_vehicle_id: carId, p_line_identity: lineId, p_x: on }, () => Object.assign(line, before), carId);
+    advance(car);
   }
   async function addFound(form) {
     const key = form.querySelector('[data-st-found-key]'); const stock = form.querySelector('[data-st-found-stock]'); const note = form.querySelector('[data-st-found-note]');
@@ -290,6 +314,8 @@
     });
     el.addEventListener('input', event => { if (event.target.matches?.('[data-st-search]')) { state.view.search = event.target.value; render(); } });
     el.addEventListener('click', event => {
+      const toggle = event.target.closest?.('[data-st-toggle]');
+      if (toggle) { const id = toggle.dataset.stToggle; state.view.openCar = state.view.openCar === id ? '' : id; render(); return; }
       const sorted = event.target.closest?.('[data-st-sorted]');
       if (sorted) { void sortFound(sorted.dataset.stSorted, sorted); return; }
       const xb = event.target.closest?.('[data-st-x]');
