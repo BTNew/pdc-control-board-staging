@@ -7342,7 +7342,7 @@ async function workshopResequenceDrop(entry, target) {
   const other = workshopResequenceLabel(target);
   const mode = await workshopResequenceDialog(`Change the order in Bay ${Number(entry.bay)}`,
     `<p>${escapeHtml(`You dropped ${moving} on ${other}.`)}</p>`,
-    [{ value: '', label: 'Cancel' }, { value: 'swap', label: `Swap with ${other}` }, { value: 'ahead', label: `Move ahead of ${other}`, className: 'primary' }]);
+    [{ value: '', label: 'Cancel' }, { value: 'ahead', label: `Move ahead of ${other}` }, { value: 'swap', label: `Swap with ${other}`, className: 'primary' }]);
   if (!mode) { renderWorkshopPlanner(); return false; }
   const base = {
     bookingId: entry.sharedBookingId,
@@ -7353,14 +7353,12 @@ async function workshopResequenceDrop(entry, target) {
   };
   const preview = await workshopDispatchSharedAction('resequenceBay', { ...base, apply: false, requestId: workshopNewRequestId() });
   if (!preview || preview.ok !== true || !preview.plan_hash) return false;
-  const apply = await workshopResequenceDialog(mode === 'swap' ? `Swap ${moving} and ${other}` : `Move ${moving} ahead of ${other}`,
-    workshopResequencePreviewHtml(preview),
-    [{ value: '', label: 'Cancel' }, { value: 'apply', label: 'Apply', className: 'primary' }]);
-  if (apply !== 'apply') { workshopNotify('No change was made.', 'info'); renderWorkshopPlanner(); return false; }
+  // 30 Oct 2026 (Craig): swaps apply straight away. No second "these bookings
+  // will move" screen; Undo re-order is there for 30 minutes instead.
   const result = await workshopDispatchSharedAction('resequenceBay', { ...base, apply: true, planHash: preview.plan_hash, requestId: workshopNewRequestId() });
   if (!result || result.ok !== true) return false;
   if (result.receipt_id) workshopLastBayResequence = { receiptId: String(result.receipt_id), undoRequestId: workshopNewRequestId(), at: Date.now(), bay: Number(entry.bay) };
-  workshopNotify(`Bay ${Number(entry.bay)} re-ordered. Use “Undo re-order” within 30 minutes to put it back.`, 'info');
+  workshopNotify(mode === 'swap' ? `Swapped ${moving} and ${other}.` : `Moved ${moving} ahead of ${other}.`, 'info');
   renderWorkshopPlanner();
   return true;
 }

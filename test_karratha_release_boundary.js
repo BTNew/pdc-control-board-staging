@@ -132,7 +132,8 @@ const approvedRootImportPatch = Object.freeze({
   // r592: a drop onto a running job asks to place this job after it and lists the jobs that move back (F206). Department 135 keeps its frozen planner.
   // r594: an unallocated drag books the unticked lines for that station (F208). Department 135 keeps its frozen planner.
   // r597: an occupied-bay drop cascades and says which jobs moved; a bayless card shows the unticked hours (F211). Department 135 keeps its frozen planner.
-  "workshop-planner.js": "995c156d2a4d2353c3da1d85fa9b477f4f8b114a9c80332bc56829cb1691cf37",
+  // 30 Oct 2026: a same-bay swap applies straight away (no preview screen); Undo re-order stays. Department 135 keeps its frozen planner.
+  "workshop-planner.js": "d94e63874f660fc2712b16893a4d11745c13a4c4c1446e55350be07931621abe",
   // r527: a refused set_bay_default_technician no longer wipes the cached bay list (F141). Department 135 keeps the baseline bytes.
   // r549: setWorkshopBayDisplayName calls set_workshop_bay_display_name (F163). Department 135 keeps the baseline bytes.
   "workshop-reference-data-service.js": "105e1f26100390826b8a4b0b8dabd12233a356995d067c24bf9585d9277319a9",
