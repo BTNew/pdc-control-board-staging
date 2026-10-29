@@ -108,20 +108,18 @@ function board({ role = 'administrator', vehicles = 3 } = {}) {
 const click = el => { assert.ok(el, 'element to click'); return el.dispatch('click'); };
 const type = (input, value) => { input.value = value; input.dispatch('input'); };
 
-test('1. the heading shows Edit and Open full editor instead of Edit jobs & hours; the old window still opens from the link', async () => {
+test('1. the heading shows Edit only (r695, F305: Open full editor removed from the panel); the old window code stays in app.js', async () => {
   const b = board();
   const panel = b.openPanel(b.rows[0]);
   const heading = panel.querySelector('.authenticated-email-operations-heading');
   assert.ok(heading, 'operations block drawn');
   assert.equal(heading.querySelector('[data-auth-operation-work]'), null, 'the old button is replaced');
   assert.equal(heading.querySelector('[data-vso-edit-toggle]').textContent, 'Edit');
-  assert.equal(heading.querySelector('[data-vso-full-editor]').textContent, 'Open full editor');
-  click(heading.querySelector('[data-vso-full-editor]'));
-  assert.deepEqual(b.spies.opened, [b.c.vehicleKey(b.rows[0])], 'Open full editor -> app.js openAuthenticatedOperationWorkshop (the old window)');
-  // The old window and its code are kept: app.js still has the window opener, Save all hours and the button text.
+  assert.equal(panel.querySelector('[data-vso-full-editor]'), null, 'r695: no Open full editor button');
+  assert.doesNotMatch(panel.textContent, /Open full editor/, 'r695: no Open full editor anywhere in the panel');
+  assert.deepEqual(b.spies.opened, [], 'the old window is not opened from the panel');
   const APP = fs.readFileSync('app.js', 'utf8');
   assert.match(APP, /function openAuthenticatedOperationWorkshop\(stock\)/);
-  assert.match(APP, /data-auth-operation-work="\$\{escapeHtml\(vehicleIdentity\)\}">Edit jobs &amp; hours<\/button>/);
   assert.match(APP, />Save all hours<\/button>/);
   assert.equal(typeof b.realOpen, 'function');
 });
@@ -162,7 +160,7 @@ test('2. Edit loads this one vehicle and keeps the same chip list, with hours in
   for (const tag of windowHtml.match(/<input\b[^>]*data-vehicle-workshop-hours-batch-input[^>]*>/g) || []) assert.ok(slideout.slimWorkPage(windowHtml).includes(tag), 'input tag unchanged');
   assert.match(windowHtml, /Best slot|Edit line|Save all hours/);
   const buttons = [...panel.querySelector('.vso-edit').querySelectorAll('button')].map(btn => btn.dataset.vsoEditAct).filter(Boolean);
-  assert.deepEqual(buttons.sort(), ['cancel', 'full', 'save'], 'only Save, Cancel and Open full editor');
+  assert.deepEqual(buttons.sort(), ['cancel', 'save'], 'only Save and Cancel (r695: no Open full editor)');
   assert.equal(panel.querySelector('[data-vso-edit-act="save"]').disabled, true, 'Save waits for a change');
   assert.equal(b.writes().length, 0);
 });
@@ -312,7 +310,8 @@ test('4. speed guard: the board reads nothing; a panel open reads the completion
   assert.equal(b.reads().length, 1);
   assert.equal(b.reads()[0].body.p_vehicle_id, b.rows[7].id);
   assert.equal(b.spies.tableRenders + b.spies.boardRenders, 0, 'Edit draws the panel only');
-  assert.equal((CODE.match(/loadVehicleWorkshopDetail\(/g) || []).length, 1);
+  assert.equal((CODE.match(/loadVehicleWorkshopDetail\(/g) || []).length, 2, 'Edit, and r695 (F305) Move to a bay when Book / Move is pressed');
+  assert.match(CODE, /const readBookings = vehicle => Promise\.resolve\(root\.loadVehicleWorkshopDetail\(vehicle, \{ force: true \}\)\);/);
   assert.match(/function startEdit\(key\) \{[\s\S]*?\n {2}\}/.exec(CODE)[0], /root\.loadVehicleWorkshopDetail\(vehicle, \{ force: true \}\)/);
   const r496 = CODE.slice(CODE.indexOf('const EDIT_NEEDS'), CODE.indexOf('function loadStyles'));
   assert.doesNotMatch(r496, /VLT\.render|renderAll|renderIncomingDashboardBoard|refreshEmailVehicleLocations|renderDetail\(/);
@@ -334,7 +333,7 @@ test('5. slimWorkPage keeps inputs and selectors, removes every button, keeps dr
 
 test('6. loader, styles and docs: r565 cache-bust tags, FAULT_LOG F109 and F179, panel doc; no real stock numbers here', () => {
   assert.equal(slideout.VERSION, '2026.10.28.r588');
-  assert.match(fs.readFileSync('canonical-entry.js', 'utf8'), /pdc-vehicle-slideout\.js\?vehicle-slideout=2026\.10\.28\.r588&r595=2026\.10\.28\.r595(&r681=2026\.10\.29\.r681)?'/);
+  assert.match(fs.readFileSync('canonical-entry.js', 'utf8'), /pdc-vehicle-slideout\.js\?vehicle-slideout=2026\.10\.28\.r588&r595=2026\.10\.28\.r595(&r681=2026\.10\.29\.r681)?(&r695=2026\.10\.29\.r695)?'/);
   assert.match(fs.readFileSync('index.html', 'utf8'), /canonical-entry\.js\?[^"]*&amp;r496=2026\.10\.22\.r496&amp;/);
   assert.match(fs.readFileSync('index.html', 'utf8'), /&amp;r563=2026\.10\.27\.r563&amp;/);
   assert.match(fs.readFileSync('index.html', 'utf8'), /&amp;r565=2026\.10\.27\.r565&amp;/);

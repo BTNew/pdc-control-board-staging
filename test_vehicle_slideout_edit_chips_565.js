@@ -82,6 +82,8 @@ function board({ role = 'administrator' } = {}) {
       reply = { ok: true, code: 'saved', ...row };
     }
     if (name === 'get_vehicle_workshop_detail_scoped') reply = server.details.get(body.p_vehicle_id);
+    if (name === 'administrator_move_workshop_booking') reply = server.moveReply || { ok: true, booking_id: body.p_booking_id };
+    if (name === 'administrator_schedule_workshop_vehicle') reply = (server.scheduleReplies || []).shift() || { ok: true, booking_id: 'new' };
     if (name === 'set_vehicle_work_category') {
       const detail = server.details.get(body.p_vehicle_id);
       const line = detail.job_card_lines.find(item => item.line_identity === body.p_line_identity);
@@ -156,7 +158,7 @@ test('Edit keeps the chip list and a dirty drop saves the hours before the categ
   const b = board();
   const panel = b.openPanel();
   assert.ok(panel.querySelector('.vso-open-vehicle'), 'Open Vehicle stays');
-  assert.equal(panel.querySelector('[data-vso-full-editor]').textContent, 'Open full editor');
+  assert.equal(panel.querySelector('[data-vso-full-editor]'), null, 'r695: no Open full editor');
   panel.querySelector('[data-vso-edit-toggle]').dispatch('click');
   await b.settle();
   const edited = b.panel();
@@ -180,49 +182,97 @@ test('Edit keeps the chip list and a dirty drop saves the hours before the categ
   assert.equal(b.moves.length, 0, 'a station drop does not also call the bay move');
 });
 
-test('a job chip dropped on a bay calls the planner move and carries the hours', async () => {
+// r695 (F305): no booking chips and no bay chips in the station lists. Bays are booked in "Move to a bay".
+const pick = (row, bay, date, time) => {
+  row.querySelector('[data-vso-book-bay]').value = String(bay);
+  row.querySelector('[data-vso-book-date]').value = date;
+  row.querySelector('[data-vso-book-time]').value = time;
+  row.querySelector('[data-vso-book-go]').dispatch('click');
+};
+const bookRow = (panel, label) => panel.querySelectorAll('.vso-bookrow').find(li => li.querySelector('.vso-book-what strong').textContent.trim().startsWith(label));
+
+test('r695: the station lists show jobs only (no bay or booking chips), in and out of Edit', async () => {
   const b = board();
   b.openPanel();
+  await b.settle();
+  assert.equal(b.panel().querySelector('.vso-bays'), null);
+  assert.equal(b.panel().querySelector('.vso-job'), null);
+  assert.equal(b.panel().querySelector('[data-vso-bay]'), null);
   b.panel().querySelector('[data-vso-edit-toggle]').dispatch('click');
   await b.settle();
-  const section = b.panel().querySelector('[data-operation-category="hoist"]');
-  const job = section.querySelector('.vso-job');
-  assert.equal(job.getAttribute('draggable'), 'true');
-  assert.equal(job.dataset.vsoHours, '1.5');
-  const bay = section.querySelector('[data-vso-bay="2"]');
-  assert.ok(bay, 'hoist bays are drop targets');
-  drop(job, bay);
-  await b.settle();
-  assert.equal(b.schedules.length, 0, 'a loaded plan uses the planner move only');
-  assert.equal(b.moves.length, 1);
-  assert.equal(b.moves[0][0], 'plan-hoist');
-  assert.equal(b.moves[0][1], 'HOIST');
-  assert.equal(b.moves[0][2], 2);
-  assert.equal(b.moves[0][3], '2026-10-27');
-  assert.equal(b.moves[0][4], 480);
-  assert.equal(b.c.workshopLoadPlans().find(plan => plan.id === 'plan-hoist').hours, 1.5);
-  const done = b.panel().querySelector('[data-operation-category="tyre"] .vso-job');
-  assert.equal(done.classList.contains('is-complete'), true);
-  assert.equal(done.getAttribute('draggable'), null);
-  assert.match(done.textContent, /Completed · Pat Sample/);
+  assert.equal(b.panel().querySelector('.vso-bays'), null, 'Edit has no bay chips');
+  assert.equal(b.panel().querySelector('.vso-job'), null, 'Edit has no booking chips');
+  assert.ok(b.panel().querySelector('.vso-edit [data-vehicle-workshop-hours-batch-page]'), 'Edit still works');
 });
 
-test('with no loaded plan the bay drop schedules the vehicle and sends the hours', async () => {
+test('r695: Move to a bay moves an existing booking with the administrator move command (cascade on)', async () => {
   const b = board();
-  b.c.workshopLoadPlans = () => [];
-  b.c.moveWorkshopDroppedPlan = undefined;
+  b.server.details.get(b.rows[0].id).bookings[0].booking_version = 4;
   b.openPanel();
-  b.panel().querySelector('[data-vso-edit-toggle]').dispatch('click');
   await b.settle();
-  const section = b.panel().querySelector('[data-operation-category="hoist"]');
-  drop(section.querySelector('.vso-job'), section.querySelector('[data-vso-bay="2"]'));
+  const box = b.panel().querySelector('.vso-book');
+  assert.ok(box, 'Move to a bay box drawn for an administrator');
+  assert.equal(box.parentNode, b.panel().querySelector('.vso-body'), 'inside the panel body, after the operations');
+  const hoist = bookRow(b.panel(), 'Hoist');
+  assert.match(hoist.textContent, /Pick a bay to book or move it/, 'opening the panel reads no bookings');
+  pick(hoist, 2, '2026-11-03', '09:30');
   await b.settle();
-  assert.equal(b.schedules.length, 1);
-  assert.equal(b.schedules[0].hoursValue, 1.5);
-  assert.equal(b.schedules[0].stage, 'HOIST');
-  assert.equal(b.schedules[0].bay, 2);
-  assert.equal(b.schedules[0].workCategoryValue, 'HOIST');
-  assert.equal(b.moves.length, 0);
+  const sent = b.server.calls.filter(call => call.name === 'administrator_move_workshop_booking');
+  assert.equal(sent.length, 1);
+  assert.equal(sent[0].body.p_booking_id, '00000000-0000-4000-8000-000000000099');
+  assert.equal(sent[0].body.p_expected_version, 4);
+  assert.equal(sent[0].body.p_stage_code, 'HOIST');
+  assert.equal(sent[0].body.p_bay_number, 2);
+  assert.equal(sent[0].body.p_scheduled_start_at, '2026-11-03T01:30:00.000Z', '09:30 Perth');
+  assert.equal(sent[0].body.p_duration_minutes, 90);
+  assert.equal(sent[0].body.p_cascade, true);
+  assert.match(b.panel().querySelector('.vso-book-msg').textContent, /Hoist .*booked into Express · Bay 02 at 09:30 on 2026-11-03/);
+  assert.equal(b.moves.length + b.schedules.length, 0, 'the planner page is not needed');
+});
+
+test('r695: with no booking, Move to a bay books the vehicle with the open hours; a place-after answer is accepted once', async () => {
+  const b = board();
+  b.server.details.get(b.rows[0].id).bookings = [];
+  b.server.scheduleReplies = [{ ok: false, warning: true, requires_confirmation: true, error: 'place_after_running', plan_hash: 'h1', message: 'Running job' }, { ok: true, booking_id: 'new' }];
+  b.openPanel();
+  await b.settle();
+  const hoist = bookRow(b.panel(), 'Hoist');
+  assert.match(hoist.textContent, /Book \/ Move/);
+  pick(hoist, 2, '2026-11-03', '07:00');
+  await b.settle();
+  const sent = b.server.calls.filter(call => call.name === 'administrator_schedule_workshop_vehicle');
+  assert.equal(sent.length, 2, 'sent, then sent again with the place-after answer');
+  assert.equal(sent[0].body.p_vehicle_id, b.rows[0].id);
+  assert.equal(sent[0].body.p_vehicle_expected_version, 7);
+  assert.equal(sent[0].body.p_bay_number, 2);
+  assert.equal(sent[0].body.p_duration_minutes, 90);
+  assert.equal(sent[0].body.p_metadata.work_category, 'HOIST');
+  assert.equal(sent[1].body.p_metadata.place_after_confirm.plan_hash, 'h1');
+  assert.notEqual(sent[1].body.p_request_id, sent[0].body.p_request_id);
+  assert.match(b.panel().querySelector('.vso-book-msg').textContent, /booked into Express · Bay 02/);
+});
+
+test('r695: no bay chosen books nothing; a refusal says nothing changed; operators and viewers get no box', async () => {
+  const b = board();
+  b.openPanel();
+  await b.settle();
+  let hoist = bookRow(b.panel(), 'Hoist');
+  hoist.querySelector('[data-vso-book-bay]').value = '';
+  hoist.querySelector('[data-vso-book-go]').dispatch('click');
+  await b.settle();
+  assert.equal(b.server.calls.filter(call => /administrator_(move|schedule)/.test(call.name)).length, 0);
+  assert.match(b.panel().querySelector('.vso-book-msg').textContent, /Choose a bay for Hoist/);
+  b.server.moveReply = { ok: false, error: 'bay_overlap', message: 'That bay is taken' };
+  hoist = bookRow(b.panel(), 'Hoist');
+  pick(hoist, 1, '2026-11-03', '07:00');
+  await b.settle();
+  assert.match(b.panel().querySelector('.vso-book-msg').textContent, /was not booked: That bay is taken\. Nothing was changed\./);
+  for (const role of ['operator', 'viewer']) {
+    const other = board({ role });
+    other.openPanel();
+    await other.settle();
+    assert.equal(other.panel().querySelector('.vso-book'), null, role);
+  }
 });
 
 test('a controller can tick and untick a line; another role sees a read-only tick', async () => {
@@ -304,4 +354,15 @@ test('the regression check is sort 337 / F179 and the setter checks the controll
   assert.match(down, /sort_order=337/);
   assert.match(down, /DELETE FROM pdc_ops\.regression_checks\s+WHERE/);
   assert.doesNotMatch(fs.readFileSync('pdc-vehicle-slideout.js', 'utf8'), /\bfetch\s*\(|\.rpc\s*\(/);
+});
+
+test('r695: a tick saved earlier shows as soon as the panel opens (the late completion read repaints the lines)', async () => {
+  const b = board();
+  b.server.ticks.push({ vehicle_id: b.rows[0].id, line_identity: `source:${U(1, 2)}`, completed: true, actor_email: 'controller@example.test', actor_role: 'administrator', acted_at: '2026-10-29T00:20:00.000Z', version: 1 });
+  b.openPanel();
+  await b.settle();
+  const line = b.panel().querySelector(`li[data-operation-source-id="${U(1, 2)}"]`);
+  assert.equal(line.classList.contains('is-complete'), true);
+  assert.equal(line.querySelector('[data-vso-tick]').getAttribute('aria-checked'), 'true');
+  assert.equal(line.querySelector('.vso-tick span').textContent, 'Complete');
 });

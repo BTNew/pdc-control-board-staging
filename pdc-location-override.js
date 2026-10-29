@@ -90,6 +90,7 @@
   try{await readback(request);}catch(e){if(current(request))error.textContent='The location override was saved, but refresh failed. Retry refresh before making another change.';}
   finally{if(current(request)){activeRequest=null;saving=false;controls();}}
  }
+ window.PDC_OPEN_LOCATION_OVERRIDE=v=>{if(v?.__emailVehicleId)open(v);}; // r695 (F305): the vehicle side panel's red Override location button
  dialog.querySelector('form').addEventListener('submit',e=>{e.preventDefault();void save();});
  dialog.querySelector('[data-override-clear]').addEventListener('click',()=>void save(true));
  dialog.querySelector('[data-override-cancel]').addEventListener('click',dismiss);
