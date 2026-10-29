@@ -32,6 +32,7 @@
     // r642 (F257): the MMT sublet page counts under Sublet.
     'mmt-sublet':'sublet',
     'psc-sublet':'sublet', // r711 (F321)
+    'stock-take':'workflow', // r720 (F330): Stock take counts under Control Board
   });
   const PAGES = new Set(Object.keys(PAGE_LABELS));
   const cleanPage = page => {

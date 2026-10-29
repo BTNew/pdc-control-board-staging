@@ -5191,6 +5191,7 @@ function showView(view, options) {
   if (app.currentView === 'bay-manager' && nextView !== 'bay-manager') window.PdcBayManager?.close();
   if (app.currentView === 'mmt-sublet' && nextView !== 'mmt-sublet') window.PdcMmtSublet?.close(); // r642 (F257)
   if (app.currentView === 'psc-sublet' && nextView !== 'psc-sublet') window.PdcPscSublet?.close(); // r711 (F321)
+  if (app.currentView === 'stock-take' && nextView !== 'stock-take') window.PdcStockTake?.close?.(); // r720 (F330)
   if (app.currentView === 'revolution-upload' && nextView !== 'revolution-upload') window.PdcRevolutionUpload?.reset();
   if (app.currentView === 'lists' && nextView !== 'lists') window.PdcWorkshopHours?.reset();
   app.currentRequestedView = requestedView;
@@ -5219,6 +5220,7 @@ function showView(view, options) {
     sublet: 'Sublet',
     'mmt-sublet': 'Sublet · Malaga Motor Trimmers',
     'psc-sublet': 'Sublet · Perth Sign Craft',
+    'stock-take': 'Stock take',
     rft: 'RFT',
     completed: 'Completed vehicles',
     collected: 'Collected Vehicles',
@@ -7051,6 +7053,9 @@ function renderActiveView() {
       break;
     case 'psc-sublet': // r711 (F321)
       window.PdcPscSublet?.open();
+      break;
+    case 'stock-take': // r720 (F330)
+      window.PdcStockTake?.open?.();
       break;
     case 'revolution-upload':
       window.PdcRevolutionUpload?.open();

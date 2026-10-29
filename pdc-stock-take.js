@@ -1,0 +1,238 @@
+/* © 2026 Specialise Pty Ltd ATFT Specialise Trust (ABN 33 539 964 819). All rights reserved. Proprietary and confidential: no copying, modification, distribution, resale or commercial use without written permission. See LICENSE. */
+/*
+ * r720 (F330): Stock take. Craig, 29 Oct 2026 12:58.
+ * Craig, Oleg and Garrath walk PMB with iPads. Every vehicle at PMB with work on the chosen stations, sorted by key
+ * number. Ticking an item ticks that line on the board (set_panel_line_completion_565, the same tick as the vehicle
+ * side panel; controllers only), and everyone else's screen shows it, with who ticked it, within about 5 seconds.
+ * Reads get_pdc_stock_take_720 (the list) and polls get_pdc_stock_take_rev_720 (a tiny change marker) while open,
+ * so the list is fetched again only when something changed. pmgpdc.au/stocktake opens it, also on an iPad.
+ */
+(function (root) {
+  'use strict';
+  const VERSION = '2026.10.29.r720';
+  const PROJECT = 'cdsmnqxtyyoeoznmbidd';
+  const POLL_MS = 5000;
+  const FULL_MS = 120000;
+  const STATIONS = Object.freeze([
+    ['FITTING', 'Fitting'], ['FABRICATION', 'Fabrication'], ['ELECTRICAL', 'Electrical'],
+    ['HOIST', 'Hoist'], ['TYRE', 'Tyres'], ['TINT', 'Tint'],
+  ]);
+  const STATION_LABEL = Object.fromEntries(STATIONS);
+  const PICK_KEY = 'pdc.stock-take.stations.v1';
+  const ERRORS = Object.freeze({
+    controller_required: 'Only a controller login can tick items.',
+    operation_not_found: 'That item is no longer on this car. Reloaded.',
+    invalid_line: 'That item could not be ticked.',
+    completion_unavailable: 'Not saved. Check the connection and try again.',
+  });
+  const esc = value => String(value ?? '').replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
+  const hhmm = iso => {
+    const t = Date.parse(iso || '');
+    if (!Number.isFinite(t)) return '';
+    const d = new Date(t + 8 * 3600 * 1000);
+    return `${String(d.getUTCHours()).padStart(2, '0')}:${String(d.getUTCMinutes()).padStart(2, '0')}`;
+  };
+  const keyMatch = (car, q) => {
+    const key = String(car.k ?? '').replace(/^0+/, '').toLowerCase();
+    const qKey = q.replace(/^k(ey)?\s*/, '').replace(/^0+/, '');
+    return (qKey && key === qKey) || String(car.s ?? '').toLowerCase().includes(q);
+  };
+
+  /** Cars to show for the search and the "open only" switch. */
+  function visibleCars(payload, view) {
+    const q = String(view?.search || '').trim().toLowerCase();
+    return (payload?.cars || []).filter(car => {
+      if (q && !keyMatch(car, q)) return false;
+      if (view?.openOnly && (car.l || []).every(line => line.done)) return false;
+      return true;
+    });
+  }
+  function totals(payload) {
+    let lines = 0; let done = 0; let carsDone = 0;
+    for (const car of payload?.cars || []) {
+      const n = (car.l || []).length; const d = (car.l || []).filter(line => line.done).length;
+      lines += n; done += d; if (n && d === n) carsDone += 1;
+    }
+    return { cars: (payload?.cars || []).length, carsDone, lines, done };
+  }
+  function lineHtml(car, line, canTick, view, now) {
+    const id = `${car.id}|${line.id}`;
+    const pending = view?.pending?.has(id);
+    const fresh = line.done && line.at && now - Date.parse(line.at) < 120000;
+    const who = line.done ? (line.by ? `${esc(line.by)}${line.at ? ` ${esc(hhmm(line.at))}` : ''}` : 'Done') : '';
+    const hours = line.h != null && line.h !== '' ? `${esc(line.h)} h` : '';
+    return `<li class="st-line${line.done ? ' is-done' : ''}${fresh ? ' is-fresh' : ''}"><label>`
+      + `<input type="checkbox" data-st-tick="${esc(id)}"${line.done ? ' checked' : ''}${!canTick || pending ? ' disabled' : ''} aria-label="${esc(line.d)} done">`
+      + `<span class="st-d">${esc(line.d)}${(view?.stations || []).length > 1 ? ` <em>${esc(STATION_LABEL[line.st] || line.st)}</em>` : ''}</span>`
+      + `<span class="st-meta">${who ? `<b>✓ ${who}</b>` : ''}${hours ? `<small>${hours}</small>` : ''}</span></label></li>`;
+  }
+  function carHtml(car, canTick, view, now) {
+    const lines = car.l || [];
+    const done = lines.filter(line => line.done).length;
+    const all = lines.length > 0 && done === lines.length;
+    const error = view?.errors?.get(car.id);
+    return `<section class="st-car${all ? ' is-done' : ''}" data-st-car="${esc(car.id)}"><h3><span class="st-key">${car.k ? `Key ${esc(car.k)}` : 'No key'}</span>`
+      + `<span class="st-stock">${esc(car.s || '')}</span><span class="st-veh">${esc(car.v || '')}</span><span class="st-count">${done}/${lines.length}</span></h3>`
+      + `${error ? `<p class="st-error" role="alert">${esc(error)}</p>` : ''}<ul>${lines.map(line => lineHtml(car, line, canTick, view, now)).join('')}</ul></section>`;
+  }
+  function panelHtml(payload, view, now = Date.now()) {
+    const canTick = payload?.can_tick === true;
+    const t = totals(payload);
+    const cars = visibleCars(payload, view);
+    const chips = STATIONS.map(([code, label]) => `<button type="button" class="st-chip" data-st-station="${code}" aria-pressed="${(view.stations || []).includes(code)}">${label}</button>`).join('');
+    return `<div class="st-bar"><div class="st-chips" role="group" aria-label="Stations">${chips}</div>`
+      + `<div class="st-tools"><input type="search" data-st-search placeholder="Key or stock number" aria-label="Find key or stock" value="${esc(view.search || '')}">`
+      + `<label class="st-open"><input type="checkbox" data-st-open${view.openOnly ? ' checked' : ''}> Hide finished cars</label></div>`
+      + `<p class="st-sum">${t.cars} cars at PMB · ${t.carsDone} finished · ${t.done} of ${t.lines} items ticked${canTick ? '' : ' · <b>view only: a controller login ticks items</b>'}`
+      + `<span class="st-live" title="Other people's ticks show here within about 5 seconds">Live${view.updated ? ` · ${esc(hhmm(view.updated))}` : ''}</span></p></div>`
+      + (cars.length ? `<div class="st-list">${cars.map(car => carHtml(car, canTick, view, now)).join('')}</div>` : '<p class="st-empty">No cars match.</p>');
+  }
+
+  const api = { VERSION, STATIONS, visibleCars, totals, panelHtml, carHtml, keyMatch };
+  if (typeof module !== 'undefined' && module.exports) module.exports = api;
+  root.PdcStockTake = api;
+  if (typeof document === 'undefined') return;
+  // The sidebar override (pdc-sidebar-compact.css) must stay the last <link> in index.html, so the page adds its own.
+  if (!document.querySelector('link[data-pdc-stock-take]')) {
+    const link = document.createElement('link');
+    link.rel = 'stylesheet'; link.href = `pdc-stock-take.css?r720=${VERSION}`; link.dataset.pdcStockTake = '1';
+    document.head.appendChild(link);
+  }
+
+  function readPick() {
+    try { const v = JSON.parse(root.localStorage.getItem(PICK_KEY) || 'null'); if (Array.isArray(v) && v.length) return v.filter(code => STATION_LABEL[code]); } catch (_) { /* default */ }
+    return ['FITTING', 'FABRICATION'];
+  }
+  const state = { payload: null, error: '', loading: false, rev: '', timer: null, lastFull: 0, open: false,
+    view: { stations: readPick(), search: '', openOnly: false, pending: new Set(), errors: new Map(), updated: '' } };
+  const host = () => document.getElementById('stock-take-content');
+
+  async function rpc(name, body) {
+    const config = root.PDC_SUPABASE_CONFIG;
+    const token = typeof root.getPdcSupabaseAccessToken === 'function' ? root.getPdcSupabaseAccessToken() : '';
+    if (!root.PDC_AUTH_CONTEXT?.userId || !token || config?.projectRef !== PROJECT) throw Error('Sign in to see the stock take.');
+    const response = await fetch(`${config.url.replace(/\/$/, '')}/rest/v1/rpc/${name}`, {
+      method: 'POST',
+      headers: { apikey: config.publishableKey, Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify(body || {}),
+    });
+    const data = await response.json().catch(() => ({}));
+    if (response.status === 404) throw Error('The stock take is not on this database yet.');
+    if (!response.ok) throw Error(data?.message || 'Could not load the stock take.');
+    return data;
+  }
+  function render() {
+    const el = host();
+    if (!el) return;
+    if (state.error && !state.payload) { el.innerHTML = `<p class="st-error">${esc(state.error)}</p>`; return; }
+    if (!state.payload) { el.innerHTML = '<p class="st-empty">Loading the cars at PMB…</p>'; return; }
+    if (state.payload.ok === false) { el.innerHTML = `<p class="st-error">${state.payload.error === 'not_authorized' ? 'This login cannot see the stock take.' : 'Not available.'}</p>`; return; }
+    const searching = document.activeElement?.matches?.('[data-st-search]');
+    const scroll = root.scrollY;
+    // Craig 29 Oct 13:13: an update must never reload or jump anyone's screen while they walk around. When the same cars
+    // are on screen, only the cars that changed are swapped in place (and the summary line); the rest of the page,
+    // the search box and the scroll position are left alone. A full redraw happens only when the list itself changes
+    // (station chips, search, hide finished cars, a car arriving or leaving).
+    const list = el.querySelector('.st-list');
+    if (list) {
+      const next = document.createElement('div');
+      next.innerHTML = panelHtml(state.payload, state.view);
+      const fresh = next.querySelector('.st-list');
+      const ids = nodes => [...nodes].map(node => node.dataset.stCar).join(',');
+      if (fresh && ids(list.children) === ids(fresh.children)) {
+        const sum = el.querySelector('.st-sum'); const newSum = next.querySelector('.st-sum');
+        if (sum && newSum && sum.innerHTML !== newSum.innerHTML) sum.innerHTML = newSum.innerHTML;
+        [...fresh.children].forEach((car, i) => { const old = list.children[i]; if (old.innerHTML !== car.innerHTML || old.className !== car.className) old.replaceWith(car.cloneNode(true)); });
+        if (Math.abs(root.scrollY - scroll) > 2) root.scrollTo(0, scroll);
+        return;
+      }
+    }
+    el.innerHTML = panelHtml(state.payload, state.view);
+    if (searching) { const input = el.querySelector('[data-st-search]'); input?.focus(); input?.setSelectionRange?.(input.value.length, input.value.length); }
+    if (Math.abs(root.scrollY - scroll) > 2) root.scrollTo(0, scroll);
+  }
+  async function load() {
+    if (state.loading) return;
+    state.loading = true;
+    try {
+      const payload = await rpc('get_pdc_stock_take_720', { p_stations: state.view.stations });
+      state.payload = payload; state.error = ''; state.rev = payload?.rev || ''; state.lastFull = Date.now(); state.view.updated = payload?.now || '';
+    } catch (error) { state.error = error?.message || 'Could not load the stock take.'; }
+    finally { state.loading = false; render(); }
+  }
+  async function poll() {
+    if (!state.open || document.visibilityState === 'hidden' || state.loading || state.view.pending.size) return;
+    try {
+      const rev = await rpc('get_pdc_stock_take_rev_720', {});
+      if ((rev && rev !== state.rev) || Date.now() - state.lastFull > FULL_MS) await load();
+    } catch (_) { /* keep the last list; the next poll tries again */ }
+  }
+  async function tick(id, completed) {
+    const [carId, lineId] = id.split('|');
+    const car = (state.payload?.cars || []).find(entry => entry.id === carId);
+    const line = car?.l?.find(entry => entry.id === lineId);
+    if (!line || state.view.pending.has(id)) return;
+    state.view.pending.add(id); state.view.errors.delete(carId);
+    line.done = completed; line.by = completed ? (root.PDC_AUTH_CONTEXT?.displayName || 'You') : null; line.at = new Date().toISOString();
+    render();
+    try {
+      const result = typeof root.setPanelLineCompletion === 'function'
+        ? await root.setPanelLineCompletion(carId, lineId, completed)
+        : await rpc('set_panel_line_completion_565', { p_vehicle_id: carId, p_line_identity: lineId, p_completed: completed });
+      if (result?.ok !== true) state.view.errors.set(carId, ERRORS[result?.error] || 'Not saved. Try again.');
+    } catch (_) {
+      state.view.errors.set(carId, ERRORS.completion_unavailable);
+    } finally {
+      state.view.pending.delete(id);
+      await load(); // everyone's latest, including this tick
+    }
+  }
+  function bind() {
+    const el = host();
+    if (!el || el.dataset.stBound) return;
+    el.dataset.stBound = '1';
+    el.addEventListener('change', event => {
+      const box = event.target.closest?.('[data-st-tick]');
+      if (box) { void tick(box.dataset.stTick, box.checked); return; }
+      if (event.target.matches?.('[data-st-open]')) { state.view.openOnly = event.target.checked; render(); }
+    });
+    el.addEventListener('input', event => { if (event.target.matches?.('[data-st-search]')) { state.view.search = event.target.value; render(); } });
+    el.addEventListener('click', event => {
+      const chip = event.target.closest?.('[data-st-station]');
+      if (!chip) return;
+      const code = chip.dataset.stStation;
+      const on = new Set(state.view.stations);
+      if (on.has(code)) { if (on.size > 1) on.delete(code); } else on.add(code);
+      state.view.stations = STATIONS.map(([c]) => c).filter(c => on.has(c));
+      try { root.localStorage.setItem(PICK_KEY, JSON.stringify(state.view.stations)); } catch (_) { /* this device only */ }
+      state.payload = null; render(); void load();
+    });
+  }
+  // While the Stock take is open, a new board release does not reload the tablet (pdc-auto-reload.js waits while
+  // PDC_UNSAVED_WORK is true); it reloads once they leave this page.
+  api.open = function open() {
+    state.open = true; root.PDC_UNSAVED_WORK = true; bind(); render(); void load();
+    clearInterval(state.timer); state.timer = setInterval(() => { void poll(); }, POLL_MS);
+  };
+  api.close = function close() { state.open = false; root.PDC_UNSAVED_WORK = false; clearInterval(state.timer); state.timer = null; };
+  document.addEventListener('visibilitychange', () => { if (state.open && document.visibilityState === 'visible') void load(); });
+
+  // On a phone or iPad the board is a QC-only client (pdc-qc-mobile.js turns every view into QC except Fitters bay).
+  // As r711 does for Sublet · PSC, this wrapper loads first and turns 'qc' back into 'stock-take' when the stock take
+  // was asked for (menu tap or pmgpdc.au/stocktake).
+  if (typeof root.showView === 'function') {
+    const phone = root.matchMedia?.('(max-width: 900px), (pointer: coarse) and (max-width: 1024px)');
+    let want = root.location?.hash === '#/stock-take';
+    document.addEventListener('click', event => {
+      const nav = event.target.closest?.('[data-view]');
+      if (nav) want = nav.dataset.view === 'stock-take';
+    }, true);
+    root.addEventListener('hashchange', () => { if (root.location.hash === '#/stock-take') want = true; });
+    const inner = root.showView;
+    root.showView = function stockTakePhoneShowView(view, options) {
+      const next = view === 'qc' && phone?.matches && want ? 'stock-take' : view;
+      if (next === 'stock-take') document.documentElement.classList.remove('pdc-qc-phone');
+      return inner.call(this, next, options);
+    };
+  }
+})(typeof window !== 'undefined' ? window : globalThis);

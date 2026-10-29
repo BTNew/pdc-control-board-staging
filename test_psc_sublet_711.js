@@ -28,7 +28,7 @@ test('PSC wiring: tab, view, app hooks, phone exemption, /psc link and login loc
   assert.match(app, /case 'psc-sublet':[\s\S]{0,80}PdcPscSublet\?\.open\(\)/);
   assert.match(app, /if \(pscOnly\) \{[\s\S]{0,200}showView\('psc-sublet'/);
   assert.match(fs.readFileSync('pdc-auth.js', 'utf8'), /isPscSession\(\) && !PSC_RPC_ALLOWLIST\.has/);
-  assert.match(fs.readFileSync('canonical-entry.js', 'utf8'), /'#\/psc-sublet'\]\.includes\(location\.hash\)/);
+  assert.match(fs.readFileSync('canonical-entry.js', 'utf8'), /'#\/psc-sublet'(, '#\/stock-take')?\]\.includes\(location\.hash\)/);
   assert.match(fs.readFileSync('pdc-psc-sublet.js', 'utf8'), /view === 'qc' && phone\?\.matches && \(wantPsc \|\| pscLogin\) \? 'psc-sublet' : view/);
   assert.match(fs.readFileSync('psc/index.html', 'utf8'), /\.\.\/#\/psc-sublet/);
   assert.match(fs.readFileSync('pdc-mmt-sublet.css', 'utf8'), /body\.psc-only \.view:not\(#psc-sublet\)/);
