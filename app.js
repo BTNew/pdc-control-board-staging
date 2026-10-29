@@ -13853,7 +13853,10 @@ async function transferYhVehicleToPmb(key = '') {
         if (typeof pdcNotify === 'function') pdcNotify(savedBody?.message || saved?.error?.message || 'The key number was not saved. The vehicle stayed where it is.');
         return false;
       }
-      if (savedBody.vehicle_version_after) vehicle.__emailVehicleVersion = Number(savedBody.vehicle_version_after);
+      // r698 (F308): the new version is inside data. Reading the top level kept the old version, so To PMB then hit
+      // "This vehicle changed since you loaded it" and a second try said the key was not saved.
+      const keyVersionAfter = Number(savedBody.data?.vehicle_version_after ?? savedBody.vehicle_version_after);
+      if (Number.isInteger(keyVersionAfter) && keyVersionAfter > 0) vehicle.__emailVehicleVersion = keyVersionAfter;
     }
     vehicle.keyNumber = enteredKey;
     vehicle.key_number = enteredKey;
