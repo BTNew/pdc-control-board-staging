@@ -272,3 +272,8 @@ body.vlt-table-on #vlt-nav-status { flex: 0 1 250px; }
 .vlt-spare-keys summary small { color: #475569; font-weight: 400; margin-left: 6px; }
 .vlt-spare-keys p { margin: 4px 0; line-height: 1.5; }
 .vlt-spare-keys p b { display: inline-block; min-width: 5.5em; color: #1d4ed8; }
+
+/* r694 (F304): the Key number search is a short box (keys are up to 3 digits); the stock search gets the room. */
+label.vlt-search-key-label { flex: 0 0 auto !important; min-width: 0 !important; width: auto !important; max-width: none !important; }
+label.vlt-search-key-label input#vlt-search-key { flex: 0 0 76px !important; width: 76px !important; min-width: 0 !important; max-width: 76px !important; }
+label.vlt-search-text-label { flex: 1 1 360px !important; }
