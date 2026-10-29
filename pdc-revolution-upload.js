@@ -1,4 +1,4 @@
-/* Admin > Revolution uploads. r591. The file is parsed on the server. Apply stays off. */
+/* Admin > Revolution uploads. r591 dry run; r728 (F338): Apply on for Service as a Whole (Kajel switched off 29 Oct 2026). */
 function revolutionUploadParts(file, token) {
   const form = new FormData();
   form.append('file', file, file.name);
@@ -122,7 +122,9 @@ if (typeof window !== 'undefined') (function () {
     }
     const plan = document.createElement('p');
     plan.className = 'ru-note';
-    plan.textContent = `After go-live this file would call ${(payload.would_call || []).join(', ') || 'nothing'}. Apply is off in this preview.`;
+    plan.textContent = payload.apply_enabled
+      ? 'Apply sends this file to the import queue. Every part is previewed on the server, then applied.'
+      : 'Apply is on for Service as a Whole first. This report still waits.';
     host.append(plan);
     const holdCounts = payload.hold_counts || {};
     const holdNames = Object.keys(holdCounts);
@@ -170,6 +172,52 @@ if (typeof window !== 'undefined') (function () {
     });
   }
 
+  // r728: progress of an applied upload, read with the signed-in administrator's token.
+  let pollTimer = null;
+  async function status(uploadId) {
+    const config = window.PDC_SUPABASE_CONFIG || {};
+    const token = typeof getPdcSupabaseAccessToken === 'function' ? getPdcSupabaseAccessToken() : '';
+    const response = await fetch(`${config.url}/rest/v1/rpc/revolution_upload_status_728`, {
+      method: 'POST',
+      headers: { apikey: config.publishableKey, Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ p_upload: uploadId }),
+    });
+    return response.json();
+  }
+  function follow(uploadId) {
+    clearTimeout(pollTimer);
+    const tick = async () => {
+      try {
+        const s = await status(uploadId);
+        if (s?.ok !== true) { setStatus('Sent. Progress could not be read; check again in a minute.'); return; }
+        const parts = s.n_parts ? ` Part ${Math.min(s.parts_applied || s.parts_previewed || 0, s.n_parts)} of ${s.n_parts}.` : '';
+        if (s.status === 'done') { setStatus(`Imported.${s.holds ? ` ${s.holds} lines held for review.` : ''} The board is up to date with this file.`); return; }
+        if (s.status === 'failed') { setStatus(`The import stopped: ${s.error || 'unknown error'}. Nothing after that part was written.`); return; }
+        if (s.status === 'held') { setStatus(`Stopped for an administrator: ${s.note || 'sanity gate'}.`); return; }
+        setStatus(`${s.status === 'queued' ? 'Waiting to start' : 'Importing'}…${parts} You can leave this page.`);
+      } catch (_) { /* try again */ }
+      pollTimer = setTimeout(tick, 5000);
+    };
+    void tick();
+  }
+  function renderNeedsHours(list) {
+    const host = document.getElementById('revolution-upload-result');
+    if (!host || !list?.length) return;
+    const title = document.createElement('h2');
+    title.textContent = `Needs hours (${list.length}) · not sent`;
+    const note = document.createElement('p');
+    note.className = 'ru-note';
+    note.textContent = 'These lines have no hours and no earlier ARB check, so they were held. Add the hours on the board, then upload the next file.';
+    const ul = document.createElement('ul');
+    ul.className = 'ru-errors';
+    for (const item of list.slice(0, 200)) {
+      const li = document.createElement('li');
+      li.textContent = `${item.stock_number || item.stock || ''} · ${item.repair_order_number || item.ro || ''} line ${item.original_line_number || item.line || ''} · ${item.proposed_station || item.station || ''} · ${item.operation_description || item.description || ''}`;
+      ul.append(li);
+    }
+    host.append(title, note, ul);
+  }
+
   function open() {
     renderLog(readLog());
     if (wired) return;
@@ -178,6 +226,23 @@ if (typeof window !== 'undefined') (function () {
     const dry = document.getElementById('revolution-upload-dry');
     const apply = document.getElementById('revolution-upload-apply');
     if (apply) apply.disabled = true;
+    input?.addEventListener('change', () => { if (apply) apply.disabled = true; });
+    apply?.addEventListener('click', async () => {
+      const file = input?.files?.[0];
+      if (!file) return;
+      apply.disabled = true;
+      setStatus('Preparing the rows and sending them to the import queue…');
+      try {
+        const payload = await postFile(file, 'apply');
+        remember(file, { ...payload, kind: 'apply', summary: payload.ok ? `sent ${payload.rows_sent || 0}, held ${payload.rows_held || 0}, needs hours ${(payload.needs_hours || []).length}` : payload.error });
+        if (payload.ok !== true) { setStatus(payload.error || 'Apply was refused.'); return; }
+        renderNeedsHours(payload.needs_hours);
+        setStatus(payload.message);
+        if (payload.status !== 'held') follow(payload.upload_id);
+      } catch (error) {
+        setStatus(error instanceof Error ? error.message : 'Apply failed.');
+      }
+    });
     dry?.addEventListener('click', async () => {
       const file = input?.files?.[0];
       if (!file) { setStatus('Choose a Revolution report first.'); return; }
@@ -191,6 +256,7 @@ if (typeof window !== 'undefined') (function () {
         }
         renderResult(payload);
         setStatus(payload.message || 'Dry run ready. Nothing was written.');
+        if (apply) apply.disabled = !(payload.apply_enabled === true && payload.ok !== false && !payload.duplicate_file);
         remember(file, payload);
       } catch (error) {
         setStatus(error instanceof Error ? error.message : 'The dry run failed.');

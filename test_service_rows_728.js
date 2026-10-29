@@ -417,3 +417,21 @@ test('end to end from an uploaded HTML workbook through parse.js', async () => {
   assert.equal(out.summary.excluded_department_rows, 1);
   assert.equal(out.rows[0].workbook_sha256, parsed.sha256);
 });
+
+test('r728 wiring: server RPCs, edge Apply, page Apply (no faked email)', () => {
+  const fs = require('fs');
+  const sql = fs.readFileSync('supabase/migrations/20261029200000_r728_website_service_upload.sql', 'utf8');
+  assert.match(sql, /CREATE TABLE pdc_import_620\.web_uploads_728/);
+  assert.match(sql, /IF v_role <> 'administrator' OR v_uid IS NULL OR v_email = '' THEN RETURN/);
+  assert.match(sql, /pdc_import_620\.web_upload_row_ok_728\(x\) IS NOT TRUE AND \(x->'raw_row'->>'from_address' IS DISTINCT FROM 'noreply@revolutionsoftware\.com\.au'/);
+  assert.match(sql, /REVOKE ALL ON FUNCTION public\.revolution_prior_decisions_728\(\) FROM authenticated;/);
+  assert.match(sql, /expected_function_md5\) <> 241/);
+  assert.match(sql, /'filename', btrim\(p_filename\),\n    'provenance', jsonb_build_object\('source_kind', 'website_admin_upload_728'/, 'the envelope carries no message id');
+  const edge = fs.readFileSync('supabase/functions/revolution-upload/index.ts', 'utf8');
+  assert.match(edge, /if \(action === 'apply'\) return await applyService\(/);
+  assert.match(edge, /if \(parsed\.kind !== 'service_whole'\) return refuse\(/);
+  assert.match(edge, /rpcAs\(projectUrl, auth, 'revolution_upload_begin_728'/);
+  const page = fs.readFileSync('pdc-revolution-upload.js', 'utf8');
+  assert.match(page, /apply\.disabled = !\(payload\.apply_enabled === true/);
+  assert.match(page, /revolution_upload_status_728/);
+});
