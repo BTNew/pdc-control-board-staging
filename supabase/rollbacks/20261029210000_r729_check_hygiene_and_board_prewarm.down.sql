@@ -27,3 +27,6 @@ SELECT cron.unschedule(jobid) FROM cron.job WHERE jobname = 'staging-cron-histor
 SELECT cron.alter_job(jobid, schedule => '20 seconds') FROM cron.job WHERE jobname = 'staging-qc-operation-lines-cache-refill';
 UPDATE pdc_ops.regression_checks SET check_sql = replace(check_sql,'''5 seconds''','''20 seconds''') WHERE check_name = 'qc_cache_refill_busy_not_error';
 DELETE FROM pdc_ops.regression_checks WHERE check_name = 'board_prewarm_729';
+
+-- Not restored on purpose: the "AND (SELECT count(*) FROM pdc_ops.expected_function_md5) = 241" clauses r729 removed from eleven
+-- checks (598, 599, 600, 601, 604, 605, 630, 632, 642, 643, 711). They broke the r529 rule and kept regression_checks_self_test red.

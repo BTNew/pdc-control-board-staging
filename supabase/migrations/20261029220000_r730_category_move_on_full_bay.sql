@@ -156,8 +156,7 @@ SELECT (SELECT pg_catalog.strpos(prosrc, 'IF mins<60 THEN mins:=60; END IF;') FR
    AND (SELECT pg_catalog.strpos(prosrc, 'pdc_bay_seq_private.plan_for_move(rec.id,rec.bay_id,rec.scheduled_start_at)') FROM f) > 0
    AND (SELECT pg_catalog.strpos(prosrc, 'pdc_bay_seq_private.p_apply(') FROM f) > 0
    AND (SELECT pg_catalog.strpos(prosrc, 'workshop_booking_capacity_duration_minutes(rec.id,v.id,rec.stage_id,rec.bay_id)') FROM f) > 0
-   AND (SELECT pg_catalog.md5(prosrc) FROM f) = (SELECT prosrc_md5 FROM pin)
-   AND (SELECT count(*) FROM pdc_ops.expected_function_md5) = 241 AS ok,
+   AND (SELECT pg_catalog.md5(prosrc) FROM f) = (SELECT prosrc_md5 FROM pin) AS ok,
   'category move r730, pin '||coalesce((SELECT pg_catalog.left(prosrc_md5,8) FROM pin),'missing') AS detail
 $chk$);
 

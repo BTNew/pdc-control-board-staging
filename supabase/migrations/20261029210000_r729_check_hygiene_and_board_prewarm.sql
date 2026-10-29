@@ -52,6 +52,7 @@ BEGIN
      OR (SELECT count(*) FROM pdc_ops.regression_checks WHERE check_name = 'bay_resequence_and_stopped_replan' AND strpos(check_sql,'h.event_type IN (''bay_resequenced'',''pushed_for_earlier_stage'',''bay_resequence_undone'')') > 0) <> 1
      OR (SELECT count(*) FROM pdc_ops.regression_checks WHERE check_name IN ('key460_drag_597','outstanding_station_hours_594') AND strpos(check_sql,'= 5.00') > 0) <> 2
      OR (SELECT count(*) FROM pdc_ops.regression_checks WHERE check_name = 'qc_cache_refill_busy_not_error' AND strpos(check_sql,'''20 seconds''') > 0) <> 1
+     OR (SELECT count(*) FROM pdc_ops.regression_checks WHERE check_sql ~ '\s*AND \(SELECT count\(\*\) FROM pdc_ops\.expected_function_md5\)\s*=\s*[0-9]+') <> 11
   THEN RAISE EXCEPTION 'r729: a check literal is not where this file expects it; nothing changed'; END IF;
   -- live md5s the new literals name
   IF (SELECT md5(prosrc) FROM pg_proc WHERE oid = to_regprocedure('pdc_work_categories_private.note_fee_sublet_521(jsonb)')) IS DISTINCT FROM '20fac9508d40f9bb79438208bba7fa45'
@@ -120,6 +121,13 @@ SET check_sql = replace(replace(check_sql,
   '  AND open_hours.total = 5.00', '  AND true')
 WHERE check_name = 'outstanding_station_hours_594';
 
+-- r529 rule: no check may lock the pin table to a literal total (regression_checks_self_test). Eleven checks added
+-- between r598 and r711 did (= 241), which kept the self test red and would make every pin add a two-file change.
+-- The clause goes; each of those checks keeps its own md5 and privilege assertions, protected_function_md5s owns the pins.
+UPDATE pdc_ops.regression_checks
+SET check_sql = regexp_replace(check_sql, '\s*AND \(SELECT count\(\*\) FROM pdc_ops\.expected_function_md5\)\s*=\s*[0-9]+', '', 'g')
+WHERE check_sql ~ '\s*AND \(SELECT count\(\*\) FROM pdc_ops\.expected_function_md5\)\s*=\s*[0-9]+';
+
 -- The QC gate pin follows the applied qc_override_closes_jobs_20261029 body (location override aware, same as r688).
 UPDATE pdc_ops.expected_function_md5
 SET prosrc_md5 = '22d863876a4cfa8f127756cc4a8a6da4',
@@ -163,14 +171,16 @@ BEGIN
      'category_unstarted_release_536','running_booking_end_538','bus_whole_job_450','dept138_review_routing_459',
      'planner_duration_after_insert_537','planner_duration_cache_531','parts_eta_stoppage_573','bodybuilder_new_to_pmb_574',
      'bay_resequence_and_stopped_replan','key460_drag_597','outstanding_station_hours_594','qc_signoff_override_590',
-     'protected_function_md5s','qc_cache_refill_busy_not_error','board_prewarm_729','regression_checks_self_test')
+     'protected_function_md5s','qc_cache_refill_busy_not_error','board_prewarm_729','regression_checks_self_test',
+     'place_after_no_prompt_598','cross_bay_guard_off_599','resume_cascade_600','validate_cross_bay_off_601','pit_bookings_604',
+     'workshop_tv_605','pit_time_630','pit_places_632','mmt_sublet_642','mmt_only_login_643','psc_sublet_711')
   LOOP
     v_n := v_n + 1;
     IF NOT r.ok AND r.check_name NOT IN ('qc_cache_refill_busy_not_error','board_prewarm_729') THEN v_red := v_red || r.check_name || ' (' || left(r.detail, 160) || '); '; END IF;
     IF NOT r.ok THEN RAISE NOTICE 'r729 still red: % %', r.check_name, r.detail; END IF;
   END LOOP;
-  IF v_n <> 20 THEN RAISE EXCEPTION 'r729: expected 20 checks, saw %', v_n; END IF;
+  IF v_n <> 31 THEN RAISE EXCEPTION 'r729: expected 31 checks, saw %', v_n; END IF;
   IF v_red <> '' THEN RAISE EXCEPTION 'r729: red after apply, rolled back: %', v_red; END IF;
   IF (SELECT count(*) FROM pdc_ops.expected_function_md5) <> 241 THEN RAISE EXCEPTION 'r729: pin count moved'; END IF;
-  RAISE NOTICE 'r729: 20 checks green (the two cron checks need a run history and go green within 10 minutes)';
+  RAISE NOTICE 'r729: 31 checks green (the two cron checks need a run history and go green within 10 minutes)';
 END $post729$;
