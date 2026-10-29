@@ -244,7 +244,7 @@ r494c (F107b, site slow after the stack went live): the board's **PO to raise** 
   cascade on. The server keeps every planner rule. Started jobs are moved in Workshop Planner.
 - Saved ticks now show as soon as the panel opens.
 
-## r699 (F309, 29 Oct 2026)
+## r700 (F310, 29 Oct 2026; released as PR #653 labelled r699 / F309)
 
 - Move to a bay is removed. Each open line has a **Move to** drop-down (operators, administrators). Picking a station
   moves that line and its hours through `saveVehicleWorkCategory`. Completed lines, and lines whose station job has
