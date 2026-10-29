@@ -462,7 +462,7 @@ const approvedRootImportPatch = Object.freeze({
   // r604: index.html adds r604=2026.10.28.r604 on canonical-entry.js (pit bookings, F218). Department 135 is not tagged.
   // r616: pdc-auth.js, pdc-bay-manager.js and canonical-entry.js carry r616=2026.10.28.r616 (fitter sessions send only Fitters bay requests, F231). Department 135 is not tagged.
   // r642: Sublet · MMT nav and view, pdc-mmt-sublet.css/js, r642 on app.js and pdc-staff-usage.js (F257). Department 135 is not tagged.
-  "index.html": "4266b4c391b55e64a1b20b373c4308ca4cb0b90c3c7c1016d0737382f8ee8d8d", // r710 (F320) app.js tag
+  "index.html": "1ead50af68ce66fc621ddd639af694815afa5d3bcb06a965b6e5bd6bd4f5a783", // r710 (F320) app.js tag
   "pdc-conversions.js": "0a99e7a5306f15e434b293a3ca9a318ffad4b78eb814c27144d75ff98821d810",
   // r401: Pit tick and read RPCs (set_pdc_pit_line_tick_401, get_pdc_pit_line_ticks_401).
   // r414: readQcPhotoReceipt (get_pdc_qc_photo_receipt_414) for the QC page (F30).
@@ -472,7 +472,7 @@ const approvedRootImportPatch = Object.freeze({
   // r573: a description-check rejection from the hours batch is returned as hours_description_rejected (F187). Department 135 keeps its frozen copy.
   // r575: the vehicle-detail save keeps the server's key sentence (F189). Department 135 is not tagged.
   // r590: sign-off failures keep the server sentence, and QC can ask what is still outstanding (F204). Department 135 keeps its frozen copy.
-  "pdc-email-vehicle-location-service.js": "4cb24b775e8cccb798fcb7a8b99e1cde60e26c6e397aa8c5dceaa8222f82c672",
+  "pdc-email-vehicle-location-service.js": "a2db3c9ab7b0d984b13df98b5da796b84e78c5507462ba594ef080d598759af7",
   // r590: the phone sign-off names what is still outstanding. Both copies move together. Department 135 is not tagged.
   "pdc-qc-mobile.js": "ef70a4f25b81d51c514d3bc74d3efa15e1e1cb1069fc05d41e6c9b2816ad1dc5",
   // r482: Prioritise vehicle asks before applying a plan that books before the parts ETA (F95).
