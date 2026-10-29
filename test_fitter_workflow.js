@@ -537,3 +537,14 @@ test('r564 (F178): missing key_number shows subtle No key badge',async()=>{
   await f.open();
   assert.match(f.html,/13042994 <span class="fitter-key-badge is-missing"[^>]*>No key<\/span>/);
 });
+
+test('r740: the next job and later jobs show their key tag too (Craig, 30 Oct 2026)',async()=>{
+  const f=screenFixture();
+  f.data.jobs[0]={...f.data.jobs[0],id:'booking-a',status:'planned',stock:'13042994',key_number:'364'};
+  f.data.jobs.push({...f.data.jobs[0],id:'booking-b',status:'planned',stock:'13000001',key_number:'77',start_at:'2026-10-27T02:00:00Z',end_at:'2026-10-27T03:00:00Z'});
+  f.data.jobs.push({...f.data.jobs[0],id:'booking-c',status:'planned',stock:'13000002',key_number:undefined,start_at:'2026-10-27T04:00:00Z',end_at:'2026-10-27T05:00:00Z'});
+  f.data.detail={...f.data.detail,booking_id:'booking-a',status:'planned',stage_code:'TINT'};
+  await f.open();
+  assert.match(f.html,/<strong>13000001 <span class="fitter-key-badge"[^>]*>Key 77<\/span><\/strong>/);
+  assert.match(f.html,/<strong>13000002 <span class="fitter-key-badge is-missing"[^>]*>No key<\/span><\/strong>/);
+});

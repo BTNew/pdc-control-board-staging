@@ -574,8 +574,9 @@
   const host = () => doc.getElementById('fitters-host');
   const time = value => value ? new Date(value).toLocaleString('en-AU', {timeZone:'Australia/Perth',weekday:'short',day:'numeric',month:'short',hour:'numeric',minute:'2-digit'}) : 'Not scheduled';
   const state = value => ({started:'In progress',stoppage:'Stopped',planned:'Planned',queued:'Queued',completed:'Completed'}[value] || value);
+  // r740 (Craig, 30 Oct 2026): the key tag shows on every job the fitter can see, not only the open one.
   function jobPreview(job) {
-    return `<strong>${esc(job.stock || 'Stock not recorded')}</strong><span>${esc(job.customer || 'Customer not recorded')} · ${esc(job.vehicle || 'Vehicle details pending')}</span><small>${esc(job.stage_name)} · ${esc(bayText(job.stage_code, job.bay_number))} · ${esc(time(job.start_at))}</small>`;
+    return `<strong>${esc(job.stock || 'Stock not recorded')} ${fitterKeyBadgeHtml(job)}</strong><span>${esc(job.customer || 'Customer not recorded')} · ${esc(job.vehicle || 'Vehicle details pending')}</span><small>${esc(job.stage_name)} · ${esc(bayText(job.stage_code, job.bay_number))} · ${esc(time(job.start_at))}</small>`;
   }
   // r627 (F242): items in this bay that are still open (not Done, not Later, not sent away).
   function openOwnLines() {
@@ -642,7 +643,7 @@
       ${busPending() ? '<div class="fitter-warning">The supplier save is unconfirmed. Check the same request before making another change. <button type="button" data-bus-fitter-retry>Check / retry supplier save</button></div>' : ''}
       ${!service.canWrite() && connected ? '<p class="fitter-warning">View only. An operator account is needed to record work.</p>' : ''}
       ${mechanic ? `<p class="fitter-bay-summary">${bays.length ? bays.map(b=>`${esc(b.stage)} · ${esc(bayText(STAGE_BY_NAME[b.stage], b.number))}${b.active?'':' (inactive)'}`).join(' / ') : 'Jobs individually assigned to this mechanic appear below.'}</p>` : ''}
-      ${flow.otherActive.length ? `<details class="fitter-active-jobs"><summary>Other active jobs (${flow.otherActive.length})</summary>${flow.otherActive.map(j=>`<button type="button" data-fitter-job="${esc(j.id)}" ${locked?'disabled':''}>${esc(j.stock)} · ${esc(j.stage_name)} / ${esc(bayText(j.stage_code, j.bay_number))} · ${esc(state(j.status))}</button>`).join('')}</details>` : ''}
+      ${flow.otherActive.length ? `<details class="fitter-active-jobs"><summary>Other active jobs (${flow.otherActive.length})</summary>${flow.otherActive.map(j=>`<button type="button" data-fitter-job="${esc(j.id)}" ${locked?'disabled':''}>${esc(j.stock)} ${fitterKeyBadgeHtml(j)} · ${esc(j.stage_name)} / ${esc(bayText(j.stage_code, j.bay_number))} · ${esc(state(j.status))}</button>`).join('')}</details>` : ''}
       <div class="fitter-layout">
       <section class="fitter-work" aria-label="Selected job" data-bus-booking="${detail && detail.stage_code==='BUS_4X4' ? esc(selected) : ''}" data-bus-tech="${esc(mechanic || '')}" data-bus-editable="${editable && detail && detail.stage_code==='BUS_4X4' ? '1' : '0'}">${job && detail ? `<div class="fitter-job-heading"><p class="fitter-kicker">${esc(job.stage_name)} · ${esc(bayText(job.stage_code, job.bay_number))} · ${esc(state(detail.status))}</p><h2 class="fitter-job-title">${esc(job.stock)} ${fitterKeyBadgeHtml(job)} <span>${esc(job.job_card)}</span></h2><p>${esc(job.customer)} · ${esc(job.vehicle)}</p><p class="fitter-time">${esc(time(job.start_at))} – ${esc(time(job.end_at))}</p>${timerHtml(detail,timingOptions())}${progressHtml(detail.progress,false,{paused:fitterPausedLabel(detail)})}<p>${detail.progress.completed_lines} of ${detail.progress.total_lines} items complete · Progress uses approved work hours.</p></div>
       ${detail.status==='stoppage' ? `<div class="fitter-warning"><strong>Job stopped</strong><p>${esc(detail.stoppage_reason)}</p></div>` : ''}
