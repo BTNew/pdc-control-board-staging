@@ -9,7 +9,7 @@
  */
 (function (root) {
   'use strict';
-  const VERSION = '2026.10.29.r706';
+  const VERSION = '2026.10.29.r711';
   // r706 (F316, Craig 29 Oct): Tint and Tyres sit side by side at the bottom with each job's full key and Start / Stop.
   // They have one line and no iPad. Every other station stays view-only.
   const ACTION_STATIONS = ['TINT', 'TYRE'];
@@ -205,6 +205,7 @@
   function paint() {
     if (!data) return;
     $('tv-board').innerHTML = boardHtml(data, { hidden, now: Date.now() });
+    if (typeof paintNotes === 'function') paintNotes();
     layout();
     tickNow();
   }
@@ -231,11 +232,40 @@
   }
   // r706: Start / Stop for Tint and Tyres. Stop finishes the booking (complete), the same as Complete on the planner.
   let acting = false;
+  // r711 (F321, Craig 29 Oct): the answer shows in big type on the bay itself for 20 seconds, and the board reloads
+  // straight away. A refused Start (e.g. an admin block in the bay) used to show only in the small status line.
+  const notes = new Map();
+  const TV_ERRORS = {
+    admin_block_conflict: 'an admin block is booked in this bay before this job would finish. Move or delete the block on the planner, then press Start again.',
+    version_conflict: 'the board changed. Press it again.',
+    booking_version_conflict: 'the board changed. Press it again.',
+    not_authorized: 'this TV login cannot start or stop jobs. Sign in with a controller login.',
+  };
+  function tvReason(error, result) {
+    const code = String(result?.error || result?.code || '').trim();
+    if (TV_ERRORS[code]) return TV_ERRORS[code];
+    if (/operator or administrator/i.test(error?.message || '')) return TV_ERRORS.not_authorized;
+    return String(result?.message || error?.message || code || 'refresh and try again').slice(0, 140);
+  }
+  function paintNotes() {
+    const now = Date.now();
+    for (const [bay, n] of notes) {
+      if (n.until < now) { notes.delete(bay); continue; }
+      const zone = document.querySelector(`.tv-zone[data-bay="${CSS.escape(bay)}"]`);
+      if (!zone || zone.querySelector('.tv-znote')) continue;
+      const div = document.createElement('div');
+      div.className = `tv-znote ${n.ok ? 'is-ok' : 'is-bad'}`;
+      div.textContent = n.text;
+      zone.insertBefore(div, zone.querySelector('ul'));
+    }
+  }
   async function act(button) {
     if (acting || !client) return;
     const id = button.dataset.id, version = Number(button.dataset.v), kind = button.dataset.tvAct;
     if (!id || !Number.isInteger(version)) return;
     acting = true;
+    const bay = button.closest('[data-bay]')?.dataset.bay || '';
+    const keyText = button.closest('.tv-aj')?.querySelector('.tv-aj-key')?.textContent || 'This job';
     button.disabled = true;
     button.textContent = kind === 'start' ? 'Starting…' : 'Stopping…';
     let note = '';
@@ -243,14 +273,17 @@
       const { data: result, error } = kind === 'start'
         ? await client.rpc('start_workshop_work', { p_booking_id: id, p_expected_version: version, p_actual_start_at: null, p_metadata: { source: 'workshop_tv_706' } })
         : await client.rpc('complete_workshop_work', { p_booking_id: id, p_expected_version: version, p_work_key: button.dataset.work || null, p_actual_end_at: null, p_metadata: { source: 'workshop_tv_706' } });
-      if (error || result?.ok !== true) note = `Not ${kind === 'start' ? 'started' : 'stopped'}: ${String(error?.message || result?.message || result?.error || result?.code || 'refresh and try again').slice(0, 120)}`;
-      else note = kind === 'start' ? 'Started' : 'Done';
+      if (error || result?.ok !== true) { note = `${keyText} NOT ${kind === 'start' ? 'started' : 'stopped'}: ${tvReason(error, result)}`; if (bay) notes.set(bay, { text: note, ok: false, until: Date.now() + 20000 }); }
+      else { note = `${keyText} ${kind === 'start' ? 'started' : 'done'}`; if (bay) notes.set(bay, { text: note, ok: true, until: Date.now() + 8000 }); }
     } catch (e) {
       note = 'Not saved. Check the connection and try again.';
+      if (bay) notes.set(bay, { text: note, ok: false, until: Date.now() + 20000 });
     } finally {
       acting = false;
       $('tv-status').textContent = note;
-      await load();
+      paintNotes();
+      await load(); // refresh straight away
+      paintNotes();
     }
   }
   function showGate(message, signIn = true) {
