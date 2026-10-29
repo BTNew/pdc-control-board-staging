@@ -46,7 +46,10 @@ test('the cell and the side panel edit the same date and note, and leave the ema
   assert.equal((decorated.match(/pdc-parts-eta-detail/g) || []).length, 1);
   assert.match(decorated, /class="tune-service-location-job pdc-parts-stoppage-detail"/);
   assert.doesNotMatch(decorated, /class="[^"]*pdc-parts-stoppage-detail[^"]*pdc-parts-eta-detail/);
-  assert.match(decorated, /Email 02\/11\/26 · parts staff email \(kept\)/);
+  // r739 (F344): a typed date is the only ETA shown. The email line goes and the old email block is hidden by CSS.
+  assert.doesNotMatch(decorated, /parts staff email/);
+  assert.match(decorated, /data-pdc-stoppage-manual="1"/);
+  assert.ok(decorated.indexOf('pdc-parts-eta-detail">email source</div><div class="tune-service-location-job pdc-parts-stoppage-detail"') > 0, 'typed block sits right after the email block so the :has() rule hides it');
   assert.match(decorated, /JITA ETA 04\/11\/26 · JITA paste/);
   assert.match(decorated, /Last checked 26\/10\/26/);
   assert.match(decorated, /data-pdc-stoppage-history=/);
