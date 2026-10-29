@@ -63,6 +63,7 @@ const STARTUP_ORDER = [
   'pdc-mmt-sublet.js',
   // r711 (F321): Sublet · PSC page.
   'pdc-psc-sublet.js',
+  'pdc-stock-take.js', // r720 (F330)
   'pdc-workshop-hours.js',
   'pdc-vehicle-sublets.js' // r494 (F107): Manage sublets per vehicle
 ];

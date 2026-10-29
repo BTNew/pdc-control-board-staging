@@ -1,0 +1,40 @@
+/* r720 (F330): Stock take. Big touch targets for an iPad walk-around. */
+#stock-take .st-bar { position: sticky; top: 0; z-index: 4; background: var(--panel-bg, #fff); padding: 8px 0 6px; border-bottom: 1px solid #e2e8f0; }
+#stock-take .st-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+#stock-take .st-chip { font: inherit; font-weight: 700; min-height: 44px; padding: 8px 16px; border-radius: 10px; border: 1px solid #cbd5e1; background: #fff; color: #0f172a; cursor: pointer; }
+#stock-take .st-chip[aria-pressed="true"] { background: #1d4ed8; border-color: #1d4ed8; color: #fff; }
+#stock-take .st-tools { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-top: 8px; }
+#stock-take .st-tools input[type="search"] { flex: 1 1 220px; min-height: 44px; font: inherit; font-size: 17px; padding: 8px 12px; border: 1px solid #cbd5e1; border-radius: 10px; }
+#stock-take .st-open { display: flex; align-items: center; gap: 8px; font-weight: 600; }
+#stock-take .st-open input { width: 24px; height: 24px; }
+#stock-take .st-sum { margin: 8px 0 0; color: #475569; font-size: 14px; display: flex; flex-wrap: wrap; gap: 6px 12px; align-items: center; }
+#stock-take .st-live { margin-left: auto; font-weight: 700; color: #15803d; }
+#stock-take .st-live::before { content: ""; display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #16a34a; margin-right: 6px; vertical-align: 1px; }
+#stock-take .st-list { display: grid; gap: 10px; margin-top: 10px; }
+#stock-take .st-car { border: 1px solid #e2e8f0; border-radius: 12px; background: #fff; overflow: hidden; }
+#stock-take .st-car.is-done { border-color: #16a34a; background: #f0fdf4; }
+#stock-take .st-car h3 { margin: 0; display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 12px; padding: 10px 12px; border-bottom: 1px solid #e2e8f0; font-size: 16px; }
+#stock-take .st-key { font-size: 24px; font-weight: 900; min-width: 84px; }
+#stock-take .st-stock { font-weight: 700; }
+#stock-take .st-veh { color: #64748b; font-weight: 500; }
+#stock-take .st-count { margin-left: auto; font-weight: 800; color: #475569; }
+#stock-take .st-car ul { list-style: none; margin: 0; padding: 2px 0; }
+#stock-take .st-line label { display: flex; gap: 12px; align-items: flex-start; padding: 10px 12px; min-height: 48px; cursor: pointer; }
+#stock-take .st-line + .st-line label { border-top: 1px solid #f1f5f9; }
+#stock-take .st-line input { width: 28px; height: 28px; flex: none; margin: 0; accent-color: #16a34a; }
+#stock-take .st-d { flex: 1; font-size: 16px; }
+#stock-take .st-d em { font-style: normal; font-size: 12px; font-weight: 700; color: #1d4ed8; background: #eff6ff; border-radius: 6px; padding: 1px 6px; margin-left: 4px; }
+#stock-take .st-meta { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; white-space: nowrap; }
+#stock-take .st-meta b { color: #15803d; font-size: 13px; }
+#stock-take .st-meta small { color: #64748b; }
+#stock-take .st-line.is-done .st-d { text-decoration: line-through; color: #64748b; }
+#stock-take .st-line.is-fresh { animation: st-fresh 2s ease-in-out 3; }
+@keyframes st-fresh { 0%, 100% { background: transparent; } 50% { background: #fef9c3; } }
+#stock-take .st-error { margin: 8px 12px; color: #b91c1c; font-weight: 700; }
+#stock-take .st-empty { color: #64748b; padding: 24px; text-align: center; }
+@media (prefers-reduced-motion: reduce) { #stock-take .st-line.is-fresh { animation: none; background: #fef9c3; } }
+#stock-take .st-missing { font: inherit; font-weight: 800; min-height: 40px; padding: 6px 14px; border-radius: 10px; border: 2px solid #dc2626; background: #fff; color: #b91c1c; cursor: pointer; }
+#stock-take .st-missing[aria-pressed="true"] { background: #16a34a; border-color: #16a34a; color: #fff; }
+#stock-take .st-car.is-missing { border: 2px solid #dc2626; background: #fef2f2; }
+#stock-take .st-miss-note { margin: 0; padding: 8px 12px; background: #dc2626; color: #fff; font-weight: 800; }
+#stock-take .st-sum-miss { color: #b91c1c; }

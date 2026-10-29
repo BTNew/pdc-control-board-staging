@@ -14,7 +14,8 @@
   const requestedIntake = !phone && ['#/newvehicles','#/operationupdates'].includes(location.hash);
   // r643 (F258) / r711 (F321): Fitters bay and the Sublet · MMT / PSC pages keep their own page on a phone
   // (pmgpdc.au/mmt opens #/mmt-sublet, pmgpdc.au/psc opens #/psc-sublet).
-  const ownPhonePage = ['#/fitters', '#/mmt-sublet', '#/psc-sublet'].includes(location.hash);
+  // r720 (F330): the Stock take (pmgpdc.au/stocktake, #/stock-take) also keeps its own page on an iPad.
+  const ownPhonePage = ['#/fitters', '#/mmt-sublet', '#/psc-sublet', '#/stock-take'].includes(location.hash);
   document.documentElement.classList.toggle('pdc-qc-phone', Boolean(phone && !ownPhonePage));
   if (phone && !ownPhonePage && (!location.hash || location.hash.startsWith('#/'))) {
     window.history.replaceState({ pdcView: 'qc' }, '', `${location.pathname}${location.search}#/qc`);

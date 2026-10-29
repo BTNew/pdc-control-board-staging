@@ -34,7 +34,7 @@ test('no buttons when this login cannot start work', () => {
 test('the read carries ids, version and can_act; the page cache-busts', () => {
   const sql = fs.readFileSync('supabase/migrations/20261029120000_r706_tv_tint_tyre_start_stop.sql', 'utf8');
   assert.match(sql, /''can_act'', coalesce\(public\.workshop_is_planner_operator\(\), false\)/);
-  assert.match(fs.readFileSync('workshop-tv.html', 'utf8'), /&amp;r706=2026\.10\.29\.r706(&amp;r710=2026\.10\.29\.r710)?(&amp;r711=2026\.10\.29\.r711)?"/);
+  assert.match(fs.readFileSync('workshop-tv.html', 'utf8'), /&amp;r706=2026\.10\.29\.r706(&amp;r710=2026\.10\.29\.r710)?(&amp;r711=2026\.10\.29\.r711)?(&amp;r720=2026\.10\.29\.r720)?"/);
 });
 test('r710: each zone shows the current job, the next and the one after; no done jobs', () => {
   const jobs = [
