@@ -161,7 +161,7 @@
     const loadVehicleSlideout = () => {
       if (document.querySelector('script[data-pdc-vehicle-slideout]')) return;
       const slideout = document.createElement('script');
-      slideout.src = 'pdc-vehicle-slideout.js?vehicle-slideout=2026.10.28.r588&r595=2026.10.28.r595&r681=2026.10.29.r681&r695=2026.10.29.r695'; // r695 (F305): vehicle card panel; r588 (F202): five-column grid cache-bust stays; r595 (F209): panel opens once; r578 (F192): green complete tick; r560 (F174): More details; r565 (F179): chip edit
+      slideout.src = 'pdc-vehicle-slideout.js?vehicle-slideout=2026.10.28.r588&r595=2026.10.28.r595&r681=2026.10.29.r681&r695=2026.10.29.r695&r697=2026.10.29.r697'; // r697 (F307): line Move to drop-down. r695 (F305): vehicle card panel; r588 (F202): five-column grid cache-bust stays; r595 (F209): panel opens once; r578 (F192): green complete tick; r560 (F174): More details; r565 (F179): chip edit
       slideout.dataset.pdcVehicleSlideout = '1';
       document.head.appendChild(slideout);
     };

@@ -243,3 +243,11 @@ r494c (F107b, site slow after the stack went live): the board's **PO to raise** 
   (existing booking) or `administrator_schedule_workshop_vehicle` (none) through app.js `vehiclePanelBookingCommand`,
   cascade on. The server keeps every planner rule. Started jobs are moved in Workshop Planner.
 - Saved ticks now show as soon as the panel opens.
+
+## r697 (F307, 29 Oct 2026)
+
+- Move to a bay is removed. Each open line has a **Move to** drop-down (operators, administrators). Picking a station
+  moves that line and its hours through `saveVehicleWorkCategory`. Completed lines, and lines whose station job has
+  started, stay put (the server refuses them).
+- **More details** is removed. **Edit** sits in the top row.
+- One Override button per station.
