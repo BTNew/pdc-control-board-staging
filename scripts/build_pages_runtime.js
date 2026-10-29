@@ -13,7 +13,8 @@ const ENTRY_POINTS = Object.freeze([
   'index.html', 'sales/index.html', 'karratha/index.html', 'docs/bus4x4-user-guide.html',
   'no-vehicles.html', 'staging.html', 'test-50.html', 'test-75.html', 'test-100.html',
   'workshop-tv.html', // r605 (F219): view-only workshop screen
-  'mmt/index.html' // r642 (F257): pmgpdc.au/mmt opens Sublet · MMT
+  'mmt/index.html', // r642 (F257): pmgpdc.au/mmt opens Sublet · MMT
+  'psc/index.html' // r711 (F321): pmgpdc.au/psc opens Sublet · PSC
 ]);
 const RUNTIME_FILES = Object.freeze([
   '.nojekyll',
@@ -24,7 +25,7 @@ const RUNTIME_FILES = Object.freeze([
   'docs/assets/bus4x4-guide/forecasts.png', 'docs/assets/bus4x4-guide/qa-pit.png',
   'docs/assets/bus4x4-guide/stage-parts.png', 'docs/assets/bus4x4-guide/supplier-check.png',
   'docs/assets/bus4x4-guide/team.png', 'docs/bus4x4-user-guide.html',
-  'email-board-data.js', 'favicon.svg', 'index.html', 'workshop-tv.html', 'workshop-tv.js', 'mmt/index.html',
+  'email-board-data.js', 'favicon.svg', 'index.html', 'workshop-tv.html', 'workshop-tv.js', 'mmt/index.html', 'psc/index.html',
   // Department 135: frozen native PMB runtime plus reviewed isolated boundary assets.
   'karratha/ai-auditor.css',
   'karratha/ai-board-advisor.js',
@@ -150,7 +151,7 @@ const RUNTIME_FILES = Object.freeze([
   'pdc-stacked-jobcards.js', 'pdc-staff-usage.css', 'pdc-staff-usage.js',
   'pdc-sublet-intake.js', 'pdc-supabase-config.staging.js', 'pdc-update-history.css',
   'pdc-update-history.js', 'pdc-vehicle-handover.js', 'pdc-workshop-hours.js',
-  'pdc-fitting-stats.css', 'pdc-fitting-stats.js', 'pdc-bay-manager.css', 'pdc-bay-manager.js', 'pdc-revolution-upload.css', 'pdc-revolution-upload.js', 'pdc-mmt-sublet.css', 'pdc-mmt-sublet.js', 'pdc-vehicle-sublets.css', 'pdc-vehicle-sublets.js',
+  'pdc-fitting-stats.css', 'pdc-fitting-stats.js', 'pdc-bay-manager.css', 'pdc-bay-manager.js', 'pdc-revolution-upload.css', 'pdc-revolution-upload.js', 'pdc-mmt-sublet.css', 'pdc-mmt-sublet.js', 'pdc-psc-sublet.js', 'pdc-vehicle-sublets.css', 'pdc-vehicle-sublets.js',
   'pdc-workshop-tile-cleanup.js', 'pdc-workshop-usability.js',
   'pdc-running-row.css',
   'pdc-copyright.css',

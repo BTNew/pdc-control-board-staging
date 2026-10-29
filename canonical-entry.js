@@ -12,8 +12,9 @@
   // Never rewrite OAuth/password-recovery fragments.
   const phone = window.matchMedia?.('(max-width: 900px), (pointer: coarse) and (max-width: 1024px)').matches;
   const requestedIntake = !phone && ['#/newvehicles','#/operationupdates'].includes(location.hash);
-  // r643 (F258): Fitters bay and Sublet · MMT keep their own page on a phone (pmgpdc.au/mmt opens #/mmt-sublet).
-  const ownPhonePage = ['#/fitters', '#/mmt-sublet'].includes(location.hash);
+  // r643 (F258) / r711 (F321): Fitters bay and the Sublet · MMT / PSC pages keep their own page on a phone
+  // (pmgpdc.au/mmt opens #/mmt-sublet, pmgpdc.au/psc opens #/psc-sublet).
+  const ownPhonePage = ['#/fitters', '#/mmt-sublet', '#/psc-sublet'].includes(location.hash);
   document.documentElement.classList.toggle('pdc-qc-phone', Boolean(phone && !ownPhonePage));
   if (phone && !ownPhonePage && (!location.hash || location.hash.startsWith('#/'))) {
     window.history.replaceState({ pdcView: 'qc' }, '', `${location.pathname}${location.search}#/qc`);

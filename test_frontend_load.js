@@ -61,6 +61,8 @@ const STARTUP_ORDER = [
   'pdc-revolution-upload.js',
   // r642 (F257): Sublet · MMT page.
   'pdc-mmt-sublet.js',
+  // r711 (F321): Sublet · PSC page.
+  'pdc-psc-sublet.js',
   'pdc-workshop-hours.js',
   'pdc-vehicle-sublets.js' // r494 (F107): Manage sublets per vehicle
 ];

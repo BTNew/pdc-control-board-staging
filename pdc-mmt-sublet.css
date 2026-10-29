@@ -61,3 +61,9 @@ body.mmt-only .nav > :not([data-view="mmt-sublet"]),
 body.mmt-only .view:not(#mmt-sublet),
 body.mmt-only .site-switcher,
 body.mmt-only #hosting-security-warning { display: none !important; }
+
+/* r711 (F321): the PSC login has one destination (shares this stylesheet with Sublet · PSC). */
+body.psc-only .nav > :not([data-view="psc-sublet"]),
+body.psc-only .view:not(#psc-sublet),
+body.psc-only .site-switcher,
+body.psc-only #hosting-security-warning { display: none !important; }

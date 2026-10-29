@@ -866,6 +866,16 @@
     return MMT_LOGINS.has(String(window.PDC_AUTH_CONTEXT?.email || '').trim().toLowerCase());
   }
   window.pdcIsMmtSession = isMmtSession;
+  // r711 (F321): the PSC (Perth Sign Craft) login, the same way. Craig to supply the email; add it here and to
+  // pdc_mmt_private.providers with provider 'PSC'.
+  const PSC_LOGINS = Object.freeze(new Set([]));
+  const PSC_RPC_ALLOWLIST = Object.freeze(new Set([
+    'get_pdc_psc_sublet_board_711', 'set_pdc_psc_sublet_tick_711', 'record_pdc_login', 'record_pdc_usage_20260914',
+  ]));
+  function isPscSession() {
+    return PSC_LOGINS.has(String(window.PDC_AUTH_CONTEXT?.email || '').trim().toLowerCase());
+  }
+  window.pdcIsPscSession = isPscSession;
 
   function isFitterSession() {
     return String(window.PDC_AUTH_CONTEXT?.role || '').trim().toLowerCase() === 'fitter';
@@ -897,6 +907,7 @@
     client.rpc = function guardedRpc(name, ...rest) {
       if (isFitterSession() && !FITTER_RPC_ALLOWLIST.has(String(name || ''))) return locallyRefusedRpc(name);
       if (isMmtSession() && !MMT_RPC_ALLOWLIST.has(String(name || ''))) return locallyRefusedRpc(name);
+      if (isPscSession() && !PSC_RPC_ALLOWLIST.has(String(name || ''))) return locallyRefusedRpc(name);
       return rpc(name, ...rest);
     };
     Object.defineProperty(client, '__pdcFitterRpcGuard', { value: true });

@@ -31,6 +31,7 @@
     'revolution-upload':'update-history',
     // r642 (F257): the MMT sublet page counts under Sublet.
     'mmt-sublet':'sublet',
+    'psc-sublet':'sublet', // r711 (F321)
   });
   const PAGES = new Set(Object.keys(PAGE_LABELS));
   const cleanPage = page => {
