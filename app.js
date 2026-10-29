@@ -13725,7 +13725,7 @@ async function transferSelectedYhVehiclesToPmb() {
 const PMB_KEY_RANGES = Object.freeze([[1, 40], [101, 152], [201, 282], [301, 370], [401, 462], [501, 520], [601, 650]]);
 const PMB_KEY_OUT_OF_SERVICE = Object.freeze([335, 336, 337, 433, 434, 435, 436, 437, 438, 439, 440, 441, 442, 443]);
 if (typeof window !== 'undefined' && window) window.PMB_KEY_RANGES = PMB_KEY_RANGES;
-// r709 (F319, Craig 29 Oct): a key on Craig's key list is in use even when that vehicle is not on the board,
+// r710 (F320, Craig 29 Oct): a key on Craig's key list is in use even when that vehicle is not on the board,
 // so it is never offered as a spare key at To PMB.
 function ensurePmbReservedKeys() {
   const client = typeof window === 'object' ? window.PDC_SUPABASE : null;

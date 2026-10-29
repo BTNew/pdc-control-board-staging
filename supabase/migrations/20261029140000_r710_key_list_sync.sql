@@ -1,4 +1,4 @@
--- r709 (F319, Craig 29 Oct): already applied to staging 29 Oct as migration "r708_key_list_sync". Board keys match Craig's key list; key date = Date In; key list keys reserved.
+-- r710 (F320, Craig 29 Oct): already applied to staging 29 Oct as migration "r708_key_list_sync". Board keys match Craig's key list; key date = Date In; key list keys reserved.
 
 CREATE TABLE IF NOT EXISTS public.pdc_key_list_reserved_708 (
   key_token text PRIMARY KEY,

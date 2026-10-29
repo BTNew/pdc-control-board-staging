@@ -1,5 +1,5 @@
 'use strict';
-// r709 (F319, Craig 29 Oct): keys on Craig's key list are never offered as spare keys at To PMB.
+// r710 (F320, Craig 29 Oct): keys on Craig's key list are never offered as spare keys at To PMB.
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
@@ -18,5 +18,5 @@ test('key list keys are not spare even when the vehicle is not on the board', ()
 });
 test('reserved keys load from the key list table and the script version is bumped', () => {
   assert.match(app, /from\('pdc_key_list_reserved_708'\)\.select\('key_token'\)/);
-  assert.match(fs.readFileSync('index.html', 'utf8'), /&amp;r709=2026\.10\.29\.r709"/);
+  assert.match(fs.readFileSync('index.html', 'utf8'), /&amp;r710=2026\.10\.29\.r710"/);
 });
