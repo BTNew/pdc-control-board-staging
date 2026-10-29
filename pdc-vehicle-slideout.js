@@ -555,11 +555,11 @@
       const move = STATION_MOVE[stationKey] || { category: record.category || '', stage: section?.dataset.operationStation || record.stage || '' };
       const lineKey = record.lineKey || (sourceId ? `source:${sourceId}` : '');
       const tick = tickRow(lineKey);
-      const matched = stationBookings(bookings, move.category, move.stage);
-      const doneBooking = matched.find(booking => String(booking.status || '').toLowerCase() === 'completed') || null;
-      const completed = tick?.completed === true || record.completed === true || !!doneBooking;
-      const who = (tick?.completed && tick.actor_email) || record.completedBy || bookingPerson(doneBooking);
-      const when = whenLabel((tick?.completed && tick.acted_at) || record.completedAt || doneBooking?.actual_end_at || '');
+      // r738 (F343): a finished booking for the station no longer marks every line Complete. Only the line's own
+      // tick (or its server completion) does, so lines added or reopened after an earlier booking show as open.
+      const completed = tick?.completed === true || record.completed === true;
+      const who = (tick?.completed && tick.actor_email) || record.completedBy || '';
+      const when = whenLabel((tick?.completed && tick.acted_at) || record.completedAt || '');
       li.classList.add('vso-chip');
       li.classList.toggle('vso-done', completed);
       li.classList.toggle('is-complete', completed);

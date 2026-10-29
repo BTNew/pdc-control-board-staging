@@ -343,3 +343,14 @@ test('r695: a tick saved earlier shows as soon as the panel opens (the late comp
   assert.equal(line.querySelector('[data-vso-tick]').getAttribute('aria-checked'), 'true');
   assert.equal(line.querySelector('.vso-tick span').textContent, 'Complete');
 });
+
+test('r738 (F343): a finished booking does not mark the station lines Complete; only the tick does', async () => {
+  const b = board();
+  const panel = b.openPanel();
+  await b.settle();
+  const tyre = panel.querySelector('li[data-operation-source-id="00000000-0000-4000-8000-0000000000bb"]');
+  assert.ok(tyre, 'tyre line is listed');
+  assert.equal(tyre.classList.contains('is-complete'), false, 'a completed TYRE booking does not complete the unticked TYRE line');
+  assert.equal(tyre.querySelector('.vso-done-meta'), null);
+  assert.equal(tyre.querySelector('.vso-tick span').textContent, 'Tick');
+});
