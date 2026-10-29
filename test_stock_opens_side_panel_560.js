@@ -83,10 +83,10 @@ test('dashboard and table stock bindings call openVehicleFromStockClick, not ope
   assert.match(table, /openVehicleFromStockClick\(button\.dataset\.openStock, button\)/);
 });
 
-test('the slide-out keeps a More details link to the vehicle card', () => {
+test('r699 (F309): the slide-out no longer has More details (everything is in the panel); Edit is in the top row', () => {
   const slide = fs.readFileSync('pdc-vehicle-slideout.js', 'utf8');
-  assert.match(slide, /button\.textContent = 'More details'/);
-  assert.match(slide, /openVehicleCardFromVisibleBoard\(openStock, button\)/);
+  assert.doesNotMatch(slide, /'More details'|openVehicleCardFromVisibleBoard/);
+  assert.match(slide, /data-vso-top-edit|dataset\.vsoTopEdit/);
   const entry = fs.readFileSync('canonical-entry.js', 'utf8');
   assert.match(entry, /vehicle-slideout=2026\.10\.28\.r588/); // r588 (F202) tick grid; r565 (F179) chip layout stays
   assert.match(entry, /r560 \(F174\): More details/);
