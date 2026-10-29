@@ -47,7 +47,7 @@ test('board: every station, over-time count, hidden stations drop out', () => {
   const html = tv.boardHtml(data, { now });
   // r706 (F316): Tint is in the Start / Stop strip at the bottom, not a timeline.
   assert.equal((html.match(/<section class="tv-station"/g) || []).length, 1);
-  assert.equal((html.match(/<section class="tv-astation" data-station="TINT"/g) || []).length, 1);
+  assert.equal((html.match(/<section class="tv-astation tv-zone" data-station="TINT"/g) || []).length, 1);
   assert.match(html, /data-station="HOIST"[\s\S]*1 over time/);
   assert.match(html, /tv-bay has-over/);
   assert.match(html, /is-stop[\s\S]*STOP/);

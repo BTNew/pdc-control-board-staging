@@ -107,6 +107,7 @@
     const head = wins.map((w, i) => `<div class="tv-hours"><em>${i === 0 ? 'Today' : esc(dayLabel(w.from))}</em>${hoursHtml(w.from, w.to)}</div>`).join('');
     const timeline = stations.filter(s => !isAction(s));
     const action = ACTION_STATIONS.map(code => stations.find(s => String(s.code).toUpperCase() === code)).filter(Boolean);
+    // r710 (F320, Craig 29 Oct): four zones, one per bay (Tint 1, Tint 2, Tyre 1, Tyre 2).
     const actionHtml = action.length ? `<div class="tv-actions">${action.map(s => actionStationHtml(s, data, wins, now)).join('')}</div>` : '';
     return timeline.map(s => {
       const bays = s.bays.map(b => {
@@ -125,19 +126,18 @@
 
   /** r706: the jobs a Tint / Tyres fitter can act on: running ones, then today's (and the next day's) by start. */
   function actionJobs(bay, wins, now) {
-    const today = wins[0];
     const last = wins[wins.length - 1];
     return (bay.jobs || []).filter(j => {
       const state = jobState(j, now);
       if (state === 'live' || state === 'over' || state === 'stop') return true;
-      if (state === 'done') { const e = ms(j.actual_end); return e !== null && today && e >= today.from; }
+      if (state === 'done') return false; // r710 (F320): current job, next and the one after only
       const st = ms(j.start);
       return st !== null && last && st < last.to;
     }).sort((a, b) => {
       const ra = ['live', 'over', 'stop'].includes(jobState(a, now)) ? 0 : jobState(a, now) === 'done' ? 2 : 1;
       const rb = ['live', 'over', 'stop'].includes(jobState(b, now)) ? 0 : jobState(b, now) === 'done' ? 2 : 1;
       return ra - rb || (ms(a.start) ?? 0) - (ms(b.start) ?? 0);
-    }).slice(0, 6);
+    }).slice(0, 3);
   }
   function actionStationHtml(s, data, wins, now) {
     const canAct = data?.can_act === true;
@@ -152,11 +152,12 @@
           if (state === 'plan') act = `<button type="button" class="tv-act tv-act-start" data-tv-act="start" data-id="${esc(j.id)}" data-v="${esc(j.booking_version)}" data-work="${esc(s.work_key || '')}" aria-label="Start key ${esc(key)}">Start</button>`;
           else if (state === 'live' || state === 'over' || state === 'stop') act = `<button type="button" class="tv-act tv-act-stop" data-tv-act="stop" data-id="${esc(j.id)}" data-v="${esc(j.booking_version)}" data-work="${esc(s.work_key || '')}" aria-label="Stop key ${esc(key)}">Stop</button>`;
         }
-        return `<li class="tv-aj is-${state}"><strong class="tv-aj-key">${key ? `Key ${esc(key)}` : 'No key'}</strong><span class="tv-aj-info">${esc(j.stock || '')}${j.vehicle ? ` · ${esc(j.vehicle)}` : ''}</span><span class="tv-aj-when">${state === 'done' ? 'Done' : state === 'plan' ? esc(when) : STATE_LABEL[state]}</span>${act}</li>`;
+        // r710: key number, car type and the button only.
+        return `<li class="tv-aj is-${state}"><strong class="tv-aj-key">${key ? `Key ${esc(key)}` : 'No key'}</strong><span class="tv-aj-info">${esc(j.vehicle || '')}</span>${act || (state === 'done' ? '<span class="tv-aj-when">Done</span>' : '')}</li>`;
       }).join('');
-      return `<div class="tv-abay"><div class="tv-abay-name"><strong>${esc(b.name)}</strong>${b.technician ? `<small>${esc(b.technician)}</small>` : ''}</div><ul>${rows || '<li class="tv-aj is-empty">No jobs booked</li>'}</ul></div>`;
+      return `<section class="tv-astation tv-zone" data-station="${esc(s.code)}" data-bay="${esc(b.id)}"><h2>${esc(b.name)}${b.technician ? ` <small>${esc(b.technician)}</small>` : ''}</h2><ul>${rows || '<li class="tv-aj is-empty">No jobs booked</li>'}</ul></section>`;
     }).join('');
-    return `<section class="tv-astation" data-station="${esc(s.code)}"><h2>${esc(s.name)}</h2>${bays}</section>`;
+    return bays;
   }
 
   function rowCount(data, hidden) {
