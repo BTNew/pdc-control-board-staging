@@ -11,10 +11,11 @@
  * in the Stoppage section. Clearing the date, or leaving the tick off, lifts it. Blue, not orange.
  * r595 (F209): the Vehicle Locations Parts ETA cell is read-only. The date is set only in the
  * vehicle side panel. That section offers Place as STOPPAGE without rebuilding the board.
+ * r739 (F344): once a date is typed, the old email ETA block and its email line are hidden. Only the latest ETA shows.
  */
 (() => {
   'use strict';
-  const VERSION = '2026.10.28.r595';
+  const VERSION = '2026.10.30.r739';
   const PROJECT = 'cdsmnqxtyyoeoznmbidd';
   const BOARD_RPC = 'get_pdc_parts_stoppage_board_564';
   const SET_RPC = 'set_pdc_parts_stoppage_564';
@@ -131,7 +132,8 @@
     const checked = ddmmyy(state.manual?.last_checked_on);
     const who = clean(state.manual?.set_by_actor);
     const lines = [];
-    if (email) lines.push(`<small class="pdc-parts-stoppage-email">Email ${esc(ddmmyy(email))} · parts staff email${manualDate ? ' (kept)' : ''}</small>`);
+    // r739 (F344): a typed date is the only ETA shown; the older email date stays in History.
+    if (email && !manualDate) lines.push(`<small class="pdc-parts-stoppage-email">Email ${esc(ddmmyy(email))} · parts staff email</small>`);
     if (jita) lines.push(`<small class="pdc-parts-stoppage-jita">JITA ETA ${esc(ddmmyy(jita))} · JITA paste</small>`);
     if (checked) lines.push(`<small class="pdc-parts-stoppage-checked">Last checked ${esc(checked)}${who ? ` · ${esc(who)}` : ''}</small>`);
     const form = state.editing && state.canEdit ? editorHtml(state) : '';
@@ -144,7 +146,7 @@
     const badge = state.placed && !state.editing ? `<small class="pdc-parts-stoppage-placed">STOPPAGE</small>` : '';
     const read = !state.editing ? `<strong class="pdc-parts-stoppage-read is-${countdown(shownEta(state.manual, email), state.today).state || 'empty'}">${esc(shownEta(state.manual, email) ? ddmmyy(shownEta(state.manual, email)) : 'No date')}</strong> `
       + (clean(state.manual?.note) ? `<span class="pdc-parts-stoppage-note">${esc(clean(state.manual.note))}</span>` : '') : '';
-    return `<div class="tune-service-location-job pdc-parts-stoppage-detail" data-pdc-stoppage-detail="${vid}"><b>Parts ETA</b>`
+    return `<div class="tune-service-location-job pdc-parts-stoppage-detail" data-pdc-stoppage-detail="${vid}"${manualDate ? ' data-pdc-stoppage-manual="1"' : ''}><b>Parts ETA</b>`
       + `<span class="pdc-parts-stoppage-lead">${read}${badge}${button}${placeNow}${form}</span>`
       + lines.join('')
       + `<button type="button" data-pdc-stoppage-history="${vid}">History</button>`
@@ -615,6 +617,8 @@
     '.pdc-parts-stoppage-note{display:block;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:550;font-size:10px}',
     '.pdc-parts-stoppage-email,.pdc-parts-stoppage-jita,.pdc-parts-stoppage-checked,.pdc-parts-stoppage-scope{display:block;color:#64748b;font-size:10.5px}',
     '.incoming-vehicle-detail-grid > .pdc-parts-stoppage-detail{grid-column:1/-1}',
+    /* r739 (F344, Craig 30 Oct): a typed date replaces the old email ETA block, so only the latest ETA shows. */
+    '.pdc-parts-eta-detail:has(+ .pdc-parts-stoppage-detail[data-pdc-stoppage-manual]){display:none}',
     '.pdc-parts-stoppage-detail .pdc-parts-stoppage-lead{display:flex;flex-wrap:wrap;gap:6px;align-items:center}',
     '.pdc-parts-stoppage-form{display:flex;flex-wrap:wrap;gap:4px;align-items:center}',
     '.pdc-parts-stoppage-form input[type="date"]{font:inherit;font-size:12px}',
