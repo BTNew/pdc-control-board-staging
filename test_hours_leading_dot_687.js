@@ -24,5 +24,5 @@ test('r687: leading and trailing dots', () => {
 test('r687: normalised values pass the save check; bad ones still fail', () => {
   ['.2', '.25', '2.', '1.5', '0'].forEach(v => assert.equal(valid(row(normalize(v))), true, v));
   ['.', '.255', 'abc', '1000'].forEach(v => assert.equal(valid(row(normalize(v))), false, v));
-  assert.match(fs.readFileSync('index.html', 'utf8'), /app\.js\?[^"]*&amp;r687=2026\.10\.29\.r687(&amp;r683=2026\.10\.29\.r683)?(&amp;r692=2026\.10\.29\.r692)?(&amp;r693=2026\.10\.29\.r693)?(&amp;r698=2026\.10\.29\.r698)?"/);
+  assert.match(fs.readFileSync('index.html', 'utf8'), /app\.js\?[^"]*&amp;r687=2026\.10\.29\.r687(&amp;r683=2026\.10\.29\.r683)?(&amp;r692=2026\.10\.29\.r692)?(&amp;r693=2026\.10\.29\.r693)?(&amp;r698=2026\.10\.29\.r698)?(&amp;r707=2026\.10\.29\.r707)?"/);
 });

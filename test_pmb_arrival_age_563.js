@@ -22,7 +22,7 @@ function board(rows) {
   return c;
 }
 
-test('the earlier of the key and the Tune import is the PMB age', () => {
+test('the key number is the PMB age; the Tune import only when there is no key (r707 F317)', () => {
   const keyEarlier = {
     id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa1',
     stock: '13070060',
@@ -64,8 +64,9 @@ test('the earlier of the key and the Tune import is the PMB age', () => {
   assert.equal(c.incomingVehicleAge(keyEarlier, 'pmb').label, '8 days');
   assert.equal(c.incomingVehicleAge(keyEarlier, 'pmb').title, 'Days since the key number was assigned');
   assert.equal(c.pmbArrivalAgeFlagHtml(keyEarlier), '');
-  assert.equal(c.incomingVehicleAge(tuneEarlier, 'pmb').label, '40 days');
-  assert.equal(c.incomingVehicleAge(tuneEarlier, 'pmb').title, 'Days since this vehicle first appeared in a Tune import');
+  // r707 (F317, Craig 29 Oct): the key wins even when a Tune import came earlier.
+  assert.equal(c.incomingVehicleAge(tuneEarlier, 'pmb').label, '21 days');
+  assert.equal(c.incomingVehicleAge(tuneEarlier, 'pmb').title, 'Days since the key number was assigned');
   assert.equal(c.incomingVehicleAge(keylessTune, 'newpmb').label, '21 days');
   assert.equal(c.incomingVehicleAge(keylessTune, 'pmb').title, 'Days since this vehicle first appeared in a Tune import');
   assert.notEqual(c.incomingVehicleAge(keylessTune, 'pmb').label, 'No key');

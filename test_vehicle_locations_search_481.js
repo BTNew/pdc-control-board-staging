@@ -120,7 +120,7 @@ test('wiring: table rows, tiles and summary follow the search scope; the drop-do
 
 test('loader, version, CSS and synthetic data', () => {
   assert.equal(table.VERSION, '2026.10.28.r593'); // r567 typed Parts ETA stays on the loader; r586 New to PMB view bumps this module
-  assert.match(fs.readFileSync('canonical-entry.js', 'utf8'), /pdc-vehicle-locations-table\.js\?[^']*&r481=2026\.10\.22\.r481&r485=2026\.10\.22\.r485&r557=2026\.10\.27\.r557&r562=2026\.10\.27\.r562&r563=2026\.10\.27\.r563&r567=2026\.10\.27\.r567&r566=2026\.10\.27\.r566&r593=2026\.10\.28\.r593(?:&r604=2026\.10\.28\.r604)?(?:&r613=2026\.10\.28\.r613)?(?:&r618=2026\.10\.28\.r618)?(?:&r622=2026\.10\.28\.r622)?(?:&r672=2026\.10\.28\.r672)?(?:&r685=2026\.10\.29\.r685)?(?:&r693=2026\.10\.29\.r693)?(?:&r698=2026\.10\.29\.r698)?'/); // r604 (F218) appends the Pit column tag
+  assert.match(fs.readFileSync('canonical-entry.js', 'utf8'), /pdc-vehicle-locations-table\.js\?[^']*&r481=2026\.10\.22\.r481&r485=2026\.10\.22\.r485&r557=2026\.10\.27\.r557&r562=2026\.10\.27\.r562&r563=2026\.10\.27\.r563&r567=2026\.10\.27\.r567&r566=2026\.10\.27\.r566&r593=2026\.10\.28\.r593(?:&r604=2026\.10\.28\.r604)?(?:&r613=2026\.10\.28\.r613)?(?:&r618=2026\.10\.28\.r618)?(?:&r622=2026\.10\.28\.r622)?(?:&r672=2026\.10\.28\.r672)?(?:&r685=2026\.10\.29\.r685)?(?:&r693=2026\.10\.29\.r693)?(?:&r698=2026\.10\.29\.r698)?(?:&r707=2026\.10\.29\.r707)?'/); // r604 (F218) appends the Pit column tag
   assert.match(fs.readFileSync('index.html', 'utf8'), /canonical-entry\.js\?[^"]*r481=2026\.10\.22\.r481/);
   const css = fs.readFileSync('pdc-vehicle-locations-table.css', 'utf8');
   assert.match(css, /\.vlt-tile\.vlt-found \{/);
