@@ -1,10 +1,12 @@
 /**
- * Staging-only dry run for a Revolution report upload (r591, board compare r602).
+ * Staging-only Revolution report upload (r591 dry run, r602 board compare, r728 apply).
  * Parses the file in this function. Does not call a model.
- * Does not call the import or apply functions, and does not write a ledger row.
- * Craig has not approved go-live.
+ * r728 (F338): Craig 29 Oct 2026 16:58 AWST switched Kajel off and approved website Apply, Service as a Whole first.
+ * Apply prepares the same rows Kajel sent (service_rows.js) and hands them to the existing job queue through the
+ * r728 RPCs, signed in as the uploading administrator. The queue previews every part before it applies it.
  */
-import { dryRun, parseRevolutionUpload, previewAllowsApply } from './parse.js';
+import { dryRun, parseRevolutionUpload, previewAllowsApply, readSheet } from './parse.js';
+import { buildServiceRows } from './service_rows.js';
 
 const PRODUCTION = 'vjdtsswhroyguxyfjdkt';
 const STAGING = 'cdsmnqxtyyoeoznmbidd';
@@ -74,20 +76,19 @@ Deno.serve(async (req) => {
     result.counts.errors = result.errors.length;
     if (result.summary) result.summary = result.summary.replace(/errors \d+$/, `errors ${result.errors.length}`);
   }
+  if (action === 'apply') return await applyService(projectUrl, auth, bytes, filename, parsed, result, board.board, uploader);
   const body = {
     ...result,
-    apply_enabled: false,
+    apply_enabled: parsed.kind === 'service_whole',
     go_live: false,
     logged: false,
     ledger: gate.ledger,
     uploader,
     preview_only: true,
     action: action === 'apply' ? 'apply' : 'dry-run',
-    message: action === 'apply' || !previewAllowsApply()
-      ? 'Craig has not approved go-live. This preview did not write the import tables.'
-      : 'Dry run only.',
+    message: parsed.kind === 'service_whole' ? 'Dry run only. Nothing was written. Apply sends this file to the import queue.' : 'Dry run only. Apply is on for Service as a Whole first; this report still waits.',
   };
-  return json(body, action === 'apply' ? 409 : 200);
+  return json(body, 200);
 });
 
 function json(body, status = 200) {
@@ -172,4 +173,76 @@ async function readGate(projectUrl: string, sha256: string) {
     knownShas: payload?.duplicate_file ? [sha256] : [],
     duplicate: payload?.duplicate_file === true,
   };
+}
+
+
+// r728 (F338): Apply for Service as a Whole. Every write goes through the r728 RPCs with the uploader's own token.
+async function rpcAs(projectUrl: string, auth: string, name: string, body: unknown) {
+  const apikey = Deno.env.get('SUPABASE_ANON_KEY') || '';
+  const response = await fetch(`${projectUrl}/rest/v1/rpc/${name}`, {
+    method: 'POST',
+    headers: { Authorization: auth, apikey, 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) return { ok: false, error: payload?.message || `${name} failed` };
+  return payload;
+}
+
+async function priorDecisions(projectUrl: string) {
+  const service = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';
+  const response = await fetch(`${projectUrl}/rest/v1/rpc/revolution_prior_decisions_728`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${service}`, apikey: service, 'Content-Type': 'application/json' },
+    body: '{}',
+  });
+  if (!response.ok) return {};
+  return await response.json();
+}
+
+async function applyService(projectUrl, auth, bytes, filename, parsed, result, board, uploader) {
+  const refuse = (error, extra = {}) => json({ ok: false, action: 'apply', error, ...extra }, 409);
+  if (parsed.kind !== 'service_whole') return refuse('Apply is on for Service as a Whole first. This report still waits.');
+  if (result.duplicate_file) return refuse('This file has already been imported.');
+  const blocking = (result.errors || []).filter((error) => error.code !== 'quiet_hours');
+  if (blocking.length) return refuse('The dry run found errors. Fix the file and try again.', { errors: blocking });
+  const begin = await rpcAs(projectUrl, auth, 'revolution_upload_begin_728', { p_sha: parsed.sha256, p_filename: filename || parsed.filename || 'upload.xls', p_mode: 'apply' });
+  if (begin.ok !== true) return refuse(begin.message || begin.error || 'The import could not start.');
+  let prepared;
+  try {
+    prepared = buildServiceRows({
+      grid: await readSheet(bytes),
+      parsed,
+      board,
+      upload: { uploader_email: uploader, upload_id: begin.upload_id, uploaded_at: new Date().toISOString(), filename: filename || parsed.filename, sha256: parsed.sha256 },
+      priorDecisions: await priorDecisions(projectUrl),
+    });
+  } catch (error) {
+    return refuse(error instanceof Error ? error.message : 'The rows could not be prepared.', { upload_id: begin.upload_id });
+  }
+  if (!prepared.rows.length) return refuse('No lines to send.', { upload_id: begin.upload_id, needs_hours: prepared.needsHours.length });
+  for (let i = 0; i < prepared.rows.length; i += 400) {
+    const added = await rpcAs(projectUrl, auth, 'revolution_upload_rows_728', { p_upload: begin.upload_id, p_rows: prepared.rows.slice(i, i + 400) });
+    if (added.ok !== true) return refuse(added.error || 'The rows could not be sent.', { upload_id: begin.upload_id });
+  }
+  const finish = await rpcAs(projectUrl, auth, 'revolution_upload_finish_728', { p_upload: begin.upload_id });
+  if (finish.ok !== true) return refuse(finish.error || 'The import could not be queued.', { upload_id: begin.upload_id });
+  return json({
+    ok: true,
+    action: 'apply',
+    upload_id: begin.upload_id,
+    job_id: begin.job_id,
+    status: finish.status,
+    note: finish.note || '',
+    rows_sent: finish.rows_sent,
+    rows_held: finish.rows_held,
+    new_board_vehicles: finish.new_board_vehicles,
+    needs_hours: prepared.needsHours,
+    holds: prepared.holds.length,
+    summary: prepared.summary,
+    uploader,
+    message: finish.status === 'held'
+      ? `Stopped for an administrator: ${finish.note || 'sanity gate'}.`
+      : 'Sent to the import queue. Each part is previewed, then applied. This page shows progress.',
+  }, 200);
 }
