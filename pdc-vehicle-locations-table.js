@@ -416,7 +416,7 @@
     if (doc.querySelector('link[data-pdc-vehicle-locations-table]')) return;
     const link = doc.createElement('link');
     link.rel = 'stylesheet';
-    link.href = `pdc-vehicle-locations-table.css?vehicle-locations-table=${VERSION}&r622=2026.10.28.r622&r672=2026.10.28.r672&r685=2026.10.29.r685&r693=2026.10.29.r693`; // r672 (F281) red PMB key alert; r622 (F237): new Parts ETA and Pit cell styles
+    link.href = `pdc-vehicle-locations-table.css?vehicle-locations-table=${VERSION}&r622=2026.10.28.r622&r672=2026.10.28.r672&r685=2026.10.29.r685&r693=2026.10.29.r693&r694=2026.10.29.r694`; // r672 (F281) red PMB key alert; r622 (F237): new Parts ETA and Pit cell styles
     link.dataset.pdcVehicleLocationsTable = '1';
     doc.head.appendChild(link);
   }
