@@ -20,6 +20,8 @@
 -- pinned (242 pins). The three checks that froze the reader's md5 (578, 587, 590) follow it (F339 lesson).
 -- Staging cdsmnqxtyyoeoznmbidd only. Production never touched. No vehicle, booking, line or tick changes.
 -- Rollback: supabase/rollbacks/20261029230000_r732_qc_lines_transaction_memo.down.sql
+-- Note: first applied 22:4x AWST without the WHERE true on the memo upsert; r735 (23:0x) put it in and moved the pin,
+-- so a fresh environment running this file gets the r735 body straight away and r735 is then a no-op.
 
 DO $r732$
 DECLARE awst time := (clock_timestamp() AT TIME ZONE 'Australia/Perth')::time;
@@ -55,7 +57,7 @@ BEGIN
     coalesce((SELECT gen FROM pdc_work_categories_private.qc_operation_lines_cache_epoch WHERE vehicle_id = p_vehicle_id), 0),
     coalesce((SELECT gen FROM pdc_work_categories_private.qc_operation_lines_cache_epoch WHERE vehicle_id = '00000000-0000-0000-0000-000000000000'::uuid), 0),
     public.pdc_qc_operation_lines_379_uncached(p_vehicle_id)
-  ON CONFLICT (vehicle_id) DO UPDATE SET vgen = excluded.vgen, ggen = excluded.ggen, lines = excluded.lines;
+  ON CONFLICT (vehicle_id) DO UPDATE SET vgen = excluded.vgen, ggen = excluded.ggen, lines = excluded.lines WHERE true; -- pg-safeupdate convention (r735)
  END $b$;
   REVOKE ALL ON FUNCTION pdc_work_categories_private.qc_lines_memo_fill_732(uuid) FROM PUBLIC, anon, authenticated;
 
