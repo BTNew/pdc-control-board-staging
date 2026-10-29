@@ -44,6 +44,7 @@ BEGIN
   UPDATE pdc_ops.expected_function_md5 SET prosrc_md5 = v_md5, release = 'r691' WHERE prosrc_md5 = '8255bcf5461babcc01714481fcd8cbe0';
   GET DIAGNOSTICS v_n = ROW_COUNT; IF v_n <> 1 THEN RAISE EXCEPTION 'r691: save pin not moved (%)', v_n; END IF;
   UPDATE pdc_ops.regression_checks SET check_sql = replace(check_sql, '8255bcf5461babcc01714481fcd8cbe0', v_md5) WHERE strpos(check_sql, '8255bcf5461babcc01714481fcd8cbe0') > 0;
+  UPDATE pdc_ops.regression_checks SET check_sql = replace(check_sql, 'batch.release = ''r573''', 'batch.release = ''r691''') WHERE check_name = 'hours_description_fits_573';
 
   -- 2. the dealer check lets the 14450 board actor through for PMG-board vehicles with no single 14450/37047 record
   SELECT prosrc INTO v_old FROM pg_proc WHERE oid = ('public.' || c_allow)::regprocedure;
