@@ -231,3 +231,13 @@ r494c (F107b, site slow after the stack went live): the board's **PO to raise** 
 * Undo: revert this commit. If the migration was applied, run
   `supabase/rollbacks/20261027150000_r565_panel_line_completion.down.sql` on staging
   between :02 and :45.
+
+## r694 (F304, 29 Oct 2026): the panel is the vehicle card
+
+- Open full editor is removed (heading button and the editor link).
+- A red **Override location** button sits in the top row (operator, administrator). It opens the same dialog as the
+  vehicle card (pdc-location-override.js, `PDC_OPEN_LOCATION_OVERRIDE`).
+- Station lists show the jobs only: no booking chips and no bay chips. Edit still drags a line onto another station.
+- **Move to a bay** at the bottom: one row per station with bays and open lines. Pick bay, date and start time, then
+  Book (no booking yet) or Move (booked). It calls `placeOnBay`, so planner rules (resequence, push later jobs) apply.
+- Saved ticks now show as soon as the panel opens.

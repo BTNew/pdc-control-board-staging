@@ -57,6 +57,8 @@ test('all frozen native files outside declared boundary adaptations retain origi
     else if (item.file === 'pdc-stacked-jobcards.css') assert.equal(sha(Buffer.from(native.toString('utf8').replace(/\r\n/g,'\n'))), 'aa7e9bcc40a8a86b18fd0f91023de0b82fea03c7106e70fcbe550c30d3f5b0c3', item.file);
     // r661: only a job placed in a bay shows as booked on the PMG station icons (F271). Department 135 keeps its frozen copy.
     else if (item.file === 'vehicle-requirements-guard.js') assert.equal(sha(Buffer.from(native.toString('utf8').replace(/\r\n/g,'\n'))), item.baseline_sha256, item.file);
+    // r694: the PMG copy exposes PDC_OPEN_LOCATION_OVERRIDE for the side panel's Override location button (F304). Department 135 keeps its frozen copy.
+    else if (item.file === 'pdc-location-override.js') assert.equal(sha(Buffer.from(native.toString('utf8').replace(/\r\n/g,'\n'))), item.baseline_sha256, item.file);
     else assert.deepEqual(native,fs.readFileSync(path.join(original,item.file)),item.file);
   }
 });
@@ -223,7 +225,7 @@ const approvedRootImportPatch = Object.freeze({
   // r630: canonical-entry.js adds r630=2026.10.28.r630 to the pit loader (time and place box on the pit calendar; F245). Department 135 is not tagged.
   // r632: canonical-entry.js adds r632=2026.10.28.r632 to the pit loader (Welshpool, quarter hours; F247). Department 135 is not tagged.
   // r685: canonical-entry.js adds r685=2026.10.29.r685 to the table loader (station headings filter; F295). Department 135 is not tagged.
-  "canonical-entry.js": "2cd6dc9399b9c709341f2db07a8a58ad055f73c6648b6f32928410c0b6c9652e", // r685 (F295) cache tags
+  "canonical-entry.js": "e2df99968de7a8dd32ff98ffa017b1d309c96b9dd375c6f02f42735c31492d60", // r694 (F304) cache tags
   "pdc-workshop-vehicle-search.js": "d0be4a60c5ca2213ba71d4cd31cb7019736db3d7e0470d22b3fa88243e56eb4c",
   // Owner-authorised PMG fitter read recovery, 13 October 2026.
   // Coaster and HiAce conversions: one Start / Done tick per section in a
@@ -511,7 +513,9 @@ const approvedRootImportPatch = Object.freeze({
   "pdc-sublet-intake.js": "7054c68b4b0bffdf8e738dc96177a67195f7076ed8e83eae11ad1fc27d6f214b",
   "site-switcher.js": "dbd495a575c34078fdfb62103ac74becbccc4d9bd260287a5f0eff067de6d938",
   // r574: OD Delivered to body builder stays a PMB location and waits for To PMB (F188). Department 135 keeps its frozen lifecycle module.
-  "vehicle-location-lifecycle.js": "cdc5463c07cd7d653e22b4772e86583cd9dad7695a428141b6a51918ae2d8304"
+  "vehicle-location-lifecycle.js": "cdc5463c07cd7d653e22b4772e86583cd9dad7695a428141b6a51918ae2d8304",
+  // r694: the side panel opens the override dialog through PDC_OPEN_LOCATION_OVERRIDE (F304). Department 135 keeps its frozen copy.
+  "pdc-location-override.js": "3e97da3e11f475da1d7766973f7141b478bbea8af1f5dfa6bdb6339425f2402c"
 });
 test('PMB/Sales runtime preserves its frozen baseline and approved root release patches', () => {
   for (const item of manifest.files) {

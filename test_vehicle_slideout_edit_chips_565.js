@@ -156,7 +156,7 @@ test('Edit keeps the chip list and a dirty drop saves the hours before the categ
   const b = board();
   const panel = b.openPanel();
   assert.ok(panel.querySelector('.vso-open-vehicle'), 'Open Vehicle stays');
-  assert.equal(panel.querySelector('[data-vso-full-editor]').textContent, 'Open full editor');
+  assert.equal(panel.querySelector('[data-vso-full-editor]'), null, 'r694: no Open full editor');
   panel.querySelector('[data-vso-edit-toggle]').dispatch('click');
   await b.settle();
   const edited = b.panel();
@@ -180,49 +180,81 @@ test('Edit keeps the chip list and a dirty drop saves the hours before the categ
   assert.equal(b.moves.length, 0, 'a station drop does not also call the bay move');
 });
 
-test('a job chip dropped on a bay calls the planner move and carries the hours', async () => {
+// r694 (F304): no booking chips and no bay chips in the station lists. Bays are booked in "Move to a bay".
+const pick = (row, bay, date, time) => {
+  row.querySelector('[data-vso-book-bay]').value = String(bay);
+  row.querySelector('[data-vso-book-date]').value = date;
+  row.querySelector('[data-vso-book-time]').value = time;
+  row.querySelector('[data-vso-book-go]').dispatch('click');
+};
+const bookRow = (panel, label) => panel.querySelectorAll('.vso-bookrow').find(li => li.querySelector('.vso-book-what strong').textContent.trim().startsWith(label));
+
+test('r694: the station lists show jobs only (no bay or booking chips), in and out of Edit', async () => {
   const b = board();
   b.openPanel();
+  await b.settle();
+  assert.equal(b.panel().querySelector('.vso-bays'), null);
+  assert.equal(b.panel().querySelector('.vso-job'), null);
+  assert.equal(b.panel().querySelector('[data-vso-bay]'), null);
   b.panel().querySelector('[data-vso-edit-toggle]').dispatch('click');
   await b.settle();
-  const section = b.panel().querySelector('[data-operation-category="hoist"]');
-  const job = section.querySelector('.vso-job');
-  assert.equal(job.getAttribute('draggable'), 'true');
-  assert.equal(job.dataset.vsoHours, '1.5');
-  const bay = section.querySelector('[data-vso-bay="2"]');
-  assert.ok(bay, 'hoist bays are drop targets');
-  drop(job, bay);
-  await b.settle();
-  assert.equal(b.schedules.length, 0, 'a loaded plan uses the planner move only');
-  assert.equal(b.moves.length, 1);
-  assert.equal(b.moves[0][0], 'plan-hoist');
-  assert.equal(b.moves[0][1], 'HOIST');
-  assert.equal(b.moves[0][2], 2);
-  assert.equal(b.moves[0][3], '2026-10-27');
-  assert.equal(b.moves[0][4], 480);
-  assert.equal(b.c.workshopLoadPlans().find(plan => plan.id === 'plan-hoist').hours, 1.5);
-  const done = b.panel().querySelector('[data-operation-category="tyre"] .vso-job');
-  assert.equal(done.classList.contains('is-complete'), true);
-  assert.equal(done.getAttribute('draggable'), null);
-  assert.match(done.textContent, /Completed · Pat Sample/);
+  assert.equal(b.panel().querySelector('.vso-bays'), null, 'Edit has no bay chips');
+  assert.equal(b.panel().querySelector('.vso-job'), null, 'Edit has no booking chips');
+  assert.ok(b.panel().querySelector('.vso-edit [data-vehicle-workshop-hours-batch-page]'), 'Edit still works');
 });
 
-test('with no loaded plan the bay drop schedules the vehicle and sends the hours', async () => {
+test('r694: Move to a bay moves a loaded booking to the picked bay, date and time', async () => {
+  const b = board();
+  b.openPanel();
+  await b.settle();
+  const box = b.panel().querySelector('.vso-book');
+  assert.ok(box, 'Move to a bay box drawn for a controller');
+  assert.equal(box.parentNode, b.panel().querySelector('.vso-body'), 'inside the panel body, after the operations');
+  const hoist = bookRow(b.panel(), 'Hoist');
+  assert.ok(hoist, 'Hoist row');
+  assert.match(hoist.querySelector('[data-vso-book-go]').textContent, /Book|Move/);
+  pick(hoist, 2, '2026-11-03', '09:30');
+  await b.settle();
+  assert.equal(b.schedules.length, 0, 'a loaded plan uses the planner move only');
+  assert.deepEqual(b.moves, [['plan-hoist', 'HOIST', 2, '2026-11-03', 570]]);
+  assert.match(b.panel().querySelector('.vso-book-msg').textContent, /Hoist .*booked into Express · Bay 02/);
+  assert.equal(b.writes().length, 0, 'the panel itself sends no RPC for the bay move');
+});
+
+test('r694: with no loaded plan, Move to a bay schedules the vehicle with the open hours', async () => {
   const b = board();
   b.c.workshopLoadPlans = () => [];
   b.c.moveWorkshopDroppedPlan = undefined;
   b.openPanel();
-  b.panel().querySelector('[data-vso-edit-toggle]').dispatch('click');
   await b.settle();
-  const section = b.panel().querySelector('[data-operation-category="hoist"]');
-  drop(section.querySelector('.vso-job'), section.querySelector('[data-vso-bay="2"]'));
+  const hoist = bookRow(b.panel(), 'Hoist');
+  assert.match(hoist.textContent, /Not booked/, 'no plan: Not booked');
+  pick(hoist, 2, '2026-11-03', '07:00');
   await b.settle();
   assert.equal(b.schedules.length, 1);
   assert.equal(b.schedules[0].hoursValue, 1.5);
   assert.equal(b.schedules[0].stage, 'HOIST');
   assert.equal(b.schedules[0].bay, 2);
+  assert.equal(b.schedules[0].dateKey, '2026-11-03');
+  assert.equal(b.schedules[0].startMinutes, 420);
   assert.equal(b.schedules[0].workCategoryValue, 'HOIST');
-  assert.equal(b.moves.length, 0);
+});
+
+test('r694: no bay chosen books nothing; other roles get no Move to a bay box', async () => {
+  const b = board();
+  b.c.workshopLoadPlans = () => [];
+  b.openPanel();
+  await b.settle();
+  const hoist = bookRow(b.panel(), 'Hoist');
+  hoist.querySelector('[data-vso-book-bay]').value = '';
+  hoist.querySelector('[data-vso-book-go]').dispatch('click');
+  await b.settle();
+  assert.equal(b.schedules.length + b.moves.length, 0);
+  assert.match(b.panel().querySelector('.vso-book-msg').textContent, /Choose a bay for Hoist/);
+  const viewer = board({ role: 'viewer' });
+  viewer.openPanel();
+  await viewer.settle();
+  assert.equal(viewer.panel().querySelector('.vso-book'), null);
 });
 
 test('a controller can tick and untick a line; another role sees a read-only tick', async () => {
@@ -304,4 +336,15 @@ test('the regression check is sort 337 / F179 and the setter checks the controll
   assert.match(down, /sort_order=337/);
   assert.match(down, /DELETE FROM pdc_ops\.regression_checks\s+WHERE/);
   assert.doesNotMatch(fs.readFileSync('pdc-vehicle-slideout.js', 'utf8'), /\bfetch\s*\(|\.rpc\s*\(/);
+});
+
+test('r694: a tick saved earlier shows as soon as the panel opens (the late completion read repaints the lines)', async () => {
+  const b = board();
+  b.server.ticks.push({ vehicle_id: b.rows[0].id, line_identity: `source:${U(1, 2)}`, completed: true, actor_email: 'controller@example.test', actor_role: 'administrator', acted_at: '2026-10-29T00:20:00.000Z', version: 1 });
+  b.openPanel();
+  await b.settle();
+  const line = b.panel().querySelector(`li[data-operation-source-id="${U(1, 2)}"]`);
+  assert.equal(line.classList.contains('is-complete'), true);
+  assert.equal(line.querySelector('[data-vso-tick]').getAttribute('aria-checked'), 'true');
+  assert.equal(line.querySelector('.vso-tick span').textContent, 'Complete');
 });

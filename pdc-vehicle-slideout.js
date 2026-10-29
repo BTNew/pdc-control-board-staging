@@ -42,6 +42,14 @@
  * (loadPanelLineCompletions) when that function exists. loadVehicleWorkshopDetail runs only when Edit is pressed,
  * for that one vehicle. A save redraws only this panel.
  * Undo: revert the r565 commit (r496's editor comes back).
+ *
+ * r694 (F304, Craig 29 Oct 08:34): the panel is the vehicle card. "Open full editor" is gone (button and link).
+ * A red "Override location" button sits in the top row and opens pdc-location-override.js's own dialog
+ * (PDC_OPEN_LOCATION_OVERRIDE: same RPC, reason and readback). The bay chips and booking chips are gone from the
+ * station lists, which show the jobs only. Edit still drags a line onto another station. A "Move to a bay" box at
+ * the bottom books or moves each station into a bay at a date and time, through placeOnBay (the same
+ * moveWorkshopDroppedPlan / scheduleWorkshopVehicle calls the bay chips used). The tick is the done / override tick.
+ * Undo: revert the r694 commit.
  */
 (function vehicleSlideoutModule(root) {
   'use strict';
@@ -204,7 +212,7 @@
     const block = state.key === key ? doc.querySelector('#vso-shell .vso-panel .vso-body .authenticated-email-operations[data-vso-edit-ready]') : null;
     if (block) {
       block.querySelectorAll('.vso-edit, .vso-edit-msg.is-done, [data-vso-edit-toggle]').forEach(node => node.remove());
-      mountEditor(block, key, vehicle, block.dataset.vsoIdentity || key);
+      mountEditor(block, key, vehicle);
     } else redraw(key);
     // The only extra read: this one vehicle's current lines and versions, the same call the window makes when it opens.
     edit.loads += 1;
@@ -217,11 +225,6 @@
     discardEdit(); edit.note = '';
     redraw(key);
     return true;
-  }
-  function openFullEditor(identity) {
-    if (!leaveEdit()) return false;
-    edit.note = '';
-    return typeof root.openAuthenticatedOperationWorkshop === 'function' ? root.openAuthenticatedOperationWorkshop(identity) : false;
   }
   async function saveEdit(key) {
     const page = editPage();
@@ -251,12 +254,11 @@
     return ok;
   }
   const barHtml = (busy, dirty) => `<div class="vso-edit-bar" role="group" aria-label="Edit hours and jobs">
-      <div class="vso-edit-title"><strong>Edit hours and jobs</strong><small>Drag a line onto another job or bay. The hours move with it. Hour changes wait for Save.</small></div>
+      <div class="vso-edit-title"><strong>Edit hours and jobs</strong><small>Drag a line onto another station. The hours move with it. Hour changes wait for Save. Book bays in Move to a bay below.</small></div>
       <div class="vso-edit-actions"><button type="button" class="vso-edit-save" data-vso-edit-act="save"${busy || !dirty ? ' disabled' : ''}>${busy ? 'Saving…' : 'Save'}</button><button type="button" class="vso-edit-cancel" data-vso-edit-act="cancel"${busy ? ' disabled' : ''}>Cancel</button></div>
       ${edit.note ? `<span class="vso-edit-msg" role="status" aria-live="polite">${esc(edit.note)}</span>` : ''}
     </div>`;
-  const moreHtml = '<p class="vso-edit-more">Add line, Edit line and Best slot: <button type="button" class="vso-link" data-vso-edit-act="full">Open full editor</button></p>';
-  function mountEditor(block, key, vehicle, identity) {
+  function mountEditor(block, key, vehicle) {
     const grid = block.querySelector('.authenticated-operation-station-grid');
     if (grid) grid.hidden = false;
     const wrap = doc.createElement('div');
@@ -268,21 +270,16 @@
     const note = failed
       ? `<p class="vso-edit-wait" role="alert">${esc(cached.message || 'This vehicle\'s jobs could not be loaded. Nothing was changed.')}</p>`
       : waiting ? '<p class="vso-edit-wait" role="status">Loading this vehicle\'s jobs and hours…</p>' : '';
-    wrap.innerHTML = `<div data-vehicle-workshop-hours-batch-page>${barHtml(edit.busy || waiting, false)}${note}${moreHtml}</div>`;
+    wrap.innerHTML = `<div data-vehicle-workshop-hours-batch-page>${barHtml(edit.busy || waiting, false)}${note}</div>`;
     const heading = block.querySelector('.authenticated-email-operations-heading');
     if (heading) heading.after(wrap); else block.prepend(wrap);
     const page = wrap.querySelector('[data-vehicle-workshop-hours-batch-page]');
-    if (grid && page) {
-      page.appendChild(grid);
-      const more = page.querySelector('.vso-edit-more');
-      if (more) page.appendChild(more);
-    }
+    if (grid && page) page.appendChild(grid);
     const save = wrap.querySelector('[data-vso-edit-act="save"]');
     const sync = () => { if (save) save.disabled = edit.busy || waiting || !editDirty(page); };
     wrap._vsoSync = sync;
     save?.addEventListener('click', event => { event.stopPropagation(); void saveEdit(key); });
     wrap.querySelector('[data-vso-edit-act="cancel"]')?.addEventListener('click', event => { event.stopPropagation(); cancelEdit(key); });
-    wrap.querySelector('[data-vso-edit-act="full"]')?.addEventListener('click', event => { event.stopPropagation(); openFullEditor(identity); });
     sync();
   }
   function whenLabel(value) {
@@ -390,9 +387,9 @@
       return Boolean(sameVehicle && sameStage && sameCat && (row.sharedBookingId || row.id));
     }) || null;
   }
-  async function placeOnBay(plan) {
+  async function placeOnBay(plan, chosen = null) {
     const found = planFor(plan);
-    const when = perthParts(found?.startAt);
+    const when = chosen || perthParts(found?.startAt); // r694: Move to a bay passes the date and time picked
     if (found && typeof root.moveWorkshopDroppedPlan === 'function') {
       const moved = await root.moveWorkshopDroppedPlan(found.id, plan.stage, plan.bay, when.dateKey, when.startMinutes);
       if (moved === false) { edit.note = 'That bay did not take the job.'; return false; }
@@ -594,7 +591,7 @@
       }
       const checked = tick?.completed === true;
       const control = isController();
-      li.insertAdjacentHTML('beforeend', `<label class="vso-tick"><input type="checkbox" data-vso-tick="${esc(lineKey)}" aria-checked="${checked ? 'true' : 'false'}"${checked ? ' checked' : ''}${control ? '' : ' disabled'} title="${control ? (checked ? 'Remove the completed tick' : 'Mark this line completed') : 'Read-only for your role'}"><span>${checked ? 'Complete' : 'Tick'}</span></label>`);
+      li.insertAdjacentHTML('beforeend', `<label class="vso-tick"><input type="checkbox" data-vso-tick="${esc(lineKey)}" aria-checked="${checked ? 'true' : 'false'}"${checked ? ' checked' : ''}${control ? '' : ' disabled'} title="${control ? (checked ? 'Untick: this line is not done' : 'Tick to confirm this line is done (or override it as done)') : 'Read-only for your role'}"><span>${checked ? 'Complete' : 'Tick'}</span></label>`);
       const box = li.querySelector('[data-vso-tick]');
       box?.addEventListener('click', event => {
         event.stopPropagation();
@@ -618,62 +615,10 @@
     block.querySelectorAll('[data-operation-station]').forEach(section => {
       const stationKey = section.dataset.operationCategory || '';
       const move = STATION_MOVE[stationKey] || { category: '', stage: section.dataset.operationStation || '' };
+      // r694 (F304): no booking chips and no bay chips in the station lists; the lists show the jobs only.
+      // Bays are booked in the "Move to a bay" box at the bottom of the panel.
       section.querySelectorAll('.vso-bays, .vso-job').forEach(node => node.remove());
-      const matched = stationBookings(bookings, move.category, move.stage);
       const header = section.querySelector('header');
-      let jobAnchor = header;
-      matched.forEach(booking => {
-        const status = String(booking.status || '').toLowerCase();
-        const done = status === 'completed';
-        const minutes = Number(booking.default_duration_minutes);
-        const hours = Number.isFinite(minutes) && minutes > 0 ? minutes / 60 : '';
-        const who = bookingPerson(booking);
-        const when = whenLabel(booking.actual_end_at || '');
-        const meta = done ? `Completed${[who, when].filter(Boolean).map(part => ` · ${part}`).join('')}` : `${hours === '' ? 'Hours not stated' : `${Number(hours).toFixed(2)} h`}`;
-        const button = doc.createElement('button');
-        button.type = 'button';
-        button.className = done ? 'vso-job vso-done is-complete' : 'vso-job';
-        button.dataset.vsoKind = 'job';
-        button.dataset.vsoLineKey = '';
-        button.dataset.vsoCategory = booking.work_category || move.category;
-        button.dataset.vsoStage = move.stage;
-        button.dataset.vsoHours = hours === '' ? '' : String(hours);
-        button.dataset.vsoPlanId = String(booking.plan_id || '');
-        button.dataset.vsoBookingId = String(booking.booking_id || booking.id || '');
-        button.textContent = `${move.category || move.stage} · ${meta}`;
-        if (editing && !done) {
-          button.setAttribute('draggable', 'true');
-          button.addEventListener('dragstart', event => {
-            dragChip = { el: button, chip: readChip(button) };
-            button.classList.add('is-dragging');
-            event.stopPropagation();
-          });
-          button.addEventListener('dragend', () => { button.classList.remove('is-dragging'); dragChip = null; });
-        }
-        if (jobAnchor) { jobAnchor.after(button); jobAnchor = button; }
-      });
-      if (editing) {
-        const numbers = bayNumbers(move);
-        if (numbers.length && header) {
-          const row = doc.createElement('div');
-          row.className = 'vso-bays';
-          row.setAttribute('aria-label', 'Bays');
-          numbers.forEach(bay => {
-            const button = doc.createElement('button');
-            button.type = 'button';
-            button.className = 'vso-bay';
-            button.dataset.vsoBay = String(bay);
-            button.dataset.vsoStage = move.stage;
-            button.dataset.vsoCategory = move.category;
-            button.textContent = root.PDC_WORKSHOP_DEPARTMENTS?.bayLabel?.(move.stage, bay) || `Bay ${String(bay).padStart(2, '0')}`;
-            bindDrop(button, () => ({ kind: 'bay', bay, stage: move.stage, category: move.category }));
-            row.appendChild(button);
-          });
-          const jobs = [...section.querySelectorAll('.vso-job')];
-          const after = jobs.length ? jobs[jobs.length - 1] : header;
-          after.after(row);
-        }
-      }
       if (editing && move.category) {
         bindDrop(section, () => ({ kind: 'station', category: move.category, stage: move.stage, bay: 0 }));
       }
@@ -732,22 +677,123 @@
     const inline = editReady() && !!canonicalIdFor(vehicle);
     const editing = inline && edit.key === key;
     if (old) {
+      // r694 (F304): Edit only; the full editor is not offered from the panel.
       const tools = doc.createElement('span');
       tools.className = 'vso-ops-tools';
-      tools.innerHTML = `${inline && !editing ? '<button type="button" class="vso-edit-toggle" data-vso-edit-toggle>Edit</button>' : ''}<button type="button" class="vso-link" data-vso-full-editor>Open full editor</button>`;
+      tools.innerHTML = inline && !editing ? '<button type="button" class="vso-edit-toggle" data-vso-edit-toggle>Edit</button>' : '';
       old.replaceWith(tools);
       tools.querySelector('[data-vso-edit-toggle]')?.addEventListener('click', event => { event.stopPropagation(); startEdit(key); });
-      tools.querySelector('[data-vso-full-editor]').addEventListener('click', event => { event.stopPropagation(); openFullEditor(identity); });
     }
-    if (editing) mountEditor(block, key, vehicle, identity);
+    if (editing) mountEditor(block, key, vehicle);
     else if (edit.note) block.querySelector('.authenticated-email-operations-heading')?.insertAdjacentHTML('afterend', `<p class="vso-edit-msg is-done" role="status">${esc(edit.note)}</p>`);
     armChips(block, key, editing);
+    mountBayBox(panel, block, key);
+  }
+
+  // ---- r694 (F304): "Move to a bay" box at the bottom of the panel ----
+  // One row per station that has bays and outstanding lines. Pick a bay, a date and a start time, press Book / Move.
+  // placeOnBay keeps the planner's own rules (moveWorkshopDroppedPlan for a booking, scheduleWorkshopVehicle otherwise).
+  const STAGE_LABEL = Object.freeze({ HOIST: 'Hoist', FITTING: 'Fitting', FABRICATION: 'Fab', ELECTRICAL: 'Electrical', TINT: 'Tint', TYRE: 'Tyres', BUS_4X4: 'Bus 4×4', PIT_INSPECTION: 'Pit' });
+  const bay = { busy: false, note: '', noteKey: '' };
+  function pad(n) { return String(n).padStart(2, '0'); }
+  function bayLabelFor(stage, number) {
+    try { return root.PDC_WORKSHOP_DEPARTMENTS?.bayLabel?.(stage, number) || `Bay ${pad(number)}`; } catch (_) { return `Bay ${pad(number)}`; }
+  }
+  // Default start: the booking's own start when it is still ahead, otherwise now rounded up to the next 15 minutes (Perth).
+  function defaultStart(startAt) {
+    const now = Date.now();
+    const at = startAt ? Date.parse(startAt) : NaN;
+    if (Number.isFinite(at) && at > now) return perthParts(new Date(at).toISOString());
+    const next = new Date(Math.ceil(now / 900000) * 900000);
+    return perthParts(next.toISOString());
+  }
+  function bayRows(block) {
+    const rows = [];
+    block.querySelectorAll('[data-operation-station]').forEach(section => {
+      const stationKey = section.dataset.operationCategory || '';
+      const move = STATION_MOVE[stationKey];
+      if (!move || !move.category || rows.some(row => row.move.stage === move.stage && row.move.category === move.category)) return;
+      const numbers = bayNumbers(move);
+      if (!numbers.length) return;
+      const lines = [...section.querySelectorAll('li[data-operation-source-id]')];
+      const open = lines.filter(li => !li.classList.contains('is-complete'));
+      if (!lines.length || !open.length) return;
+      const hours = open.reduce((sum, li) => sum + (Number(li.dataset.vsoHours) || 0), 0);
+      const label = section.querySelector('header strong')?.textContent?.trim() || STAGE_LABEL[move.stage] || move.stage;
+      rows.push({ move, numbers, hours, label, found: planFor({ stage: move.stage, category: move.category }) });
+    });
+    return rows;
+  }
+  function minutesText(value) { const n = Number(value) || 0; return `${pad(Math.floor(n / 60))}:${pad(n % 60)}`; }
+  function bayBoxHtml(key, rows) {
+    const items = rows.map((row, index) => {
+      const current = row.found && Number(row.found.bay) > 0
+        ? `In ${esc(bayLabelFor(row.move.stage, Number(row.found.bay)))}${row.found.startAt ? ` · ${esc(whenLabel(row.found.startAt))}` : ''}`
+        : row.found ? 'Booked, no bay yet' : 'Not booked';
+      const start = defaultStart(row.found?.startAt);
+      const options = row.numbers.map(number => `<option value="${number}"${Number(row.found?.bay) === number ? ' selected' : ''}>${esc(bayLabelFor(row.move.stage, number))}</option>`).join('');
+      return `<li class="vso-bookrow" data-vso-book-row="${index}">
+        <div class="vso-book-what"><strong>${esc(row.label)}</strong><small>${row.hours ? `${row.hours.toFixed(2)} h open · ` : ''}${current}</small></div>
+        <div class="vso-book-pick">
+          <label><span>Bay</span><select data-vso-book-bay${row.found && Number(row.found.bay) > 0 ? '' : ' required'}>${row.found && Number(row.found.bay) > 0 ? '' : '<option value="">Choose…</option>'}${options}</select></label>
+          <label><span>Date</span><input type="date" data-vso-book-date value="${esc(start.dateKey)}"></label>
+          <label><span>Start</span><input type="time" step="900" data-vso-book-time value="${esc(minutesText(start.startMinutes))}"></label>
+          <button type="button" class="vso-book-go" data-vso-book-go${bay.busy ? ' disabled' : ''}>${row.found && Number(row.found.bay) > 0 ? 'Move' : 'Book'}</button>
+        </div>
+      </li>`;
+    }).join('');
+    const note = bay.note && bay.noteKey === key ? `<p class="vso-book-msg" role="status" aria-live="polite">${esc(bay.note)}</p>` : '';
+    return `<h4>Move to a bay</h4><p class="vso-book-help">Pick the bay, date and start time. Later jobs in that bay move back if needed.</p>${note}<ol class="vso-book-list">${items}</ol>`;
+  }
+  function mountBayBox(panel, block, key) {
+    const body = panel.querySelector('.vso-body');
+    if (!body) return;
+    let box = body.querySelector(':scope > .vso-book');
+    if (!isController() || (typeof root.moveWorkshopDroppedPlan !== 'function' && typeof root.scheduleWorkshopVehicle !== 'function')) { box?.remove(); return; }
+    const rows = bayRows(block);
+    if (!rows.length) { box?.remove(); return; }
+    const html = bayBoxHtml(key, rows);
+    if (box && box.dataset.vsoBookKey === key && box._vsoHtml === html) return; // nothing changed: keep what the user typed
+    if (!box) { box = doc.createElement('section'); box.className = 'vso-book'; box.setAttribute('aria-label', 'Move to a bay'); }
+    box.dataset.vsoBookKey = key;
+    box.innerHTML = html;
+    box._vsoHtml = html;
+    if (box.parentElement !== body || box !== body.lastElementChild) body.appendChild(box);
+    box.querySelectorAll('[data-vso-book-row]').forEach(li => {
+      const row = rows[Number(li.dataset.vsoBookRow)];
+      li.querySelector('[data-vso-book-go]')?.addEventListener('click', event => { event.stopPropagation(); void bookBay(key, row, li); });
+    });
+  }
+  async function bookBay(key, row, li) {
+    if (bay.busy || edit.busy || !row) return false;
+    const number = Number(li.querySelector('[data-vso-book-bay]')?.value);
+    const dateKey = String(li.querySelector('[data-vso-book-date]')?.value || '');
+    const [hh, mm] = String(li.querySelector('[data-vso-book-time]')?.value || '').split(':').map(Number);
+    bay.noteKey = key;
+    if (!Number.isInteger(number) || number < 1) { bay.note = `Choose a bay for ${row.label}.`; redraw(key); return false; }
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(dateKey) || !Number.isInteger(hh) || !Number.isInteger(mm)) { bay.note = 'Choose a date and start time.'; redraw(key); return false; }
+    const label = bayLabelFor(row.move.stage, number);
+    bay.busy = true; edit.busy = true; bay.note = `Booking ${row.label} into ${label}…`;
+    li.querySelector('[data-vso-book-go]').disabled = true;
+    const msg = li.closest('.vso-book')?.querySelector('.vso-book-msg');
+    if (msg) msg.textContent = bay.note;
+    let ok = false;
+    edit.note = '';
+    try {
+      ok = await placeOnBay({ action: 'bay', stage: row.move.stage, category: row.move.category, bay: number, hours: row.hours || null,
+        planId: row.found?.id || '', bookingId: row.found?.sharedBookingId || '' }, { dateKey, startMinutes: hh * 60 + mm });
+    } catch (_) { ok = false; }
+    finally { bay.busy = false; edit.busy = false; }
+    bay.note = ok ? `${row.label} booked into ${label}.` : (edit.note && edit.note !== 'Nothing was moved.' ? edit.note : `${row.label} was not booked. Nothing was changed.`);
+    edit.note = '';
+    redraw(key);
+    return ok;
   }
   function loadStyles() {
     if (doc.querySelector('link[data-pdc-vehicle-slideout]')) return;
     const link = doc.createElement('link');
     link.rel = 'stylesheet';
-    link.href = `pdc-vehicle-slideout.css?vehicle-slideout=${VERSION}&r681=2026.10.29.r681`; // r681 (F291): tidy Edit hours, description box on hover only
+    link.href = `pdc-vehicle-slideout.css?vehicle-slideout=${VERSION}&r681=2026.10.29.r681&r694=2026.10.29.r694`; // r681 (F291): tidy Edit hours, description box on hover only. r694 (F304): Override location and Move to a bay styles
     link.dataset.pdcVehicleSlideout = '1';
     doc.head.appendChild(link);
   }
@@ -808,6 +854,16 @@
       button.addEventListener('click', event => { event.stopPropagation(); root.openVehicleCardFromVisibleBoard(openStock, button); });
       panel.querySelector('.vso-open-row').appendChild(button);
     }
+    // r694 (F304): red Override location in the top row; pdc-location-override.js owns the dialog and the save.
+    if (typeof root.PDC_OPEN_LOCATION_OVERRIDE === 'function' && vehicle.__emailVehicleId && isController()) {
+      const overridden = Boolean(vehicle.pdcLocationOverride);
+      const button = doc.createElement('button');
+      button.type = 'button'; button.className = 'vso-open-vehicle vso-override-location'; button.dataset.vsoOverrideLocation = '';
+      button.textContent = overridden ? `Location overridden: ${vehicle.pdcLocationOverride}` : 'Override location';
+      button.title = overridden ? `Change or clear the override. Reason: ${vehicle.pdcLocationOverrideReason || ''}` : 'Show this vehicle in another location (PMB, Yard Hold, In Transit, PIT, QC, RFT) with a reason';
+      button.addEventListener('click', event => { event.stopPropagation(); root.PDC_OPEN_LOCATION_OVERRIDE(vehicleFor(key) || vehicle); });
+      panel.querySelector('.vso-open-row').appendChild(button);
+    }
     panel.querySelectorAll('.vso-body [data-open-stock]').forEach(stockButton => {
       const plain = doc.createElement('span');
       plain.className = 'vso-stock-text'; plain.textContent = stockButton.textContent;
@@ -843,7 +899,14 @@
     const panel = doc.querySelector('#vso-shell .vso-panel');
     if (!panel || !state.key || edit.key === state.key) return;
     opsObserver?.disconnect();
-    try { decorateOperations(panel, state.key); markTruncated(panel); }
+    try {
+      // r694 (F304): saved ticks arrive after the panel is drawn. decorateOperations runs once per block, so the
+      // ticks were never painted until something redrew the panel. Paint the lines and the bay box again here.
+      const block = panel.querySelector('.vso-body .authenticated-email-operations');
+      if (block?.hasAttribute('data-vso-edit-ready')) { armChips(block, state.key, false); mountBayBox(panel, block, state.key); }
+      else decorateOperations(panel, state.key);
+      markTruncated(panel);
+    }
     finally {
       const host = panel.querySelector('.vso-body');
       if (host && opsObserver) opsObserver.observe(host, { childList: true, subtree: true });
