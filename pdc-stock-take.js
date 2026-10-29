@@ -44,16 +44,18 @@
     return (payload?.cars || []).filter(car => {
       if (q && !keyMatch(car, q)) return false;
       if (view?.openOnly && (car.l || []).every(line => line.done)) return false;
+      if (view?.missingOnly && !car.missing) return false;
       return true;
     });
   }
   function totals(payload) {
-    let lines = 0; let done = 0; let carsDone = 0;
+    let lines = 0; let done = 0; let carsDone = 0; let missing = 0;
     for (const car of payload?.cars || []) {
+      if (car.missing) missing += 1;
       const n = (car.l || []).length; const d = (car.l || []).filter(line => line.done).length;
       lines += n; done += d; if (n && d === n) carsDone += 1;
     }
-    return { cars: (payload?.cars || []).length, carsDone, lines, done };
+    return { cars: (payload?.cars || []).length, carsDone, lines, done, missing };
   }
   function lineHtml(car, line, canTick, view, now) {
     const id = `${car.id}|${line.id}`;
@@ -71,9 +73,12 @@
     const done = lines.filter(line => line.done).length;
     const all = lines.length > 0 && done === lines.length;
     const error = view?.errors?.get(car.id);
-    return `<section class="st-car${all ? ' is-done' : ''}" data-st-car="${esc(car.id)}"><h3><span class="st-key">${car.k ? `Key ${esc(car.k)}` : 'No key'}</span>`
-      + `<span class="st-stock">${esc(car.s || '')}</span><span class="st-veh">${esc(car.v || '')}</span><span class="st-count">${done}/${lines.length}</span></h3>`
-      + `${error ? `<p class="st-error" role="alert">${esc(error)}</p>` : ''}<ul>${lines.map(line => lineHtml(car, line, canTick, view, now)).join('')}</ul></section>`;
+    // Craig 13:15: "if we go to a bay and that vehicle isn't here, put down missing so we have to find it later".
+    const missBtn = canTick ? `<button type="button" class="st-missing" data-st-missing="${esc(car.id)}" aria-pressed="${car.missing === true}"${view?.pending?.has(`miss|${car.id}`) ? ' disabled' : ''}>${car.missing ? 'Found it' : 'Missing'}</button>` : '';
+    const missNote = car.missing ? `<p class="st-miss-note">MISSING${car.missing_by ? ` · flagged by ${esc(car.missing_by)}${car.missing_at ? ` ${esc(hhmm(car.missing_at))}` : ''}` : ''}. Find it, then tap Found it.</p>` : '';
+    return `<section class="st-car${all ? ' is-done' : ''}${car.missing ? ' is-missing' : ''}" data-st-car="${esc(car.id)}"><h3><span class="st-key">${car.k ? `Key ${esc(car.k)}` : 'No key'}</span>`
+      + `<span class="st-stock">${esc(car.s || '')}</span><span class="st-veh">${esc(car.v || '')}</span><span class="st-count">${done}/${lines.length}</span>${missBtn}</h3>`
+      + `${missNote}${error ? `<p class="st-error" role="alert">${esc(error)}</p>` : ''}<ul>${lines.map(line => lineHtml(car, line, canTick, view, now)).join('')}</ul></section>`;
   }
   function panelHtml(payload, view, now = Date.now()) {
     const canTick = payload?.can_tick === true;
@@ -82,8 +87,9 @@
     const chips = STATIONS.map(([code, label]) => `<button type="button" class="st-chip" data-st-station="${code}" aria-pressed="${(view.stations || []).includes(code)}">${label}</button>`).join('');
     return `<div class="st-bar"><div class="st-chips" role="group" aria-label="Stations">${chips}</div>`
       + `<div class="st-tools"><input type="search" data-st-search placeholder="Key or stock number" aria-label="Find key or stock" value="${esc(view.search || '')}">`
-      + `<label class="st-open"><input type="checkbox" data-st-open${view.openOnly ? ' checked' : ''}> Hide finished cars</label></div>`
-      + `<p class="st-sum">${t.cars} cars at PMB · ${t.carsDone} finished · ${t.done} of ${t.lines} items ticked${canTick ? '' : ' · <b>view only: a controller login ticks items</b>'}`
+      + `<label class="st-open"><input type="checkbox" data-st-open${view.openOnly ? ' checked' : ''}> Hide finished cars</label>`
+      + `<label class="st-open st-open-miss"><input type="checkbox" data-st-missing-only${view.missingOnly ? ' checked' : ''}> Missing only</label></div>`
+      + `<p class="st-sum">${t.cars} cars at PMB · ${t.carsDone} finished · ${t.done} of ${t.lines} items ticked${t.missing ? ` · <b class="st-sum-miss">${t.missing} missing</b>` : ''}${canTick ? '' : ' · <b>view only: a controller login ticks items</b>'}`
       + `<span class="st-live" title="Other people's ticks show here within about 5 seconds">Live${view.updated ? ` · ${esc(hhmm(view.updated))}` : ''}</span></p></div>`
       + (cars.length ? `<div class="st-list">${cars.map(car => carHtml(car, canTick, view, now)).join('')}</div>` : '<p class="st-empty">No cars match.</p>');
   }
@@ -104,7 +110,7 @@
     return ['FITTING', 'FABRICATION'];
   }
   const state = { payload: null, error: '', loading: false, rev: '', timer: null, lastFull: 0, open: false,
-    view: { stations: readPick(), search: '', openOnly: false, pending: new Set(), errors: new Map(), updated: '' } };
+    view: { stations: readPick(), search: '', openOnly: false, missingOnly: false, pending: new Set(), errors: new Map(), updated: '' } };
   const host = () => document.getElementById('stock-take-content');
 
   async function rpc(name, body) {
@@ -187,6 +193,19 @@
       await load(); // everyone's latest, including this tick
     }
   }
+  async function flagMissing(carId, missing) {
+    const car = (state.payload?.cars || []).find(entry => entry.id === carId);
+    const key = `miss|${carId}`;
+    if (!car || state.view.pending.has(key)) return;
+    state.view.pending.add(key); state.view.errors.delete(carId);
+    car.missing = missing; car.missing_by = missing ? (root.PDC_AUTH_CONTEXT?.displayName || 'You') : null; car.missing_at = new Date().toISOString();
+    render();
+    try {
+      const result = await rpc('set_pdc_stock_take_missing_720', { p_vehicle_id: carId, p_missing: missing });
+      if (result?.ok !== true) state.view.errors.set(carId, ERRORS[result?.error] || 'Not saved. Try again.');
+    } catch (_) { state.view.errors.set(carId, ERRORS.completion_unavailable); }
+    finally { state.view.pending.delete(key); await load(); }
+  }
   function bind() {
     const el = host();
     if (!el || el.dataset.stBound) return;
@@ -195,9 +214,12 @@
       const box = event.target.closest?.('[data-st-tick]');
       if (box) { void tick(box.dataset.stTick, box.checked); return; }
       if (event.target.matches?.('[data-st-open]')) { state.view.openOnly = event.target.checked; render(); }
+      if (event.target.matches?.('[data-st-missing-only]')) { state.view.missingOnly = event.target.checked; render(); }
     });
     el.addEventListener('input', event => { if (event.target.matches?.('[data-st-search]')) { state.view.search = event.target.value; render(); } });
     el.addEventListener('click', event => {
+      const miss = event.target.closest?.('[data-st-missing]');
+      if (miss) { void flagMissing(miss.dataset.stMissing, miss.getAttribute('aria-pressed') !== 'true'); return; }
       const chip = event.target.closest?.('[data-st-station]');
       if (!chip) return;
       const code = chip.dataset.stStation;

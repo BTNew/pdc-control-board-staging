@@ -20,6 +20,34 @@ BEGIN
   IF to_regprocedure('public.get_pdc_stock_take_720(text[])') IS NOT NULL THEN RAISE EXCEPTION 'r720: already applied'; END IF;
 END $guard720$;
 
+-- Craig 13:15: "if we go to a bay and that vehicle isn't here, put down missing so we have to find it later".
+-- One row per vehicle; shared, so everyone sees who flagged it. Cleared by tapping again (or when found).
+CREATE TABLE public.pdc_stock_take_missing_720 (
+  vehicle_id uuid PRIMARY KEY REFERENCES public.vehicles(id) ON DELETE CASCADE,
+  missing boolean NOT NULL,
+  actor_email text,
+  acted_at timestamptz NOT NULL DEFAULT clock_timestamp()
+);
+ALTER TABLE public.pdc_stock_take_missing_720 ENABLE ROW LEVEL SECURITY;
+REVOKE ALL ON public.pdc_stock_take_missing_720 FROM PUBLIC, anon, authenticated;
+
+CREATE FUNCTION public.set_pdc_stock_take_missing_720(p_vehicle_id uuid, p_missing boolean)
+RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path = pg_catalog, public AS $fn$
+DECLARE v_role text := lower(btrim(coalesce(public.current_pdc_user_role()::text, '')));
+BEGIN
+  IF v_role NOT IN ('operator', 'administrator') THEN RETURN jsonb_build_object('ok', false, 'error', 'controller_required'); END IF;
+  IF p_vehicle_id IS NULL OR p_missing IS NULL OR NOT EXISTS (SELECT 1 FROM public.vehicles WHERE id = p_vehicle_id AND deleted_at IS NULL) THEN
+    RETURN jsonb_build_object('ok', false, 'error', 'invalid_vehicle');
+  END IF;
+  INSERT INTO public.pdc_stock_take_missing_720 (vehicle_id, missing, actor_email, acted_at)
+  VALUES (p_vehicle_id, p_missing, public.current_actor_email(), clock_timestamp())
+  ON CONFLICT (vehicle_id) DO UPDATE SET missing = EXCLUDED.missing, actor_email = EXCLUDED.actor_email, acted_at = EXCLUDED.acted_at
+  WHERE public.pdc_stock_take_missing_720.vehicle_id = EXCLUDED.vehicle_id;
+  RETURN jsonb_build_object('ok', true, 'vehicle_id', p_vehicle_id, 'missing', p_missing);
+END $fn$;
+REVOKE ALL ON FUNCTION public.set_pdc_stock_take_missing_720(uuid, boolean) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.set_pdc_stock_take_missing_720(uuid, boolean) TO authenticated;
+
 CREATE FUNCTION public.get_pdc_stock_take_720(p_stations text[] DEFAULT ARRAY['FITTING', 'FABRICATION'])
 RETURNS jsonb LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path = pg_catalog, public AS $fn$
 DECLARE v_role text := lower(btrim(coalesce(public.current_pdc_user_role()::text, ''))); v_st text[];
@@ -39,7 +67,7 @@ BEGIN
       WHERE x->>'stage_code' = ANY (v_st) AND coalesce((x->>'active')::boolean, true) AND NOT coalesce((x->>'rejected')::boolean, false)
     ), named AS (
       SELECT l.*, c.completed AS panel_done, c.acted_at,
-             coalesce(nullif(btrim(r.display_name), ''), nullif(btrim(r.full_name), ''), split_part(c.actor_email, '@', 1)) AS by_name
+             coalesce(nullif(btrim(r.full_name), ''), nullif(CASE WHEN r.display_name LIKE '%@%' THEN '' ELSE btrim(r.display_name) END, ''), split_part(c.actor_email, '@', 1)) AS by_name
       FROM lines l
       LEFT JOIN public.pdc_panel_line_completion_565 c ON c.vehicle_id = l.id AND c.line_identity = l.x->>'line_identity'
       LEFT JOIN LATERAL (SELECT u.display_name, u.full_name FROM public.pdc_user_roles u WHERE lower(u.email) = lower(c.actor_email) ORDER BY u.active DESC LIMIT 1) r ON true
@@ -53,9 +81,13 @@ BEGIN
     )
     SELECT jsonb_build_object('ok', true, 'version', 'r720', 'now', clock_timestamp(), 'stations', to_jsonb(v_st),
       'can_tick', v_role IN ('operator', 'administrator'), 'rev', public.get_pdc_stock_take_rev_720(),
-      'cars', coalesce(jsonb_agg(jsonb_build_object('id', c.id, 'k', c.key_number, 's', c.stock_number, 'v', c.vehicle, 'l', c.lines)
+      'cars', coalesce(jsonb_agg(jsonb_build_object('id', c.id, 'k', c.key_number, 's', c.stock_number, 'v', c.vehicle, 'l', c.lines,
+        'missing', coalesce(m.missing, false), 'missing_by', CASE WHEN m.missing THEN coalesce(nullif(btrim(mu.full_name), ''), nullif(CASE WHEN mu.display_name LIKE '%@%' THEN '' ELSE btrim(mu.display_name) END, ''), split_part(m.actor_email, '@', 1)) END,
+        'missing_at', CASE WHEN m.missing THEN m.acted_at END)
         ORDER BY nullif(regexp_replace(coalesce(c.key_number, ''), '\D', '', 'g'), '')::bigint NULLS LAST, c.stock_number), '[]'::jsonb))
     FROM cars c
+    LEFT JOIN public.pdc_stock_take_missing_720 m ON m.vehicle_id = c.id
+    LEFT JOIN LATERAL (SELECT u.display_name, u.full_name FROM public.pdc_user_roles u WHERE lower(u.email) = lower(m.actor_email) ORDER BY u.active DESC LIMIT 1) mu ON true
   );
 END $fn$;
 
@@ -64,6 +96,7 @@ CREATE FUNCTION public.get_pdc_stock_take_rev_720()
 RETURNS text LANGUAGE sql STABLE SECURITY DEFINER SET search_path = pg_catalog, public AS $fn$
   SELECT CASE WHEN coalesce(public.current_pdc_user_role()::text IN ('viewer', 'operator', 'administrator'), false) THEN
     coalesce((SELECT max(acted_at)::text FROM public.pdc_panel_line_completion_565), '') || '|' ||
+    coalesce((SELECT max(acted_at)::text FROM public.pdc_stock_take_missing_720), '') || '|' ||
     coalesce((SELECT revision::text FROM public.pdc_email_vehicle_revision WHERE singleton), '')
   END
 $fn$;
@@ -85,6 +118,8 @@ SELECT to_regprocedure('public.get_pdc_stock_take_720(text[])') IS NOT NULL
   AND to_regprocedure('public.get_pdc_stock_take_rev_720()') IS NOT NULL
   AND NOT has_function_privilege('anon', 'public.get_pdc_stock_take_720(text[])', 'execute')
   AND NOT has_function_privilege('anon', 'public.get_pdc_stock_take_rev_720()', 'execute')
+  AND NOT has_function_privilege('anon', 'public.set_pdc_stock_take_missing_720(uuid,boolean)', 'execute')
+  AND (SELECT relrowsecurity FROM pg_class WHERE oid = 'public.pdc_stock_take_missing_720'::regclass)
   AND strpos((SELECT prosrc FROM pg_proc WHERE oid = to_regprocedure('public.set_panel_line_completion_565(uuid,text,boolean)')), '''controller_required''') > 0
  AS ok, 'stock take in place' AS detail
 $chk$, true, 470, 'r720');

@@ -57,3 +57,16 @@ test('updates never jump the screen and a release does not reload a tablet mid s
   assert.match(js, /state\.open = false; root\.PDC_UNSAVED_WORK = false;/);
   assert.match(fs.readFileSync('pdc-auto-reload.js', 'utf8'), /if \(win\.PDC_UNSAVED_WORK === true\) return true;/);
 });
+test('Missing flag: shared, with who flagged it, and a Missing only filter', () => {
+  const p = { can_tick: true, cars: [{ ...payload.cars[0], missing: true, missing_by: 'Oleg', missing_at: '2026-10-29T05:10:00Z' }, payload.cars[1]] };
+  const html = st.panelHtml(p, view(), now);
+  assert.match(html, /st-car is-missing/);
+  assert.match(html, /MISSING · flagged by Oleg 13:10/);
+  assert.match(html, /data-st-missing="v1" aria-pressed="true"[^>]*>Found it/);
+  assert.match(html, /data-st-missing="v2" aria-pressed="false"[^>]*>Missing/);
+  assert.match(html, /1 missing/);
+  assert.deepEqual(st.visibleCars(p, view({ missingOnly: true })).map(c => c.k), ['7']);
+  const sql = fs.readFileSync('supabase/migrations/20261029140000_r720_stock_take.sql', 'utf8');
+  assert.match(sql, /CREATE FUNCTION public\.set_pdc_stock_take_missing_720\(p_vehicle_id uuid, p_missing boolean\)/);
+  assert.match(sql, /IF v_role NOT IN \('operator', 'administrator'\) THEN RETURN jsonb_build_object\('ok', false, 'error', 'controller_required'\)/);
+});
