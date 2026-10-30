@@ -68,3 +68,29 @@
   .fitting-stats-table th, .fitting-stats-table td { display:block; border:0; padding:3px 12px; white-space:normal; }
   .fitting-stats-table td::before { content:attr(data-label) ': '; color:#5b7088; font-weight:700; }
 }
+/* r880 (F420): Times list behind a job card line, with Remove / Restore per job. */
+.fitting-stats-times-cell { width:1%; white-space:nowrap; text-align:right; }
+.fitting-stats-times { min-height:30px; padding:4px 10px; font-size:12px; }
+.fitting-stats-entries-row > td { background:#f8fafc; padding:6px 10px 10px 24px; white-space:normal; }
+.fitting-stats-entries { width:auto; min-width:min(640px, 100%); border-collapse:collapse; font-size:12px; background:#fff; border:1px solid #e1e9f2; border-radius:8px; }
+.fitting-stats-entries th, .fitting-stats-entries td { padding:6px 8px; border-bottom:1px solid #edf2f7; text-align:left; white-space:normal; font-variant-numeric:tabular-nums; }
+.fitting-stats-entries td:last-child button { white-space:nowrap; }
+.fitting-stats-table .fitting-stats-entries th, .fitting-stats-table .fitting-stats-entries td { min-width:0; overflow-wrap:normal; }
+.fitting-stats-entries thead th { color:#5b7088; font-size:11px; text-transform:uppercase; background:#fbfcfe; }
+.fitting-stats-entries td:last-child { text-align:right; }
+.fitting-stats-entries tr.is-suspect td { background:#fff8e6; }
+.fitting-stats-entries tr.is-removed td { color:#8a9aac; text-decoration:line-through; }
+.fitting-stats-entries tr.is-removed td:last-child, .fitting-stats-entries tr.is-removed td .fitting-stats-vs { text-decoration:none; }
+.fitting-stats-exclude { min-height:28px; padding:3px 10px; font-size:12px; }
+.fitting-stats-exclude.is-remove { color:#9d2b30; }
+.fitting-stats-entries-note { margin:6px 0 0; font-size:11px; color:#60758b; }
+.fitting-stats-entries-note.is-error { color:#9b341b; }
+#fitting-stats-content .visually-hidden { position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap; }
+@media (max-width:700px) {
+  .fitting-stats-entries-row > td { padding-left:8px; }
+  .fitting-stats-entries thead { display:none; }
+  .fitting-stats-entries tr { display:block; padding:6px 0; border-bottom:1px solid #edf2f7; }
+  .fitting-stats-entries td { display:block; border:0; padding:2px 8px; text-align:left; }
+  .fitting-stats-entries td:last-child { text-align:left; }
+  .fitting-stats-entries td[data-label]::before { content:attr(data-label) ': '; color:#5b7088; font-weight:700; }
+}
