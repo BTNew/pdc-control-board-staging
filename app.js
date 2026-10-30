@@ -6975,7 +6975,7 @@ async function qcPageSignoff(key = '') {
     if (succeeded) {
       qcPhotoEvidence.delete(cleanKey);
       qcSelectedVehicleKey = '';
-      qcPageNotice = 'Signed off and moved to RFT. No salesperson email or dealer-transit timer started at QC.';
+      qcPageNotice = 'Final check passed. Key number is now WPC (the old number is free) and the car is in the WPC area until Sales gives the destination and it is ticked RFT. No salesperson email or dealer-transit timer started at QC.'; // r755 (F360)
       renderQualityControlPage();
     }
     return result;
@@ -8192,7 +8192,7 @@ async function completeVehicleQualityControl(key = '', photoEvidence = null, aut
     return false;
   }
   const label = vehicleIdentityTitle(vehicle) || displayStockNumber(vehicle) || 'this vehicle';
-  if (!window.confirm(`Sign off QC and move ${label} to RFT?\n\nThis stores the named QC sign-off, exact completed-item snapshot and private photo evidence. No salesperson email or dealer-transit timer starts at QC.`)) return false;
+  if (!window.confirm(`Pass final check for ${label}?\n\nThe key number becomes WPC (the old number is freed) and the car goes to the WPC area until Sales gives the destination.\n\nThis stores the named QC sign-off, exact completed-item snapshot and private photo evidence. No salesperson email or dealer-transit timer starts at QC.`)) return false;
 
   if (vehicleLifecycleSharedModeActive()) {
     const service = app.emailVehicleLocationService;
