@@ -66,3 +66,12 @@ test('rollback restores the saved eligibility body by md5 and drops triggers, he
   assert.match(down, /done_station_leaves_planner_746/);
   assert.ok(down.indexOf('EXECUTE v_def') < down.indexOf('DROP FUNCTION'), 'eligibility is restored before its helper is dropped');
 });
+
+test('r746b: an override alone is not done; removed override bookings are put back', () => {
+  const fix = fs.readFileSync('supabase/migrations/20261030023000_r746b_override_alone_keeps_booking.sql', 'utf8');
+  assert.match(fix, /WHERE coalesce\(r\.total, 0\) > 0 AND r\.done = r\.total/);
+  assert.doesNotMatch(fix, /WHERE r\.complete/);
+  assert.match(fix, /WHERE override_only AND restored_at IS NULL/);
+  assert.match(fix, /'same bay and time'/);
+  assert.match(fix, /'restore', v_craig/);
+});
