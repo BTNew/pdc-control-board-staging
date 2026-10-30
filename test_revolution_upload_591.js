@@ -87,9 +87,11 @@ test('service dry run keeps 138 and 139, skips status 99, and holds the gates', 
     serviceRow({ stock: 'ONE', key: 77, ro: 'J138101' }),
     serviceRow({ stock: 'TWO', key: 77, ro: 'J138102' }),
   ]);
+  // r760 (F366): the board key is the master; a Key Tag clash in the file is counted, never an error.
   const clashRun = dryRun(await parseRevolutionUpload(clash), { board: { vehicles: [], jobs: [] } });
-  assert.equal(clashRun.errors.some((error) => error.code === 'key_not_unique'), true);
-  assert.equal(clashRun.ok, false);
+  assert.equal(clashRun.errors.some((error) => error.code === 'key_not_unique'), false);
+  assert.equal(clashRun.file_key_clashes_ignored, 1);
+  assert.equal(clashRun.ok, true);
 
   const rows = [];
   for (let i = 0; i < 16; i += 1) rows.push(serviceRow({ stock: `NEW${i}`, ro: `J138${1000 + i}`, key: '' }));
