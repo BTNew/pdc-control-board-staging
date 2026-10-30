@@ -21,7 +21,7 @@ test('tablet: Start, Done and Later on one row; Later form and set chip; wired t
   assert.match(js, /<b class="fitter-done-cap" aria-hidden="true">Done<\/b><\/label>/);
   assert.match(js, /\.fitter-todo-list \.fitter-line>\.fitter-line-check\{display:contents\}/);
   assert.match(js, /\.fitter-todo-list \.fitter-item-ticks\{order:2\}'[\s\S]*fitter-line-check>input\{order:3/);
-  assert.match(fs.readFileSync('index.html', 'utf8'), /pdc-fitters\.js\?[^"]*&amp;r627=2026\.10\.28\.r627(&amp;r678=2026\.10\.29\.r678)?"/);
+  assert.match(fs.readFileSync('index.html', 'utf8'), /pdc-fitters\.js\?[^"]*&amp;r627=2026\.10\.28\.r627(&amp;r678=2026\.10\.29\.r678)?(&amp;r740=2026\.10\.30\.r740)?"/);
 });
 
 test('server: never ticks or completes, per booking, fitter on own booking only, gate allows it, Dept 135 untouched', () => {
