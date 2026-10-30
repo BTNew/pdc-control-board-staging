@@ -72,14 +72,14 @@ test('models in board order with friendly names; totals; fitter list sorted; mod
   assert.deepEqual(r.technicians.map(t => t.name), ['Ben Palmer', 'Jamie Bello']);
   assert.deepEqual(r.categoryCodes, ['FITTING', 'TINT']);
   const html = stats.reportHtml(r);
-  assert.match(html, /<details class="fitting-stats-model" data-fitting-stats-model="HILUX"><summary><h3>HiLux<\/h3><span><strong>11<\/strong> lines completed · 6 timed · 3 station jobs<\/span><\/summary>/);
-  assert.match(html, /data-fitting-stats-item="Bull bar"><summary><span class="fitting-stats-item-name">Bull bar<\/span><span class="fitting-stats-item-figures"><strong>5<\/strong> done · 4 timed · average 1h 53m · 1h 00m – 3h 00m · allowance 2h 30m<span class="fitting-stats-vs is-under">38m under<\/span>/);
+  assert.match(html, /<details class="fitting-stats-model" data-fitting-stats-model="HILUX"[^>]*><summary><h3>HiLux<\/h3><span><strong>11<\/strong> lines completed · 6 timed · 3 station jobs<\/span><\/summary>/);
+  assert.match(html, /data-fitting-stats-item="Bull bar"[^>]*><summary><span class="fitting-stats-item-name">Bull bar<\/span><span class="fitting-stats-item-figures"><strong>5<\/strong> done · 4 timed · average 1h 53m · 1h 00m – 3h 00m · allowance 2h 30m<span class="fitting-stats-vs is-under">38m under<\/span>/);
   assert.match(html, /STEEL BULL BAR - PREMIUM - BROOME TO SUPPLY<\/th>/);
   assert.match(html, /Models<\/span><strong>5</);
   assert.doesNotMatch(html, /data-fitting-stats-model="LC300"|<h4>Hoist/);
   // Choosing one model opens it and shows only that model.
   const one = stats.reportHtml(r, {model:'HILUX'});
-  assert.match(one, /data-fitting-stats-model="HILUX" open>/);
+  assert.match(one, /data-fitting-stats-model="HILUX"[^>]* open>/);
   assert.doesNotMatch(one, /data-fitting-stats-model="PRADO"/);
   assert.match(one, /Lines completed<\/span><strong>11</);
   // Category filter across models.
@@ -153,14 +153,14 @@ test('controller: All time by default; fitter change reloads with that fitter; m
 
 test('page: new RPC with fitter, r489 fallback only on 404, lazy cache busts', () => {
   const js = read('pdc-fitting-stats.js');
-  assert.equal(stats.VERSION, '2026.10.30.r850');
+  assert.equal(stats.VERSION, '2026.10.30.r880');
   assert.match(js, /post\(ctx, 'get_pdc_fitting_statistics_850', \{p_days:days, p_technician_id:technician\}\)/);
   assert.match(js, /if \(response\.status === 404 && !technician\) \{/);
   assert.match(js, /post\(ctx, 'get_pdc_fitting_statistics_489', \{p_days: LEGACY_PERIODS\.includes\(days\) \? days : 365\}\)/);
   const lazy = require('./pdc-lazy-admin-views.js').DEFINITIONS.find(view => view.name === 'PdcFittingStats');
-  assert.equal(lazy.script, 'pdc-fitting-stats.js?r850=2026.10.30.r850');
-  assert.equal(lazy.css, 'pdc-fitting-stats.css?r850=2026.10.30.r850');
-  assert.match(read('index.html'), /<script src="pdc-lazy-admin-views\.js\?v=2026\.10\.26\.opt1&amp;r850=2026\.10\.30\.r850" defer><\/script>/);
+  assert.equal(lazy.script, 'pdc-fitting-stats.js?r880=2026.10.30.r880');
+  assert.equal(lazy.css, 'pdc-fitting-stats.css?r880=2026.10.30.r880');
+  assert.match(read('index.html'), /<script src="pdc-lazy-admin-views\.js\?v=2026\.10\.26\.opt1&amp;r880=2026\.10\.30\.r880" defer><\/script>/);
   assert.match(read('pdc-fitting-stats.css'), /\.fitting-stats-model > summary/);
 });
 

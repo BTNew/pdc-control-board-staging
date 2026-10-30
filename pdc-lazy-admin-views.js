@@ -6,7 +6,7 @@
   const VERSION = '2026.10.26.opt1';
   const DEFINITIONS = Object.freeze([
     { name: 'PdcUpdateHistory', view: 'update-history', title: 'Update history', script: 'pdc-update-history.js?v=2026.09.30.01', css: 'pdc-update-history.css?v=2026.09.30.01' },
-    { name: 'PdcFittingStats', view: 'fitting-stats', title: 'Fitting statistics', script: 'pdc-fitting-stats.js?r850=2026.10.30.r850', css: 'pdc-fitting-stats.css?r850=2026.10.30.r850' }
+    { name: 'PdcFittingStats', view: 'fitting-stats', title: 'Fitting statistics', script: 'pdc-fitting-stats.js?r880=2026.10.30.r880', css: 'pdc-fitting-stats.css?r880=2026.10.30.r880' }
   ]);
   function install(win, definition) {
     const doc = win.document;
