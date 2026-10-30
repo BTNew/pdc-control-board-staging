@@ -81,7 +81,7 @@ test('wiring: no new RPC or SQL; category through set_vehicle_work_category; tic
   const index = fs.readFileSync('index.html', 'utf8');
   assert.match(index, /pdc-vehicle-sublets\.js\?r494=2026\.10\.23\.r494b&amp;r501=2026\.10\.23\.r501&amp;r502=2026\.10\.23\.r502" defer/);
   assert.match(index, /pdc-vehicle-sublets\.css\?r494=2026\.10\.23\.r494b&amp;r501=2026\.10\.23\.r501&amp;r502=2026\.10\.23\.r502/);
-  assert.match(fs.readFileSync('canonical-entry.js', 'utf8'), /pdc-sublet-po\.js\?sublet-po=2026\.10\.21\.r444&r490=2026\.10\.23\.r490&r494=2026\.10\.23\.r494c(&r616=2026\.10\.28\.r616)?'/);
+  assert.match(fs.readFileSync('canonical-entry.js', 'utf8'), /pdc-sublet-po\.js\?sublet-po=2026\.10\.21\.r444&r490=2026\.10\.23\.r490&r494=2026\.10\.23\.r494c(&r616=2026\.10\.28\.r616)?(&r751=2026\.10\.30\.r751)?'/);
   assert.match(fs.readFileSync('scripts/build_pages_runtime.js', 'utf8'), /'pdc-vehicle-sublets\.css', 'pdc-vehicle-sublets\.js'/);
   assert.equal(vs.VERSION, '2026.10.23.r502');
   assert.equal(fs.readdirSync('supabase/migrations').filter(f => /r494|_494/.test(f)).length, 0, 'no SQL in r494');

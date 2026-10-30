@@ -131,7 +131,7 @@ test('app.js: the 2-minute reference-data safety net skips while hidden and runs
 test('cache bust: r490 on the four module srcs and on canonical-entry.js; FAULT_LOG F103', () => {
   const entry = fs.readFileSync('canonical-entry.js', 'utf8');
   for (const file of ['pdc-sublet-po.js', 'pdc-parts-eta.js', 'pdc-sublet-po-attach.js', 'pdc-key-number.js']) {
-    assert.match(entry, new RegExp(`'${file.replace(/[.]/g, '\\.')}\\?[^']*&r490=2026\\.10\\.23\\.r490(&r494=2026\\.10\\.23\\.r494[bc]?)?(&r575=2026\\.10\\.27\\.r575)?(&r616=2026\\.10\\.28\\.r616)?'`), file); // r494 (F107) appends its own token to pdc-sublet-po.js; r575 (F189) appends its tag to pdc-key-number.js
+    assert.match(entry, new RegExp(`'${file.replace(/[.]/g, '\\.')}\\?[^']*&r490=2026\\.10\\.23\\.r490(&r494=2026\\.10\\.23\\.r494[bc]?)?(&r575=2026\\.10\\.27\\.r575)?(&r616=2026\\.10\\.28\\.r616)?(&r747=2026\\.10\\.30\\.r747)?(&r751=2026\\.10\\.30\\.r751)?'`), file); // r494 (F107) appends its own token to pdc-sublet-po.js; r575 (F189) appends its tag to pdc-key-number.js
   }
   assert.match(fs.readFileSync('index.html', 'utf8'), /canonical-entry\.js\?[^"]*&amp;r490=2026\.10\.23\.r490&amp;/);
   assert.match(fs.readFileSync('index.html', 'utf8'), /<script src="app\.js\?[^"]*&amp;r490=2026\.10\.23\.r490&amp;/);

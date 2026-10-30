@@ -18,5 +18,5 @@ test('key list keys are not spare even when the vehicle is not on the board', ()
 });
 test('reserved keys load from the key list table and the script version is bumped', () => {
   assert.match(app, /from\('pdc_key_list_reserved_708'\)\.select\('key_token'\)/);
-  assert.match(fs.readFileSync('index.html', 'utf8'), /&amp;r710=2026\.10\.29\.r710(&amp;r720=2026\.10\.29\.r720)?(&amp;r722=2026\.10\.29\.r722)?"/);
+  assert.match(fs.readFileSync('index.html', 'utf8'), /&amp;r710=2026\.10\.29\.r710(&amp;r720=2026\.10\.29\.r720)?(&amp;r722=2026\.10\.29\.r722)?(&amp;r748=2026\.10\.30\.r748)?"/);
 });

@@ -41,7 +41,8 @@ test('description cleaning: as typed, Revolution ^ line breaks shown as " · ", 
 
 test('Sublet box: every sublet in PD line order, operation-line POs as linked rows with description, PO and the one tick; own lines keep theirs', () => {
   const html = render(hiace, hiacePayload);
-  assert.deepEqual(rows(html), [2, 5, 6, 11, 12], 'PD line order, linked rows and own Sublet lines merged');
+  // r751 (F356): Standard sublets (seat covers, line 11) are listed first, then Other sublets; PD line order inside each group.
+  assert.deepEqual(rows(html), [11, 2, 5, 6, 12], 'standard group first, then PD line order within each group');
   const box = subletBox(html);
   assert.match(box, /data-line-key="jc:J138000001:6"><strong>PD line 6<\/strong><span><b class="pdc-sublet-desc">SPRINGS · Key 001<\/b><small class="pdc-sublet-on">On operation line: Sample springs · Bus 4x4 Mechanical<\/small><\/span><em class="pdc-sublet-kind">Op line PO<\/em> <span class="pdc-sublet-po-inline is-ordered"[^>]*><span class="pdc-sublet-po-chip">GP19000006<\/span><input type="checkbox" class="pdc-sublet-po-tick"[^>]*aria-label="PD line 6 sublet done"><\/span><\/li>/);
   assert.match(box, /<span class="pdc-sublet-desc-po">GP19000005<\/span> TYRES<\/b><b class="pdc-sublet-desc"><span class="pdc-sublet-desc-po">GP19000007<\/span> <i class="pdc-sublet-desc-missing">No sublet description in the upload yet<\/i><\/b>/, 'two POs on one line: each with its own description');
