@@ -6101,7 +6101,10 @@ function workshopUnallocatedLocationLabel(vehicle = {}, group = workshopUnalloca
   return '';
 }
 
-function workshopUnallocatedGroups(queue = [], highlightVehicleKey = '', now = new Date()) {
+// r862 (F413, Craig 12:29): the At PMB box has a sort: longest at PMB first (default), newest first, or key number.
+const WORKSHOP_PMB_SORTS = Object.freeze({ longest: 'Longest at PMB first', newest: 'Newest at PMB first', key: 'Key number' });
+
+function workshopUnallocatedGroups(queue = [], highlightVehicleKey = '', now = new Date(), pmbSort = 'longest') {
   const pmb = [];
   const incoming = [];
   (Array.isArray(queue) ? queue : []).forEach(vehicle => {
@@ -6112,12 +6115,13 @@ function workshopUnallocatedGroups(queue = [], highlightVehicleKey = '', now = n
   });
   const keyNumber = vehicle => Number.parseInt(String(vehicle.keyNumber || vehicle.key_number || ''), 10);
   const pmbRows = pmb.map(vehicle => ({ vehicle, since: workshopPmbSinceMs(vehicle), key: keyNumber(vehicle) }));
+  const byKey = (a, b) => (Number.isFinite(a.key) ? a.key : Infinity) - (Number.isFinite(b.key) ? b.key : Infinity);
   pmbRows.sort((a, b) => {
+    if (pmbSort === 'key') return byKey(a, b) || (a.since || 0) - (b.since || 0);
     const aHas = Number.isFinite(a.since), bHas = Number.isFinite(b.since);
     if (aHas !== bHas) return aHas ? -1 : 1;
-    if (aHas && a.since !== b.since) return a.since - b.since;
-    const aKey = Number.isFinite(a.key) ? a.key : Infinity, bKey = Number.isFinite(b.key) ? b.key : Infinity;
-    return aKey - bKey;
+    if (aHas && a.since !== b.since) return pmbSort === 'newest' ? b.since - a.since : a.since - b.since;
+    return byKey(a, b);
   });
   const incomingRows = incoming.map(row => ({ ...row, days: row.group === 'IT' ? workshopDaysUntilDateKey(workshopKewdaleEtaDateKey(row.vehicle), now) : null }));
   incomingRows.sort((a, b) => {
@@ -6154,26 +6158,40 @@ function workshopReturnedCardWithLocationHtml(entry = {}, vehicle = null) {
   return html.replace('<div class="workshop-queue-actions">', `${line}<div class="workshop-queue-actions">`);
 }
 
-function workshopUnallocatedBoxesHtml({ returnedPlans = [], queue = [], stage, dateKey, plans, highlightVehicleKey = '', limit } = {}) {
-  const groups = workshopUnallocatedGroups(queue, highlightVehicleKey);
+function workshopPmbSortChoice() {
+  let value = '';
+  try { value = window.localStorage?.getItem('pdc.workshop.pmbSort') || ''; } catch (_) { value = ''; }
+  return Object.prototype.hasOwnProperty.call(WORKSHOP_PMB_SORTS, value) ? value : 'longest';
+}
+
+function workshopUnallocatedBoxesHtml({ returnedPlans = [], queue = [], stage, dateKey, plans, highlightVehicleKey = '', limit, pmbSort = 'longest' } = {}) {
+  const sortKey = Object.prototype.hasOwnProperty.call(WORKSHOP_PMB_SORTS, pmbSort) ? pmbSort : 'longest';
+  // r862: a returned booking (queued, no bay) is sorted with the other cars in its box, not pinned on top.
   const returned = (Array.isArray(returnedPlans) ? returnedPlans : []).map(entry => {
     const vehicle = typeof workshopVehicle === 'function' ? workshopVehicle(entry.vehicleKey, entry.stage) : null;
-    return { entry, vehicle, atPmb: Boolean(vehicle) && workshopUnallocatedGroup(vehicle) === 'PMB' };
+    return { ...(vehicle || { stock: entry.vehicleKey, vehicleKey: entry.vehicleKey }), __returnedEntry: entry, __returnedVehicle: vehicle };
   });
-  const returnedPmb = returned.filter(row => row.atPmb);
-  const returnedIncoming = returned.filter(row => !row.atPmb);
+  const groups = workshopUnallocatedGroups([...returned, ...(Array.isArray(queue) ? queue : [])], highlightVehicleKey, new Date(), sortKey);
+  // A returned booking whose car is not known still shows, in the second box.
+  const known = new Set([...groups.pmb, ...groups.incoming]);
+  returned.filter(row => !known.has(row)).forEach(row => groups.incoming.push(row));
   const ordered = [...groups.pmb, ...groups.incoming];
   const batch = workshopIncrementalRenderRows(ordered, limit, highlightVehicleKey);
-  const pmbIds = new Set(groups.pmb.map(vehicle => vehicleKey(vehicle)));
-  const visiblePmb = batch.visible.filter(vehicle => pmbIds.has(vehicleKey(vehicle)));
-  const visibleIncoming = batch.visible.filter(vehicle => !pmbIds.has(vehicleKey(vehicle)));
-  const pmbCount = returnedPmb.length + groups.pmb.length;
-  const incomingCount = returnedIncoming.length + groups.incoming.length;
-  const pmbCards = returnedPmb.map(row => workshopReturnedCardWithLocationHtml(row.entry, row.vehicle)).join('') + visiblePmb.map(vehicle => workshopQueueCardWithLocationHtml(vehicle, stage, dateKey, plans)).join('');
-  const incomingCards = returnedIncoming.map(row => workshopReturnedCardWithLocationHtml(row.entry, row.vehicle)).join('') + visibleIncoming.map(vehicle => workshopQueueCardWithLocationHtml(vehicle, stage, dateKey, plans)).join('');
+  const pmbSet = new Set(groups.pmb);
+  const visiblePmb = batch.visible.filter(row => pmbSet.has(row));
+  const visibleIncoming = batch.visible.filter(row => !pmbSet.has(row));
+  const card = row => row.__returnedEntry
+    ? workshopReturnedCardWithLocationHtml(row.__returnedEntry, row.__returnedVehicle)
+    : workshopQueueCardWithLocationHtml(row, stage, dateKey, plans);
+  const pmbCount = groups.pmb.length;
+  const incomingCount = groups.incoming.length;
+  const pmbCards = visiblePmb.map(card).join('');
+  const incomingCards = visibleIncoming.map(card).join('');
   const pmbMore = groups.pmb.length > visiblePmb.length ? `<div class="workshop-empty">${groups.pmb.length - visiblePmb.length} more at PMB · use Show next below</div>` : '';
+  const sortSelect = `<select class="workshop-pmb-sort" data-workshop-pmb-sort aria-label="Sort At PMB">${Object.entries(WORKSHOP_PMB_SORTS).map(([value, label]) => `<option value="${value}"${value === sortKey ? ' selected' : ''}>${escapeHtml(label)}</option>`).join('')}</select>`;
   return `<section class="workshop-unallocated-box is-pmb" data-workshop-unallocated-box="pmb">
       <div class="workshop-unallocated-box-heading"><strong>At PMB</strong><span>${pmbCount}</span></div>
+      <div class="workshop-unallocated-box-sort">${sortSelect}</div>
       <div class="workshop-unallocated-box-list">${pmbCards || '<div class="workshop-empty">No cars at PMB waiting for this station.</div>'}${pmbMore}</div>
     </section>
     <section class="workshop-unallocated-box is-incoming" data-workshop-unallocated-box="incoming">
@@ -6471,7 +6489,7 @@ function renderWorkshopPlanner(options = {}) {
         ${typeof workshopPartsEtaStoppageSectionHtml === 'function' ? workshopPartsEtaStoppageSectionHtml() : '<section class="workshop-parts-stoppage" aria-label="Stoppage"><div class="workshop-side-heading"><strong>Stoppage</strong><span>Parts ETA</span></div><div class="workshop-empty">No parts ETA is placed as STOPPAGE.</div></section>'}
         <div class="workshop-side-heading"><strong>Unallocated vehicles</strong><span>${alreadyBookedOutstanding} already booked in bays</span></div>
         <div class="workshop-unallocated-drop" data-workshop-unallocated-drop><strong>Return to Unallocated</strong><span>Planned or live: choose Just move or STOPPAGE</span></div>
-        <div class="workshop-side-list workshop-unallocated-boxes">${workshopUnallocatedBoxesHtml({ returnedPlans, queue, stage, dateKey, plans, highlightVehicleKey: state.highlightVehicleKey, limit: state.incrementalQueueLimit })}</div>
+        <div class="workshop-side-list workshop-unallocated-boxes">${workshopUnallocatedBoxesHtml({ returnedPlans, queue, stage, dateKey, plans, highlightVehicleKey: state.highlightVehicleKey, limit: state.incrementalQueueLimit, pmbSort: workshopPmbSortChoice() })}</div>
       </aside>`}
       <section class="workshop-timeline-scroll">
         <div class="workshop-scroll-cue" role="note">Swipe or scroll schedule horizontally →</div>
@@ -6506,6 +6524,11 @@ function bindWorkshopPlanner(root) {
     });
   }
   workshopBindDragAutoScroll(root);
+  // r862 (F413): At PMB sort, remembered on this device.
+  root.querySelector('[data-workshop-pmb-sort]')?.addEventListener('change', event => {
+    try { window.localStorage?.setItem('pdc.workshop.pmbSort', event.target.value); } catch (_) {}
+    renderWorkshopPlanner();
+  });
   root.querySelectorAll('[data-workshop-focused-back]').forEach(button => button.addEventListener('click', workshopExitFocusedBooking));
   root.querySelector('[data-workshop-back-control]')?.addEventListener('click', () => showView('workflow'));
 
