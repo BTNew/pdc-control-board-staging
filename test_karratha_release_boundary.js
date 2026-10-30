@@ -323,7 +323,7 @@ const approvedRootImportPatch = Object.freeze({
   // r593: a recent key is listed in New to PMB and stays in the PMB bucket. No department tick (F207). Department 135 keeps its frozen app.js.
   // r591: Admin > Revolution uploads is administrators only (F205). Department 135 is not tagged.
   // r687: ".2" hours save as 0.2 in Edit hours and jobs (F297). Department 135 keeps its frozen app.js.
-  "app.js": "bb7408ceb9477ca0196f1251eb7e5b5f79385b58664df915804ec2a912f74332", // r710 (F320): key list keys never offered as spare at To PMB
+  "app.js": "5a64d2942b7542d74855b45787caa017e79aba0b04f8e3f0223844bb11ec83ba", // r830 (F391): WPC is not a PMB key; WPC age until Autocare collects
   "vehicle-requirements-guard.js": "7462e178c839df0ce1bd2509b838dab61fd739172f20fd0c34a419e011052658",
   // r464: a booking that runs past the day divider is one bar (joined per-day pieces, display only; F77). The Karratha copy stays frozen.
   // r465: overview bar labels show Key · JC and the customer only (Stock and the vehicle description stay in the hover title); the customer span is classed for the Running layout (F78).
@@ -474,8 +474,7 @@ const approvedRootImportPatch = Object.freeze({
   // r604: index.html adds r604=2026.10.28.r604 on canonical-entry.js (pit bookings, F218). Department 135 is not tagged.
   // r616: pdc-auth.js, pdc-bay-manager.js and canonical-entry.js carry r616=2026.10.28.r616 (fitter sessions send only Fitters bay requests, F231). Department 135 is not tagged.
   // r642: Sublet · MMT nav and view, pdc-mmt-sublet.css/js, r642 on app.js and pdc-staff-usage.js (F257). Department 135 is not tagged.
-  // r753 (F358) then r850: index.html r850=2026.10.30.r850 on pdc-lazy-admin-views.js (Fitting statistics by model and fitter; F400).
-  "index.html": "20fd223ba51724da483b93ff2bf27b119def3751991347e72aebf27c9680bda0", // r850 (F400) lazy admin views tag (on top of r753)
+  "index.html": "2558a8b2cbf6bee903347dd79fcfebefe3d6b5969e5790c37a6784cf9e54c201", // r830 (F391) app.js tag
   "pdc-conversions.js": "0a99e7a5306f15e434b293a3ca9a318ffad4b78eb814c27144d75ff98821d810",
   // r401: Pit tick and read RPCs (set_pdc_pit_line_tick_401, get_pdc_pit_line_ticks_401).
   // r414: readQcPhotoReceipt (get_pdc_qc_photo_receipt_414) for the QC page (F30).
