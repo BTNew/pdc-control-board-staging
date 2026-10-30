@@ -7,13 +7,15 @@ BEGIN
   v_oid := to_regprocedure('pdc_work_categories_private.invalidate_qc_operation_lines_cache()');
   SELECT prosrc INTO v_src FROM pg_proc WHERE oid = v_oid;
   IF strpos(v_src, 'r740 (F345)') = 0 THEN RAISE NOTICE 'r740 down: not applied'; RETURN; END IF;
-  v_branch := E'  IF TG_TABLE_NAME = \'workshop_bookings\' AND TG_OP = \'UPDATE\'\n'
-    || E'     AND OLD.vehicle_id IS NOT DISTINCT FROM NEW.vehicle_id AND OLD.stage_id IS NOT DISTINCT FROM NEW.stage_id\n'
+  v_branch := E'  IF TG_TABLE_NAME = \'workshop_bookings\' AND TG_OP = \'UPDATE\' THEN\n'
+    || E'    -- 30 Oct fix (Craig approved 08:04): nested so OLD.stage_id etc. are only read on workshop_bookings (plpgsql does not short-circuit field lookups).\n'
+    || E'    IF OLD.vehicle_id IS NOT DISTINCT FROM NEW.vehicle_id AND OLD.stage_id IS NOT DISTINCT FROM NEW.stage_id\n'
     || E'     AND OLD.status IS NOT DISTINCT FROM NEW.status AND OLD.deleted_at IS NOT DISTINCT FROM NEW.deleted_at\n'
     || E'     AND OLD.work_category IS NOT DISTINCT FROM NEW.work_category AND OLD.work_category_scope IS NOT DISTINCT FROM NEW.work_category_scope\n'
     || E'     AND OLD.created_at IS NOT DISTINCT FROM NEW.created_at THEN\n'
-    || E'    -- r740 (F345): a time, bay, duration or technician change does not alter the QC lines; keep the cache.\n'
-    || E'    RETURN NULL;\n'
+    || E'      -- r740 (F345): a time, bay, duration or technician change does not alter the QC lines; keep the cache.\n'
+    || E'      RETURN NULL;\n'
+    || E'    END IF;\n'
     || E'  END IF;\n';
   v_new := replace(v_src, v_branch, '');
   IF v_new = v_src THEN RAISE EXCEPTION 'r740 down: branch not found'; END IF;

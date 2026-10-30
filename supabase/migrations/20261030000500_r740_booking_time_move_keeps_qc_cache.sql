@@ -3,6 +3,8 @@
 -- the vehicle's epoch and dropped its cache row, and the assignment validation that follows recomputed the lines
 -- (~40ms each, dozens of times per booking) for every job in the bay. The lines only read a booking's vehicle, stage,
 -- status, deleted flag, work category, scope and created time, so an update that changes none of those returns early.
+-- The check is nested inside the table test: plpgsql evaluates OLD.stage_id even when the table test is false, so a flat
+-- AND chain raised "record old has no field stage_id" on every other table's update (caught live 08:04, Craig approved).
 -- The rest of the trigger body is byte-identical; the pin and a regression check follow.
 -- Staging cdsmnqxtyyoeoznmbidd only. Production never touched.
 -- Rollback: supabase/rollbacks/20261030000500_r740_booking_time_move_keeps_qc_cache.down.sql
@@ -13,18 +15,25 @@ BEGIN
   v_oid := to_regprocedure('pdc_work_categories_private.invalidate_qc_operation_lines_cache()');
   IF v_oid IS NULL THEN RAISE EXCEPTION 'r740: cache trigger function missing'; END IF;
   SELECT prosrc INTO v_src FROM pg_proc WHERE oid = v_oid;
-  IF strpos(v_src, 'r740 (F345)') > 0 THEN RAISE NOTICE 'r740: already applied'; RETURN; END IF;
+  IF strpos(v_src, 'r740 (F345)') > 0 THEN
+    -- Already live (applied by hand on 30 Oct): only make sure the pin matches the body.
+    UPDATE pdc_ops.expected_function_md5 SET prosrc_md5 = md5(v_src), updated_at = clock_timestamp()
+    WHERE signature = 'pdc_work_categories_private.invalidate_qc_operation_lines_cache()' AND release = 'baseline' AND prosrc_md5 IS DISTINCT FROM md5(v_src);
+    RAISE NOTICE 'r740: already applied'; RETURN;
+  END IF;
   v_anchor := E'  IF TG_TABLE_NAME = \'pdc_pilbara_service_import_batches\' THEN\n';
   IF (SELECT count(*) FROM regexp_matches(v_src, '  IF TG_TABLE_NAME = ''pdc_pilbara_service_import_batches'' THEN\n', 'g')) <> 1 THEN
     RAISE EXCEPTION 'r740: anchor not found exactly once';
   END IF;
-  v_branch := E'  IF TG_TABLE_NAME = \'workshop_bookings\' AND TG_OP = \'UPDATE\'\n'
-    || E'     AND OLD.vehicle_id IS NOT DISTINCT FROM NEW.vehicle_id AND OLD.stage_id IS NOT DISTINCT FROM NEW.stage_id\n'
+  v_branch := E'  IF TG_TABLE_NAME = \'workshop_bookings\' AND TG_OP = \'UPDATE\' THEN\n'
+    || E'    -- 30 Oct fix (Craig approved 08:04): nested so OLD.stage_id etc. are only read on workshop_bookings (plpgsql does not short-circuit field lookups).\n'
+    || E'    IF OLD.vehicle_id IS NOT DISTINCT FROM NEW.vehicle_id AND OLD.stage_id IS NOT DISTINCT FROM NEW.stage_id\n'
     || E'     AND OLD.status IS NOT DISTINCT FROM NEW.status AND OLD.deleted_at IS NOT DISTINCT FROM NEW.deleted_at\n'
     || E'     AND OLD.work_category IS NOT DISTINCT FROM NEW.work_category AND OLD.work_category_scope IS NOT DISTINCT FROM NEW.work_category_scope\n'
     || E'     AND OLD.created_at IS NOT DISTINCT FROM NEW.created_at THEN\n'
-    || E'    -- r740 (F345): a time, bay, duration or technician change does not alter the QC lines; keep the cache.\n'
-    || E'    RETURN NULL;\n'
+    || E'      -- r740 (F345): a time, bay, duration or technician change does not alter the QC lines; keep the cache.\n'
+    || E'      RETURN NULL;\n'
+    || E'    END IF;\n'
     || E'  END IF;\n';
   v_new := replace(v_src, v_anchor, v_branch || v_anchor);
   IF v_new = v_src THEN RAISE EXCEPTION 'r740: body unchanged'; END IF;
