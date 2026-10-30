@@ -221,6 +221,16 @@ async function applyService(projectUrl, auth, bytes, filename, parsed, result, b
     return refuse(error instanceof Error ? error.message : 'The rows could not be prepared.', { upload_id: begin.upload_id });
   }
   if (!prepared.rows.length) return refuse('No lines to send.', { upload_id: begin.upload_id, needs_hours: prepared.needsHours.length });
+  // r763 (F369): record the whole-file snapshot first; without it the archive step refuses every part (snapshot_not_recorded).
+  const snapshot = prepared.snapshot || {};
+  const snapshotLines = Array.isArray(snapshot.lines) ? snapshot.lines : [];
+  if (!snapshotLines.length) return refuse('The snapshot could not be prepared.', { upload_id: begin.upload_id });
+  let recorded = null;
+  for (let i = 0; i < snapshotLines.length; i += 2500) {
+    recorded = await rpcAs(projectUrl, auth, 'revolution_upload_snapshot_763', { p_upload: begin.upload_id, p_header: snapshot.header, p_lines: snapshotLines.slice(i, i + 2500) });
+    if (recorded.ok !== true) return refuse(recorded.error || 'The snapshot could not be recorded.', { upload_id: begin.upload_id, snapshot: recorded });
+  }
+  if (recorded && recorded.lines_recorded !== snapshotLines.length) return refuse('The snapshot is incomplete.', { upload_id: begin.upload_id, snapshot: recorded });
   for (let i = 0; i < prepared.rows.length; i += 400) {
     const added = await rpcAs(projectUrl, auth, 'revolution_upload_rows_728', { p_upload: begin.upload_id, p_rows: prepared.rows.slice(i, i + 400) });
     if (added.ok !== true) return refuse(added.error || 'The rows could not be sent.', { upload_id: begin.upload_id });
@@ -236,6 +246,7 @@ async function applyService(projectUrl, auth, bytes, filename, parsed, result, b
     note: finish.note || '',
     rows_sent: finish.rows_sent,
     rows_held: finish.rows_held,
+    snapshot_lines: recorded ? recorded.lines_recorded : 0,
     new_board_vehicles: finish.new_board_vehicles,
     needs_hours: prepared.needsHours,
     holds: prepared.holds.length,
