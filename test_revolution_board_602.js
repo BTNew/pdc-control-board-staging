@@ -72,9 +72,10 @@ test('thirty three lines of one stock are one vehicle, not thirty three new vehi
   for (let stock = 1; stock <= 16; stock += 1) wideRows.push(dealRow(`STK${stock}`, 1, '1'));
   const wide = dryRun(await parseRevolutionUpload(htmlTable('BT Allocation — Deal Items', wideRows)), { board: { vehicles: [], jobs: [] } });
   assert.equal(wide.counts.new, 16);
-  assert.equal(wide.needs_admin_confirm, true);
-  assert.equal(wide.ok, false);
-  assert.equal(wide.errors.some((error) => error.code === 'sanity_gate'), true);
+  // r761 (F367): new cars are not gated; only cars leaving the board are.
+  assert.equal(wide.needs_admin_confirm, false);
+  assert.equal(wide.ok, true);
+  assert.equal(wide.errors.some((error) => error.code === 'sanity_gate'), false);
 });
 
 test('the board snapshot does not rewrite Kajel', () => {

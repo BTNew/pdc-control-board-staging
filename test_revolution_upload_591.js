@@ -94,8 +94,9 @@ test('service dry run keeps 138 and 139, skips status 99, and holds the gates', 
   const rows = [];
   for (let i = 0; i < 16; i += 1) rows.push(serviceRow({ stock: `NEW${i}`, ro: `J138${1000 + i}`, key: '' }));
   const wide = dryRun(await parseRevolutionUpload(htmlTable('PMG PD Service as a Whole w/Sublet', rows)), { board: { vehicles: [], jobs: [] } });
-  assert.equal(wide.needs_admin_confirm, true);
-  assert.equal(wide.ok, false);
+  // r761 (F367): no limit on new cars per upload.
+  assert.equal(wide.needs_admin_confirm, false);
+  assert.equal(wide.ok, true);
   assert.equal(wide.counts.new, 16);
 
   const duplicate = dryRun(parsed, { board, knownShas: [parsed.sha256] });

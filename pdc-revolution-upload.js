@@ -104,7 +104,7 @@ if (typeof window !== 'undefined') (function () {
       payload.held_open_job_card ? `${payload.held_open_job_card} kept because a job card is open` : '',
       payload.sales_boards_left_alone ? `${payload.sales_boards_left_alone} sales-board vehicles left alone` : '',
       payload.closed_vehicles ? `${payload.closed_vehicles} vehicles have every line at status 80` : '',
-      payload.needs_admin_confirm ? 'More than 15 new vehicles or archives. Apply would stop for an administrator confirm.' : '',
+      payload.needs_admin_confirm ? 'More than 15 cars would leave the board. Apply would stop for an administrator confirm.' : '',
       payload.duplicate_file ? 'This file is already in the ledger.' : '',
       payload.quiet_hours ? 'Quiet hours. Apply is refused around 07:00, 12:30 and 18:00 AWST.' : '',
     ].filter(Boolean);

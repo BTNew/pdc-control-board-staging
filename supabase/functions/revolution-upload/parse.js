@@ -911,8 +911,9 @@ export function dryRun(parsed, options = {}) {
     summary = phrases.join(', ');
     if (parsed.kind === 'kta_deal_items') salesLeft = 0;
   }
-  const sanity = fresh > 15 || archived > 15;
-  if (sanity) errors.push({ code: 'sanity_gate', message: 'More than 15 new vehicles or archives. An administrator must confirm before apply.' });
+  // r761 (F367, Craig 31 Oct 05:07): no limit on how many cars one upload creates. The gate is for cars leaving the board only.
+  const sanity = archived > 15;
+  if (sanity) errors.push({ code: 'sanity_gate', message: 'More than 15 cars would leave the board. An administrator must confirm before apply.' });
   const uniqueErrors = [];
   const seen = new Set();
   for (const error of errors) {
