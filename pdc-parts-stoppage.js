@@ -12,10 +12,12 @@
  * r595 (F209): the Vehicle Locations Parts ETA cell is read-only. The date is set only in the
  * vehicle side panel. That section offers Place as STOPPAGE without rebuilding the board.
  * r739 (F344): once a date is typed, the old email ETA block and its email line are hidden. Only the latest ETA shows.
+ * r747 (F353): a Parts complete tick sits beside Place as STOPPAGE. Ticked, the Parts Jita box on Vehicle Locations turns
+ * green (set_pdc_parts_board_complete_747) and any parts STOPPAGE is lifted. The STOPPAGE tick is a tidy one-line chip.
  */
 (() => {
   'use strict';
-  const VERSION = '2026.10.30.r739';
+  const VERSION = '2026.10.30.r747';
   const PROJECT = 'cdsmnqxtyyoeoznmbidd';
   const BOARD_RPC = 'get_pdc_parts_stoppage_board_564';
   const SET_RPC = 'set_pdc_parts_stoppage_564';
@@ -23,6 +25,7 @@
   const PLACE_RPC = 'place_parts_eta_stoppage_573';
   const PLACE_BOARD_RPC = 'get_pdc_parts_eta_stoppage_board_573';
   const JITA_RPC = 'get_pdc_jita_eta_board';
+  const COMPLETE_RPC = 'set_pdc_parts_board_complete_747';
   const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
   const CHIP = /<span class="pdc-parts-eta pdc-parts-eta-(?:ok|due|overdue)"[^>]*>(?:<span class="pdc-parts-eta-k">[^<]*<\/span>)?[^<]*<\/span>/;
   const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -70,6 +73,33 @@
   }
   function hasManual(manual) {
     return Boolean(manual && (iso(manual.eta_date) || clean(manual.note) || iso(manual.last_checked_on)));
+  }
+  /** r747: parts state from the vehicle's parts flags. board = ticked here, so it can be unticked here. */
+  function partsFlagsState(flags) {
+    const f = flags && typeof flags === 'object' ? flags : null;
+    const done = f?.parts_complete === true && f?.colour === 'green';
+    return { done, board: done && f.override_source === 'board_parts_complete', who: clean(f?.confirmed_by_name || f?.confirmed_by), at: f?.confirmed_at || '' };
+  }
+  /** r747: the flags the board shows once the tick is on (mirrors pdc_parts_flags_vehicle_20260911), or off again. */
+  function boardCompleteFlags(flags, on, who, at) {
+    const prior = flags && typeof flags === 'object' ? flags : null;
+    const imported = prior && prior.override_source === 'board_parts_complete' ? (prior.import_status ?? null) : prior;
+    if (!on) return imported;
+    if (prior && prior.override_source === 'authorised_email_confirmation') return prior;
+    const mark = { colour: 'green', label: 'Parts complete — marked on the board', parts_complete: true, override_source: 'board_parts_complete',
+      person_confirmed: true, confirmed_at: at || new Date().toISOString(), confirmed_by: clean(who), confirmed_by_name: clean(who),
+      meaning: 'Parts complete was ticked on the board. This takes priority over import backorder flags; original import evidence is retained.' };
+    return { ...(imported || {}), ...mark, import_status: imported,
+      jobs: (Array.isArray(imported?.jobs) ? imported.jobs : []).map(j => ({ ...j, ...mark, import_status: j })) };
+  }
+  function completeTickHtml(state) {
+    const vid = esc(state.vehicleId || '');
+    const done = state.partsDone === true;
+    const locked = done && state.partsBoard !== true;
+    const title = locked ? 'Parts are already complete from the parts import or a confirmation email.'
+      : done ? `Parts complete${state.partsWho ? ` · ticked by ${state.partsWho}` : ''}${state.partsAt ? ` · ${whenLabel(state.partsAt)}` : ''}. Untick to show the import status again.`
+      : 'Tick when all parts are here. The Parts Jita box on Vehicle Locations goes green and any parts STOPPAGE is lifted.';
+    return `<label class="pdc-parts-complete-tick${done ? ' is-done' : ''}" title="${esc(title)}"><input type="checkbox" data-pdc-parts-complete="${vid}"${done ? ' checked' : ''}${locked || state.partsBusy ? ' disabled' : ''}/> Parts complete</label>`;
   }
   const emailFromHtml = html => { const m = /data-parts-eta="(\d{4}-\d{2}-\d{2})/.exec(String(html || '')); return m ? m[1] : ''; };
 
@@ -141,15 +171,16 @@
       ? `<button type="button" data-pdc-stoppage-edit="${vid}">${manualDate || email || clean(state.manual?.note) ? 'Change' : 'Set date'}</button>`
       : '';
     const placeNow = !state.editing && state.canEdit
-      ? `<label class="pdc-parts-stoppage-place"><input type="checkbox" data-pdc-stoppage-place-now="${vid}"${state.placed ? ' checked' : ''}/> Place as STOPPAGE</label>`
+      ? `<label class="pdc-parts-stoppage-place${state.placed ? ' is-placed' : ''}" title="Hold the vehicle in the planner Stoppage section until the parts ETA."><input type="checkbox" data-pdc-stoppage-place-now="${vid}"${state.placed ? ' checked' : ''}/> Place as STOPPAGE</label>`
       : '';
-    const badge = state.placed && !state.editing ? `<small class="pdc-parts-stoppage-placed">STOPPAGE</small>` : '';
+    const badge = '';  // r747: the ticked STOPPAGE chip says it; no second badge.
+    const complete = !state.editing && state.canEdit ? completeTickHtml(state) : '';
     const read = !state.editing ? `<strong class="pdc-parts-stoppage-read is-${countdown(shownEta(state.manual, email), state.today).state || 'empty'}">${esc(shownEta(state.manual, email) ? ddmmyy(shownEta(state.manual, email)) : 'No date')}</strong> `
       + (clean(state.manual?.note) ? `<span class="pdc-parts-stoppage-note">${esc(clean(state.manual.note))}</span>` : '') : '';
     return `<div class="tune-service-location-job pdc-parts-stoppage-detail" data-pdc-stoppage-detail="${vid}"${manualDate ? ' data-pdc-stoppage-manual="1"' : ''}><b>Parts ETA</b>`
-      + `<span class="pdc-parts-stoppage-lead">${read}${badge}${button}${placeNow}${form}</span>`
+      + `<span class="pdc-parts-stoppage-lead">${read}${badge}${button}${placeNow}${complete}${form}`
+      + `<button type="button" class="pdc-parts-stoppage-history-btn" data-pdc-stoppage-history="${vid}">History</button></span>`
       + lines.join('')
-      + `<button type="button" data-pdc-stoppage-history="${vid}">History</button>`
       + (state.history ? historyHtml(state.history) : '')
       + (state.message && !state.editing ? `<small class="pdc-parts-stoppage-msg" role="status">${esc(state.message)}</small>` : '')
       + `<small class="pdc-parts-stoppage-scope">One date for the vehicle. A typed date wins over the email.</small></div>`;
@@ -249,7 +280,7 @@
   }
 
   const api = {
-    VERSION, BOARD_RPC, SET_RPC, HISTORY_RPC, JITA_RPC, PLACE_RPC, PLACE_BOARD_RPC,
+    VERSION, BOARD_RPC, SET_RPC, HISTORY_RPC, JITA_RPC, PLACE_RPC, PLACE_BOARD_RPC, COMPLETE_RPC, partsFlagsState, boardCompleteFlags, completeTickHtml,
     shownEta, countdown, daysUntil, perthToday, slotHtml, editorHtml, detailHtml, decorateCard, historyHtml,
     manualWarning, manualBookAllWarning, clip, hasManual, emailFromHtml, placePayload, placeMessage, plannerSectionHtml
   };
@@ -263,6 +294,7 @@
   const jitaById = new Map();
   const jitaByStock = new Map();
   const ui = new Map();
+  const partsLocal = new Map(); // r747: vehicle id -> { done, board, who, at } until the next snapshot carries it
   let canEdit = false;
   let serverToday = '';
   let installed = false;
@@ -286,10 +318,20 @@
     const stock = stockKey(vehicle);
     return stock && jitaByStock.get(stock) || '';
   }
+  function partsFor(vehicle, vid) {
+    const live = partsFlagsState(vehicle?.pdcPartsFlags || vehicle?.parts_flags);
+    const local = partsLocal.get(vid);
+    if (!local) return live;
+    // The snapshot has caught up once it agrees; then the server row is the one shown.
+    if (live.done === local.done && live.board === local.board) { partsLocal.delete(vid); return live; }
+    return local;
+  }
   function stateFor(vehicle) {
     const vid = vehicleId(vehicle);
     const st = ui.get(vid) || {};
+    const parts = partsFor(vehicle, vid);
     return {
+      partsDone: parts.done, partsBoard: parts.board, partsWho: parts.who, partsAt: parts.at, partsBusy: Boolean(st.partsBusy),
       vehicleId: vid,
       canEdit: canEdit && Boolean(vid),
       editing: Boolean(st.editing),
@@ -347,7 +389,9 @@
     const state = vehicle ? withEmail(vehicle) : {
       vehicleId: vid, canEdit, editing: Boolean(ui.get(vid)?.editing), message: ui.get(vid)?.message || '',
       history: ui.get(vid)?.history, manual: byId.get(vid) || null, placed: placedById.has(vid),
-      jitaEta: jitaById.get(vid) || '', today: today(), draftEta: ui.get(vid)?.draftEta, draftNote: ui.get(vid)?.draftNote, emailEta: ''
+      jitaEta: jitaById.get(vid) || '', today: today(), draftEta: ui.get(vid)?.draftEta, draftNote: ui.get(vid)?.draftNote, emailEta: '',
+      partsDone: partsLocal.get(vid)?.done === true, partsBoard: partsLocal.get(vid)?.board === true, partsWho: partsLocal.get(vid)?.who || '',
+      partsAt: partsLocal.get(vid)?.at || '', partsBusy: Boolean(ui.get(vid)?.partsBusy)
     };
     const detail = detailHtml(state);
     const slot = slotHtml(state);
@@ -597,6 +641,68 @@
     }
     paint(vid);
   }
+  /** r747: every in-memory copy of this vehicle, so the Parts Jita box repaints without a board reload. */
+  function vehicleCopies(vid) {
+    const out = new Set();
+    const add = list => { for (const row of Array.isArray(list) ? list : []) if (row && vehicleId(row) === vid) out.add(row); };
+    try { add(typeof vehicleLocationsScreenRows === 'function' ? vehicleLocationsScreenRows() : []); } catch (_) { /* none */ }
+    try { if (typeof app !== 'undefined') { add(app.data); add(app.emailVehicleLocationRows); } } catch (_) { /* none */ }
+    return [...out];
+  }
+  function repaintPartsBox(vid) {
+    const vehicle = findVehicle(vid);
+    const keyOf = typeof vehicleKey === 'function' ? vehicleKey : null;
+    if (!vehicle || !keyOf || typeof incomingWorkChecklistHtml !== 'function') return;
+    let fresh = null;
+    try {
+      const holder = document.createElement('div');
+      holder.innerHTML = incomingWorkChecklistHtml(vehicle);
+      fresh = holder.querySelector('.parts-jita-split');
+    } catch (_) { return; }
+    if (!fresh) return;
+    const key = String(keyOf(vehicle) || '');
+    document.querySelectorAll('tr[data-vlt-key]').forEach(tr => {
+      if ((tr.getAttribute('data-vlt-key') || '') !== key) return;
+      tr.querySelectorAll('.parts-jita-split').forEach(node => node.replaceWith(fresh.cloneNode(true)));
+    });
+  }
+  async function setPartsComplete(vid, want) {
+    const st = ui.get(vid) || {};
+    if (!canEdit || st.partsBusy) { paint(vid); return; }
+    ui.set(vid, { ...st, partsBusy: true, message: want ? 'Marking parts complete…' : 'Removing parts complete…' });
+    paint(vid);
+    let message;
+    try {
+      const result = await rpc(COMPLETE_RPC, { p_vehicle_id: vid, p_complete: want === true });
+      if (result?.ok !== true) {
+        message = result?.code === 'not_authorized' ? 'Parts and workshop controllers can tick this.'
+          : result?.code === 'vehicle_not_found' ? 'This vehicle is not on the board.'
+          : `Parts complete was not changed (${result?.code || 'error'}).`;
+      } else {
+        const who = clean(result.set_by_actor) || clean(window.PDC_AUTH_CONTEXT?.email);
+        const at = result.set_at || new Date().toISOString();
+        for (const row of vehicleCopies(vid)) {
+          const next = boardCompleteFlags(row.pdcPartsFlags || row.parts_flags, want === true, who, at);
+          if ('pdcPartsFlags' in row || !('parts_flags' in row)) row.pdcPartsFlags = next;
+          if ('parts_flags' in row) row.parts_flags = next;
+        }
+        partsLocal.set(vid, { done: want === true, board: want === true, who, at });
+        message = want ? 'Parts complete.' : 'Parts complete removed.';
+        if (want && placedById.has(vid)) {
+          try {
+            const lifted = await rpc(PLACE_RPC, { p_vehicle_id: vid, p_eta: null, p_note: '', p_place: false });
+            if (lifted?.ok === true) { rememberPlaced(vid, lifted, false); message += ' STOPPAGE lifted.'; }
+            else message += ` ${placeMessage(lifted)}`;
+          } catch (error) { message += ` STOPPAGE was not lifted: ${error.message || error}`; }
+        }
+        repaintPartsBox(vid);
+      }
+    } catch (error) {
+      message = error?.status === 404 ? 'Parts complete is not on this database yet.' : `Parts complete was not changed: ${error.message || error}`;
+    }
+    ui.set(vid, { ...(ui.get(vid) || {}), partsBusy: false, message });
+    paint(vid);
+  }
   async function showHistory(vid) {
     const st = ui.get(vid) || {};
     try {
@@ -625,7 +731,14 @@
     '.pdc-parts-stoppage-form input[type="text"]{font:inherit;font-size:12px;width:14em;max-width:100%}',
     '.pdc-parts-stoppage-form button,.pdc-parts-stoppage-detail button{font:inherit;font-size:11px;font-weight:650;padding:2px 8px;border-radius:5px;border:1px solid #94a3b8;background:#fff;color:#1e293b;cursor:pointer}',
     '.pdc-parts-stoppage-form button[type="submit"]{background:#1d4ed8;border-color:#1d4ed8;color:#fff}',
-    '.pdc-parts-stoppage-place{display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border:1px solid #1d4ed8;border-radius:5px;background:#dbeafe;color:#1d4ed8;font-size:11px;font-weight:700}',
+    /* r747 (F353, Craig 30 Oct): STOPPAGE and Parts complete are matching one-line chips beside Set date; History sits on the same row. */
+    '.pdc-parts-stoppage-place,.pdc-parts-complete-tick{display:inline-flex;flex:0 0 auto;align-items:center;gap:5px;width:auto;height:26px;margin:0;padding:0 10px;border:1px solid #93c5fd;border-radius:6px;background:#eff6ff;color:#1d4ed8;font-size:12px;font-weight:700;line-height:1;white-space:nowrap;cursor:pointer;box-sizing:border-box}',
+    '.pdc-parts-stoppage-place input,.pdc-parts-complete-tick input{width:14px;height:14px;margin:0;flex:0 0 auto;cursor:pointer}',
+    '.pdc-parts-stoppage-place.is-placed{background:#1d4ed8;border-color:#1d4ed8;color:#fff}',
+    '.pdc-parts-complete-tick{border-color:#86efac;background:#f0fdf4;color:#15803d}',
+    '.pdc-parts-complete-tick.is-done{background:#16a34a;border-color:#16a34a;color:#fff}',
+    '.pdc-parts-complete-tick:has(input:disabled){cursor:default;opacity:.85}',
+    '.pdc-parts-stoppage-detail .pdc-parts-stoppage-lead > button{height:26px;padding:0 10px;font-size:12px;width:auto;flex:0 0 auto}',
     '.pdc-parts-stoppage-placed{display:inline-block;padding:1px 5px;border-radius:4px;background:#dbeafe;color:#1d4ed8;font-size:10px;font-weight:800}',
     '.pdc-parts-stoppage-msg{flex-basis:100%;color:#64748b;font-size:11px}',
     '.pdc-parts-stoppage-history{margin:2px 0 0;padding:0;list-style:none;font-size:11px;color:#334155}',
@@ -658,6 +771,13 @@
     event.stopPropagation();
     const vid = idKey(box.dataset.pdcStoppagePlaceNow);
     if (UUID.test(vid)) placeNow(vid, box.checked === true);
+  }, true);
+  document.addEventListener('change', event => {
+    const box = event.target?.closest?.('[data-pdc-parts-complete]');
+    if (!box) return;
+    event.stopPropagation();
+    const vid = idKey(box.dataset.pdcPartsComplete);
+    if (UUID.test(vid)) setPartsComplete(vid, box.checked === true);
   }, true);
   document.addEventListener('submit', event => {
     const form = event.target?.closest?.('[data-pdc-stoppage-form]');
