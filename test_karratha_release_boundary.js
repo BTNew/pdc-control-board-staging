@@ -133,7 +133,8 @@ const approvedRootImportPatch = Object.freeze({
   // r594: an unallocated drag books the unticked lines for that station (F208). Department 135 keeps its frozen planner.
   // r597: an occupied-bay drop cascades and says which jobs moved; a bayless card shows the unticked hours (F211). Department 135 keeps its frozen planner.
   // 30 Oct 2026: a same-bay swap applies straight away (no preview screen); Undo re-order stays. Department 135 keeps its frozen planner.
-  "workshop-planner.js": "d94e63874f660fc2712b16893a4d11745c13a4c4c1446e55350be07931621abe",
+  // 30 Oct 2026: Start wraps its server call in the busy overlay ("Starting Key N… moving later jobs back"). Department 135 keeps its frozen planner.
+  "workshop-planner.js": "e5dad7215d8dbb3737c9657a615d0e9755c7b224b2408574143f7566dfe7c223",
   // r527: a refused set_bay_default_technician no longer wipes the cached bay list (F141). Department 135 keeps the baseline bytes.
   // r549: setWorkshopBayDisplayName calls set_workshop_bay_display_name (F163). Department 135 keeps the baseline bytes.
   "workshop-reference-data-service.js": "105e1f26100390826b8a4b0b8dabd12233a356995d067c24bf9585d9277319a9",
@@ -244,7 +245,8 @@ const approvedRootImportPatch = Object.freeze({
   // r568: a Bus 4x4 bay can start or finish another component's line items (F182). Department 135 keeps the frozen fitter script.
   // r583: each bay line can be sent to another department (F197). Department 135 keeps its frozen pdc-fitters.js.
   // r740: the key tag shows on the next job, later jobs and other active jobs too (Craig, 30 Oct 2026). Department 135 keeps its frozen pdc-fitters.js.
-  "pdc-fitters.js": "77e54f45314df1e41690e7ccb908a0ff3c557be92454155473ff7114388bfb1c",
+  // 30 Oct 2026: Start shows the busy overlay while the server starts the job and pushes later jobs back. Department 135 is not tagged.
+  "pdc-fitters.js": "05111c250c498e4da5d5e93da5f362ed642099b29cbf78ee3a6bf742dd2af1fa",
   // Deliberate live-board change, 19 October 2026. Department 135 stays parked.
   // app.js keeps Setup backup polling, hoist-corrections=2026.10.19.02,
   // planner-followup=2026.10.19.01, and the Vehicle Locations summary that
