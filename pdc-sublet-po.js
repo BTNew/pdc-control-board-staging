@@ -185,6 +185,36 @@
   const NO_HOURS = /<em\b[^>]*>\s*(?:Hours not stated|-?NaN h|-?Infinity h)[\s\S]*?<\/em>/g;
   const stripNoHours = body => String(body).replace(NO_HOURS, '');
   const lineNo = label => { const m = String(label).match(/([0-9]+)\s*$/); return m ? Number(m[1]) : 1e9; };
+  // r747 (F351, Craig 30 Oct 10:12): the Sublet box is two groups. "Standard sublets" are the ones done all the time:
+  // Malaga Motor Trimmers (MMT seat covers), Perth Signcraft, Full tank of fuel, Pit and weigh. "Other sublets" is the
+  // rest (Silverstone, Tyrepower, suspension on another line, ...). A row is standard when any of its text (PD line
+  // description, sublet description from the upload, the operation line it sits on) names one of them. A line anywhere
+  // on the board that names a standard sublet but has no GP PO is still listed under Standard sublets (no tick).
+  const STANDARD_SUBLETS = Object.freeze([
+    { id: 'mmt', name: 'Malaga Motor Trimmers', re: /malaga\s*motor\s*trim|\bmmt\b|seat\s*covers?/i },
+    { id: 'signcraft', name: 'Perth Signcraft', re: /sign\s*craft/i },
+    { id: 'fuel', name: 'Full tank of fuel', re: /full\s*tank|tank\s*of\s*fuel/i },
+    { id: 'pit', name: 'Pit and weigh', re: /\bpit\b|\bweigh\b/i },
+  ]);
+  const plainText = html => unescape(String(html).replace(/<[^>]*>/g, ' ')).replace(/\s+/g, ' ').trim();
+  const standardSublet = html => STANDARD_SUBLETS.find(s => s.re.test(plainText(html))) || null;
+  /** Two groups inside the Sublet box, each with its own heading and done count; an empty group is not shown. */
+  function groupRowsHtml(rowsHtml) {
+    const groups = { standard: [], other: [] };
+    for (const html of rowsHtml) groups[standardSublet(html) ? 'standard' : 'other'].push(html);
+    const head = (id, label, hint, list) => {
+      const total = list.filter(h => /pdc-sublet-po-inline|pdc-sublet-po-nopo/.test(h)).length;
+      const done = list.filter(h => /pdc-sublet-po-inline is-done/.test(h)).length;
+      const state = total ? `<em class="pdc-sublet-group-state is-${done === total ? 'done' : 'ordered'}">${done} of ${total} done</em>` : '';
+      return `<li class="pdc-sublet-group" data-pdc-sublet-group="${id}"><strong>${label}</strong><span>${hint}</span>${state}</li>`;
+    };
+    const standard = groups.standard.length ? head('standard', 'Standard sublets', STANDARD_SUBLETS.map(s => esc(s.name)).join(' · '), groups.standard) + groups.standard.join('') : '';
+    const other = groups.other.length ? head('other', 'Other sublets', 'Sublets attached to a line or a one-off provider', groups.other) + groups.other.join('') : '';
+    return standard + other;
+  }
+  /** A line in another category that names a standard sublet but has no GP PO: listed under Standard sublets, no tick. */
+  const standardLineRow = ({ label, op, category, catName }) => ({ n: lineNo(label), html: `<li class="pdc-sublet-linked pdc-sublet-standard-line" data-pdc-sublet-row="standard-line"><strong>${esc(label)}</strong>`
+    + `<span><b class="pdc-sublet-desc">${esc(op)}</b><small class="pdc-sublet-on">On operation line: ${esc([op, catName(category)].filter(Boolean).join(' · '))}</small></span><em class="pdc-sublet-kind">No PO</em></li>` });
   /**
    * r444 (F57, Craig 21 Oct): the vehicle's Sublet box lists every sublet. Operation lines stay in their category boxes with
    * a small read-only PO reference; the Sublet box gets (a) one row per operation line with a GP PO: its PD line, the sublet
@@ -201,7 +231,7 @@
     const known = Boolean(payload) || state.known === true;
     const canTick = payload?.can_tick === true;
     const vid = idKey(state.vehicleId || payload?.vehicle_id);
-    const bySource = new Map(), byLabel = new Map(), used = new Set(), linked = [];
+    const bySource = new Map(), byLabel = new Map(), used = new Set(), linked = [], standardLines = [];
     for (const line of lines) {
       const sid = sourceId(line.line_identity);
       if (sid) bySource.set(sid, line);
@@ -222,7 +252,11 @@
     // Operation lines outside the Sublet box: PO reference only; the line goes to the Sublet box as a linked row.
     let out = html.replace(SECTION, (all, open, station, inner, close) => station.toUpperCase() === 'SUBLET' ? all : open + inner.replace(LI, (li, sid, attrs, body) => {
       const line = find(sid, body);
-      if (!line) return li;
+      if (!line) {
+        // r747: a Pit and weigh (or other standard sublet) line without a GP PO is still a sublet; list it under Standard.
+        if (standardSublet(body)) standardLines.push({ label: unescape((body.match(LABEL) || [])[1] || ''), op: unescape(((body.match(SPAN) || [])[2] || '').replace(/<[^>]*>/g, '')).trim(), category: unescape(((open.match(/data-operation-category="([^"]*)"/) || [])[1]) || '') });
+        return li;
+      }
       used.add(line);
       linked.push({ line, op: unescape(((body.match(SPAN) || [])[2] || '').replace(/<[^>]*>/g, '')).trim(), category: unescape(((open.match(/data-operation-category="([^"]*)"/) || [])[1]) || '') });
       const ref = isNewPo(line, vid, state.seen) ? refHtml(line).replace('class="pdc-sublet-po-ref ', 'class="pdc-sublet-po-ref is-new ') : refHtml(line);
@@ -257,7 +291,7 @@
       const on = [op, catName(category)].filter(Boolean).join(' · ');
       return { n: lineNo(label), html: `<li class="pdc-sublet-linked" data-pdc-sublet-row="linked" data-line-key="${esc(line.line_key || '')}"><strong>${esc(label)}</strong>`
         + `<span>${descriptionHtml(line)}<small class="pdc-sublet-on">On operation line: ${esc(on || label)}</small>${isNewPo(line, vid, state.seen) ? newPoHtml(line, vid) : ''}</span><em class="pdc-sublet-kind">Op line PO</em>${inlineHtml(line, vid, canTick)}</li>` };
-    });
+    }).concat(standardLines.map(x => standardLineRow({ ...x, catName })));
     // r494: whole line sublets with no GP PO count as open ('PO to raise').
     const total = lines.length + noPo, ticked = lines.filter(l => l.ticked === true).length;
     const boxState = total === 0 ? 'none' : ticked === total ? 'done' : 'ordered';
@@ -266,7 +300,7 @@
       return out.replace(SECTION, (all, open, station, inner, close) => {
         if (station.toUpperCase() !== 'SUBLET') return all;
         const own = [...inner.matchAll(/<li data-operation-source-id=[\s\S]*?<\/li>/g)].map(m => ({ n: lineNo(unescape((m[0].match(/<strong>([^<]*)<\/strong>/) || [])[1] || '')), html: m[0] }));
-        const sorted = own.concat(rows).sort((a, b) => a.n - b.n).map(r => r.html).join('');
+        const sorted = groupRowsHtml(own.concat(rows).sort((a, b) => a.n - b.n).map(r => r.html));
         const body = inner.replace(/(<ol\b[^>]*>)[\s\S]*<\/ol>/, (m, ol) => `${ol}${sorted}</ol>`);
         return open.slice(0, -1) + boxAttrs + '>' + body + close;
       });
@@ -274,12 +308,12 @@
     if (!rows.length) return out;
     // No Sublet jobs: a Sublet box for the operation-line POs, after the last category box.
     const section = `<section class="authenticated-operation-station" data-operation-station="SUBLET" data-operation-category="sublet" style="--station-colour:#8c671d;--station-tint:#fbf5e5"${boxAttrs}>`
-      + `<header><strong>Sublet</strong><small>${rows.length} sublet${rows.length === 1 ? '' : 's'} on operation lines</small></header><ol aria-label="Sublet jobs">${rows.sort((a, b) => a.n - b.n).map(r => r.html).join('')}</ol></section>`;
+      + `<header><strong>Sublet</strong><small>${rows.length} sublet${rows.length === 1 ? '' : 's'} on operation lines</small></header><ol aria-label="Sublet jobs">${groupRowsHtml(rows.sort((a, b) => a.n - b.n).map(r => r.html))}</ol></section>`;
     const last = out.lastIndexOf('</section>');
     return last >= 0 ? out.slice(0, last + 10) + section + out.slice(last + 10) : out;
   }
   const api = { indexBoard, entryFor, boxState, decorateStrip, lineLabel, cleanDescription, poDetails, inlineHtml, refHtml, decorateOperations,
-    subletJobs, poToRaise, seenKey, isNewPo, newPoHtml, stripNoHours, VERSION };
+    subletJobs, poToRaise, seenKey, isNewPo, newPoHtml, stripNoHours, STANDARD_SUBLETS, standardSublet, groupRowsHtml, VERSION };
   if (typeof module !== 'undefined') module.exports = api;
   if (typeof window === 'undefined' || window.PDC_SUPABASE_CONFIG?.projectRef !== PROJECT || window.PDC_SUBLET_PO_VERSION) return;
   window.PDC_SUBLET_PO_VERSION = VERSION;
@@ -461,7 +495,16 @@
     + SUB + ' .pdc-sublet-kind{display:none}'
     + SUB + ' .pdc-sublet-po-chip,' + SUB + ' .pdc-sublet-po-nopo{display:inline-block;box-sizing:border-box;min-width:8.2em;padding:0 6px;border:1px solid #fdba74;border-radius:4px;background:#fff7ed;color:#9a3412;font-weight:700;text-align:center;white-space:nowrap}'
     + SUB + ' .pdc-sublet-po-nopo{border-color:#fb923c;color:#c2410c;margin-right:19px!important}'
-    + SUB + ' .pdc-sublet-po-inline.is-done .pdc-sublet-po-chip{background:#f0fdf4;border-color:#86efac;color:#166534}';
+    + SUB + ' .pdc-sublet-po-inline.is-done .pdc-sublet-po-chip{background:#f0fdf4;border-color:#86efac;color:#166534}'
+    // r747 (F351): two groups in the Sublet box, each with a heading row and its own done count.
+    + SUB + ' li.pdc-sublet-group{display:flex!important;align-items:center;gap:.5rem;margin-top:.35rem;padding:.25rem .55rem!important;background:#e2e8f0;border-top:2px solid #94a3b8;border-bottom:1px solid #cbd5e1}'
+    + SUB + ' li.pdc-sublet-group:first-child{margin-top:0;border-top:0}'
+    + SUB + ' li.pdc-sublet-group>strong{color:#1e293b;font-weight:800!important}'
+    + SUB + ' li.pdc-sublet-group>span{flex:1;min-width:0;color:#64748b;font-size:10.5px!important;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}'
+    + SUB + ' li.pdc-sublet-group>em{font-style:normal;font-weight:800!important;padding:0 .4rem;border-radius:999px;font-size:10.5px!important}'
+    + SUB + ' li.pdc-sublet-group>em.is-ordered{background:#ffedd5;color:#9a3412;border:1px solid #fdba74}'
+    + SUB + ' li.pdc-sublet-group>em.is-done{background:#dcfce7;color:#166534;border:1px solid #86efac}'
+    + SUB + ' li.pdc-sublet-standard-line .pdc-sublet-kind{display:inline-block;box-sizing:border-box;min-width:8.2em;padding:0 6px;border:1px dashed #cbd5e1;border-radius:4px;color:#64748b;text-align:center;margin-right:19px!important}';
   document.head.appendChild(style);
   load();
   setInterval(load, 2 * 60 * 1000);
