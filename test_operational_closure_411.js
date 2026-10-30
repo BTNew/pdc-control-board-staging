@@ -27,7 +27,8 @@ assert.match(app, /No blank or TBA email draft was opened/);
 assert.match(app, /vehicle\.__emailVehicleServerAuthoritative !== true/);
 assert.match(app, /Current outstanding work and booking times:/);
 assert.match(planner, /alreadyBookedOutstanding/);
-assert.match(planner, /unallocated · \$\{alreadyBookedOutstanding\} already booked in bays/);
+// r860 (F410): the two Unallocated boxes carry their own counts; the heading keeps the booked count.
+assert.match(planner, /\$\{alreadyBookedOutstanding\} already booked in bays/);
 assert.match(app, /const outstanding = vehicleOutstandingWorkEmailLines\(vehicle\)/);
 
 const start = app.indexOf('function vehicleOutstandingWorkEmailLines');
