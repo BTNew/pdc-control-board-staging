@@ -506,6 +506,8 @@ function createPdcEmailVehicleLocationService(options = {}) {
   const getAccessToken = typeof options.getAccessToken === 'function' ? options.getAccessToken : () => null;
   const subscribeRealtime = typeof options.subscribeRealtime === 'function' ? options.subscribeRealtime : null;
   const request = options.fetchImpl || (typeof fetch !== 'undefined' ? fetch : null);
+  // r744 (F348): every board answer carries import_progress; the caller shows or hides the import banner from it.
+  const onImportProgress = typeof options.onImportProgress === 'function' ? options.onImportProgress : null;
   const url = String(config.url || '').replace(/\/$/, ''); const key = String(config.publishableKey || '');
   if (!request || !key) throw new Error('Authenticated email vehicle locations require the staging browser client.');
   let activeSnapshot = null;
@@ -552,6 +554,9 @@ function createPdcEmailVehicleLocationService(options = {}) {
     if (!response.ok || !body || body.ok === false) {
       clearRetainedSnapshot();
       return { ok: false, code: body?.code || `HTTP ${response.status}`, data: null };
+    }
+    if (onImportProgress && body.import_progress && typeof body.import_progress === 'object') {
+      try { onImportProgress(body.import_progress); } catch (_error) { /* the banner never breaks a board read */ }
     }
     if (body.not_modified === true) {
       if (!sentToken || !retainedSnapshot || body.snapshot_token !== sentToken || retainedSnapshot.generation !== sentToken) {
