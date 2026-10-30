@@ -246,8 +246,9 @@ const approvedRootImportPatch = Object.freeze({
   // r568: a Bus 4x4 bay can start or finish another component's line items (F182). Department 135 keeps the frozen fitter script.
   // r583: each bay line can be sent to another department (F197). Department 135 keeps its frozen pdc-fitters.js.
   // r740: the key tag shows on the next job, later jobs and other active jobs too (Craig, 30 Oct 2026). Department 135 keeps its frozen pdc-fitters.js.
+  // r741: one Complete button; unticked items stay open for the station (Craig, 30 Oct 2026). Department 135 keeps its frozen pdc-fitters.js.
   // 30 Oct 2026: Start shows the busy overlay while the server starts the job and pushes later jobs back. Department 135 is not tagged.
-  "pdc-fitters.js": "05111c250c498e4da5d5e93da5f362ed642099b29cbf78ee3a6bf742dd2af1fa",
+  "pdc-fitters.js": "a5ab4b8056f1ac3eb86245b06e5d7aed7c4bf4aa35885981b13117876825bb30",
   // Deliberate live-board change, 19 October 2026. Department 135 stays parked.
   // app.js keeps Setup backup polling, hoist-corrections=2026.10.19.02,
   // planner-followup=2026.10.19.01, and the Vehicle Locations summary that
@@ -468,7 +469,7 @@ const approvedRootImportPatch = Object.freeze({
   // r604: index.html adds r604=2026.10.28.r604 on canonical-entry.js (pit bookings, F218). Department 135 is not tagged.
   // r616: pdc-auth.js, pdc-bay-manager.js and canonical-entry.js carry r616=2026.10.28.r616 (fitter sessions send only Fitters bay requests, F231). Department 135 is not tagged.
   // r642: Sublet · MMT nav and view, pdc-mmt-sublet.css/js, r642 on app.js and pdc-staff-usage.js (F257). Department 135 is not tagged.
-  "index.html": "ea5624b98373398673e3d1aabdf7f891f57717239808a74881929ee927862c09", // r740 pdc-fitters.js tag (on the r739 F344 tags)
+  "index.html": "8b28924c6be46c4760fc3748c5c22cf6abde698fe52790f3107be586d235d0e6", // r741 pdc-fitters.js tag
   "pdc-conversions.js": "0a99e7a5306f15e434b293a3ca9a318ffad4b78eb814c27144d75ff98821d810",
   // r401: Pit tick and read RPCs (set_pdc_pit_line_tick_401, get_pdc_pit_line_ticks_401).
   // r414: readQcPhotoReceipt (get_pdc_qc_photo_receipt_414) for the QC page (F30).
