@@ -79,3 +79,18 @@
 @media (max-width: 800px) {
   #revolution-upload .ru-grid, #revolution-upload .ru-counts { grid-template-columns: 1fr; }
 }
+
+/* r744 (F348): board-wide notice while a Revolution import applies. */
+.pdc-import-banner {
+  display: grid;
+  gap: 2px;
+  padding: 10px 14px;
+  margin: 10px 0 0;
+  border: 1px solid #fde68a;
+  background: #fffbeb;
+  color: #92400e;
+  border-radius: 12px;
+}
+.pdc-import-banner[hidden] { display: none; }
+.pdc-import-banner strong { font-size: .9rem; }
+.pdc-import-banner span { font-size: .75rem; }

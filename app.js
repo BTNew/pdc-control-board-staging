@@ -5934,6 +5934,20 @@ async function refreshEmailVehicleLocations(options = {}) {
   return true;
 }
 
+// r744 (F348): "Import running, part N of M" while a Revolution import applies. The board reader carries
+// import_progress on every answer and every applied part bumps the board, so this needs no timer: the banner
+// shows on the first answer that says running and hides on the first answer after the import finishes.
+function renderImportProgressBanner(progress) {
+  const host = document.getElementById('pdc-import-banner');
+  if (!host) return;
+  if (!progress || progress.running !== true) { host.hidden = true; host.innerHTML = ''; return; }
+  const n = Number(progress.n_parts) || 0; const part = Math.min(Math.max(Number(progress.part) || 0, 0), n);
+  const mode = progress.mode === 'preview' ? 'Import preview' : 'Import';
+  const where = progress.status === 'queued' ? 'waiting to start' : n ? `part ${Math.max(part, 1)} of ${n}` : 'running';
+  host.innerHTML = `<strong>${escapeHtml(mode)} running · ${escapeHtml(where)}</strong><span>Saves and moves may take a few seconds longer until it finishes. The board updates as each part lands.</span>`;
+  host.hidden = false;
+}
+
 function initEmailVehicleLocationsIfAvailable(options = {}) {
   if (!window.PDC_AUTH_CONTEXT || !getPdcSupabaseAccessToken()) return null;
   const module = typeof window !== 'undefined'
@@ -5945,6 +5959,7 @@ function initEmailVehicleLocationsIfAvailable(options = {}) {
       app.emailVehicleLocationService = module.createPdcEmailVehicleLocationService({
         config: window.PDC_SUPABASE_CONFIG || {},
         getAccessToken: () => getPdcSupabaseAccessToken(),
+        onImportProgress: renderImportProgressBanner,
         subscribeRealtime: (tableName, onChange) => createPdcSupabaseTableRealtimeSubscription(tableName, {
           onChange,
           // Reconcile authoritatively after every initial subscription/reconnect
