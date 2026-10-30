@@ -80,7 +80,7 @@
   #revolution-upload .ru-grid, #revolution-upload .ru-counts { grid-template-columns: 1fr; }
 }
 
-/* r744 (F348): board-wide notice while a Revolution import applies. */
+/* r748 (F348): board-wide notice while a Revolution import applies. */
 .pdc-import-banner {
   display: grid;
   gap: 2px;

@@ -1,11 +1,11 @@
--- r745 (F349) / sort 462. Staging cdsmnqxtyyoeoznmbidd only.
+-- r749 (F354) / sort 462. Staging cdsmnqxtyyoeoznmbidd only.
 -- Craig 30 Oct 08:22: "Age is when it recieved a key number, which is when its TO PMB happens or keynumber is added."
 -- 09:54: "13047269 is still showing in 'New to pmb'". The car arrived from the body builder on 29 Oct 07:31 (r574 hold:
 -- stays in New to PMB until someone presses To PMB) and got key 641 at 08:00, but nobody pressed To PMB, so the hold
 -- stayed open and the car sat in New to PMB with its key. Under Craig's rule a key number IS the arrival at PMB, so a
 -- key number now releases a body-builder hold the same way To PMB does (release_action 'key_number'). Three cars had
 -- an open hold with a key (13047269, 13077203, 13109753); they are released here.
--- Rollback: supabase/rollbacks/20261030100000_r745_key_number_releases_bodybuilder_hold.down.sql
+-- Rollback: supabase/rollbacks/20261030100000_r749_key_number_releases_bodybuilder_hold.down.sql
 SET LOCAL lock_timeout = '6s';
 SET LOCAL statement_timeout = '60s';
 
@@ -13,12 +13,12 @@ DO $pre745$
 BEGIN
   IF NOT public.pdc_monitor_staging_guard()
      OR (SELECT count(*) FROM public.pdc_staging_environment_sentinel WHERE singleton AND project_ref = 'cdsmnqxtyyoeoznmbidd') <> 1
-     OR to_regclass('public.pdc_production_environment_sentinel') IS NOT NULL THEN RAISE EXCEPTION 'r745: staging only'; END IF;
-  IF to_regprocedure('pdc_pmb_ack_private.release_hold_on_key_745(uuid)') IS NOT NULL THEN RAISE EXCEPTION 'r745: already applied'; END IF;
-  IF EXISTS (SELECT 1 FROM pdc_ops.regression_checks WHERE sort_order = 462 OR fault_id = 'F349' OR added_in = 'r745') THEN RAISE EXCEPTION 'r745: sort 462 or F349 is taken'; END IF;
+     OR to_regclass('public.pdc_production_environment_sentinel') IS NOT NULL THEN RAISE EXCEPTION 'r749: staging only'; END IF;
+  IF to_regprocedure('pdc_pmb_ack_private.release_hold_on_key_745(uuid)') IS NOT NULL THEN RAISE EXCEPTION 'r749: already applied'; END IF;
+  IF EXISTS (SELECT 1 FROM pdc_ops.regression_checks WHERE sort_order = 462 OR fault_id = 'F354' OR added_in = 'r749') THEN RAISE EXCEPTION 'r749: sort 462 or F354 is taken'; END IF;
   IF (SELECT pg_get_constraintdef(oid) FROM pg_constraint WHERE conname = 'bodybuilder_hold_574_release_chk' AND conrelid = 'pdc_pmb_ack_private.bodybuilder_hold_574'::regclass)
      <> $c$CHECK ((((released_at IS NULL) AND (released_by IS NULL) AND (release_action IS NULL)) OR ((released_at IS NOT NULL) AND (released_by IS NOT NULL) AND (release_action = 'to_pmb'::text))))$c$
-    THEN RAISE EXCEPTION 'r745: hold release check is not the r574 text'; END IF;
+    THEN RAISE EXCEPTION 'r749: hold release check is not the r574 text'; END IF;
 END $pre745$;
 
 -- A key number release may come from a trigger with no signed-in actor, so released_by is optional for it.
@@ -86,11 +86,11 @@ BEGIN
            WHERE a.source = 'bodybuilder' AND a.closed_at IS NULL AND v.deleted_at IS NULL AND btrim(coalesce(v.key_number, '')) <> '' LOOP
     n := n + pdc_pmb_ack_private.release_hold_on_key_745(r.vehicle_id);
   END LOOP;
-  IF n <> 3 THEN RAISE EXCEPTION 'r745: expected to release 3 holds, released %', n; END IF;
+  IF n <> 3 THEN RAISE EXCEPTION 'r749: expected to release 3 holds, released %', n; END IF;
 END $data745$;
 
-INSERT INTO pdc_ops.regression_checks (check_name, fault_id, added_in, enabled, sort_order, description, check_sql) VALUES ('key_number_releases_bodybuilder_hold_745', 'F349', 'r745', true, 462,
- 'Body-builder hold (r745): a key number releases the hold, so no car with a key number waits in New to PMB on an open body-builder hold; both release triggers are in place.',
+INSERT INTO pdc_ops.regression_checks (check_name, fault_id, added_in, enabled, sort_order, description, check_sql) VALUES ('key_number_releases_bodybuilder_hold_745', 'F354', 'r749', true, 462,
+ 'Body-builder hold (r749): a key number releases the hold, so no car with a key number waits in New to PMB on an open body-builder hold; both release triggers are in place.',
 $chk745$
 SELECT NOT EXISTS (
     SELECT 1 FROM public.pdc_pmb_arrival_557 a JOIN public.vehicles v ON v.id = a.vehicle_id
@@ -105,7 +105,7 @@ DO $post745$
 DECLARE r record;
 BEGIN
   FOR r IN SELECT * FROM pdc_ops.fault_regression_check() x WHERE x.check_name IN ('key_number_releases_bodybuilder_hold_745','regression_checks_self_test','protected_function_md5s') LOOP
-    IF NOT r.ok THEN RAISE EXCEPTION 'r745: % red after apply: %', r.check_name, left(r.detail, 200); END IF;
+    IF NOT r.ok THEN RAISE EXCEPTION 'r749: % red after apply: %', r.check_name, left(r.detail, 200); END IF;
   END LOOP;
-  IF EXISTS (SELECT 1 FROM public.pdc_pmb_arrival_557 WHERE vehicle_id = 'b0f151b1-bd84-44e1-9b58-95cca94a2ffe' AND closed_at IS NULL) THEN RAISE EXCEPTION 'r745: 13047269 still open'; END IF;
+  IF EXISTS (SELECT 1 FROM public.pdc_pmb_arrival_557 WHERE vehicle_id = 'b0f151b1-bd84-44e1-9b58-95cca94a2ffe' AND closed_at IS NULL) THEN RAISE EXCEPTION 'r749: 13047269 still open'; END IF;
 END $post745$;

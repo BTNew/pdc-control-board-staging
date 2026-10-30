@@ -1,4 +1,4 @@
--- r745 rollback: a key number no longer releases a body-builder hold. Released holds stay released (append-only arrivals).
+-- r749 rollback: a key number no longer releases a body-builder hold. Released holds stay released (append-only arrivals).
 DROP TRIGGER IF EXISTS zz_pdc_key_releases_hold_745 ON public.vehicles;
 DROP TRIGGER IF EXISTS zz_pdc_hold_opened_with_key_745 ON pdc_pmb_ack_private.bodybuilder_hold_574;
 DROP FUNCTION IF EXISTS pdc_pmb_ack_private.key_releases_hold_745();
@@ -8,7 +8,7 @@ DROP FUNCTION IF EXISTS pdc_pmb_ack_private.release_hold_on_key_745(uuid);
 DO $down745$
 BEGIN
   IF EXISTS (SELECT 1 FROM pdc_pmb_ack_private.bodybuilder_hold_574 WHERE release_action = 'key_number') THEN
-    RAISE NOTICE 'r745 down: key_number releases exist; the widened check stays';
+    RAISE NOTICE 'r749 down: key_number releases exist; the widened check stays';
   ELSE
     ALTER TABLE pdc_pmb_ack_private.bodybuilder_hold_574 DROP CONSTRAINT bodybuilder_hold_574_release_chk;
     ALTER TABLE pdc_pmb_ack_private.bodybuilder_hold_574 ADD CONSTRAINT bodybuilder_hold_574_release_chk CHECK (

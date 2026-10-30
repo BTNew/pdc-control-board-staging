@@ -81,7 +81,7 @@
     const [colour, tint] = colours(p.id);
     const jobs = found.reduce((n, s) => n + s.lines, 0);
     let small = '';
-    if (p.id === 'sublet') { const n = found.reduce((t, s) => t + (s.inner.match(/<li\b(?![^>]*pdc-sublet-group)/g) || []).length, 0); small = `${n} sublet${n === 1 ? '' : 's'}`; } // r747: group headings are not sublets
+    if (p.id === 'sublet') { const n = found.reduce((t, s) => t + (s.inner.match(/<li\b(?![^>]*pdc-sublet-group)/g) || []).length, 0); small = `${n} sublet${n === 1 ? '' : 's'}`; } // r751: group headings are not sublets
     else if (found.length === 1) small = headerSmall(found[0]);
     else if (found.length > 1) {
       const known = found.map(s => headerSmall(s).match(/([0-9]+(?:\.[0-9]+)?) h$/)).filter(Boolean);

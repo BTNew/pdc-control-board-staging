@@ -1,5 +1,5 @@
 'use strict';
-// r744 (F348): "Import running, part N of M" rides on every board answer; the banner shows and hides from it, no timer.
+// r748 (F348): "Import running, part N of M" rides on every board answer; the banner shows and hides from it, no timer.
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
@@ -29,7 +29,7 @@ test('service: a throwing banner never breaks the board read', async () => {
   assert.equal(result.ok, true); assert.equal(result.data.vehicles.length, 1);
 });
 
-test('website: banner text, hidden when not running, wired into the service, markup and css tagged r744', () => {
+test('website: banner text, hidden when not running, wired into the service, markup and css tagged r748', () => {
   const js = fs.readFileSync('app.js', 'utf8');
   const start = js.indexOf('function renderImportProgressBanner('); const end = js.indexOf('function initEmailVehicleLocationsIfAvailable(');
   assert.ok(start > 0 && end > start);
@@ -48,19 +48,19 @@ test('website: banner text, hidden when not running, wired into the service, mar
   assert.match(js, /onImportProgress: renderImportProgressBanner,/);
   const html = fs.readFileSync('index.html', 'utf8');
   assert.match(html, /<div class="pdc-import-banner" id="pdc-import-banner" role="status" aria-live="polite" hidden><\/div>/);
-  assert.match(html, /pdc-email-vehicle-location-service\.js\?[^"]*&amp;r744=2026\.10\.30\.r744"/);
-  assert.match(html, /app\.js\?[^"]*&amp;r744=2026\.10\.30\.r744"/);
-  assert.match(html, /pdc-revolution-upload\.css\?[^"]*&amp;r744=2026\.10\.30\.r744"/);
+  assert.match(html, /pdc-email-vehicle-location-service\.js\?[^"]*&amp;r748=2026\.10\.30\.r748"/);
+  assert.match(html, /app\.js\?[^"]*&amp;r748=2026\.10\.30\.r748"/);
+  assert.match(html, /pdc-revolution-upload\.css\?[^"]*&amp;r748=2026\.10\.30\.r748"/);
   assert.match(fs.readFileSync('pdc-revolution-upload.css', 'utf8'), /\.pdc-import-banner\[hidden\] \{ display: none; \}/);
 });
 
 test('migration: progress function staff-invisible, three anchored replaces on the reader, check 461, rollback present', () => {
-  const up = fs.readFileSync('supabase/migrations/20261030093000_r744_import_progress_on_the_board.sql', 'utf8');
+  const up = fs.readFileSync('supabase/migrations/20261030093000_r748_import_progress_on_the_board.sql', 'utf8');
   assert.match(up, /REVOKE ALL ON FUNCTION public\.pdc_import_progress_744\(\) FROM PUBLIC, anon, authenticated;/);
   assert.match(up, /md5\(v_old\) <> '5347811a3b138b67126da2fb023578bf'/, 'replaces only the body it was written against');
   assert.match(up, /replace\(replace\(replace\(v_old, a1, b1\), a2, b2\), a3, b3\)/);
-  assert.match(up, /'import_progress_on_the_board_744', 'F348', 'r744', true, 461,/);
+  assert.match(up, /'import_progress_on_the_board_744', 'F348', 'r748', true, 461,/);
   assert.match(up, /WHERE j\.status IN \('queued', 'running'\) ORDER BY j\.created_at DESC LIMIT 1/);
   assert.doesNotMatch(up, /expected_function_md5 \(/, 'the reader is not pinned');
-  assert.ok(fs.existsSync('supabase/rollbacks/20261030093000_r744_import_progress_on_the_board.down.sql'));
+  assert.ok(fs.existsSync('supabase/rollbacks/20261030093000_r748_import_progress_on_the_board.down.sql'));
 });

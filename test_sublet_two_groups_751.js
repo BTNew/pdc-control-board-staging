@@ -1,5 +1,5 @@
 'use strict';
-// r747 (F351, Craig 30 Oct 10:12): the Sublet box is two groups. Standard sublets (Malaga Motor Trimmers / MMT seat
+// r751 (F356, Craig 30 Oct 10:12): the Sublet box is two groups. Standard sublets (Malaga Motor Trimmers / MMT seat
 // covers, Perth Signcraft, Full tank of fuel, Pit and weigh) first, Other sublets after; a Pit and weigh line without a
 // GP PO is still listed under Standard. Synthetic data only.
 const test = require('node:test'), assert = require('node:assert/strict'), fs = require('node:fs'), vm = require('node:vm');
@@ -70,6 +70,6 @@ test('a group with nothing in it is not shown; no sublet PO lines at all leaves 
   assert.doesNotMatch(only, /data-pdc-sublet-group="standard"/);
   assert.match(only, /data-pdc-sublet-group="other"[^>]*><strong>Other sublets<\/strong><span>[^<]*<\/span><em class="pdc-sublet-group-state is-done">1 of 1 done<\/em>/);
   assert.equal(po.groupRowsHtml([]), '');
-  assert.match(fs.readFileSync('canonical-entry.js', 'utf8'), /pdc-sublet-po\.js\?[^']*&r747=2026\.10\.30\.r747'/);
+  assert.match(fs.readFileSync('canonical-entry.js', 'utf8'), /pdc-sublet-po\.js\?[^']*&r751=2026\.10\.30\.r751'/);
   assert.match(fs.readFileSync('pdc-operation-panels.js', 'utf8'), /<li\\b\(\?!\[\^>\]\*pdc-sublet-group\)/, 'the panel header count skips the group headings');
 });

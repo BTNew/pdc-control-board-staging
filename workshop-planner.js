@@ -7468,7 +7468,7 @@ function workshopBayQueuePlacement(stage = '', bay = 0, targetId = '', excludeId
   }
   const target = queue.find(row => String(row.id) === String(targetId));
   if (!target || !workshopBayQueueMovable(target)) return { kind: 'blocked' };
-  // r746 (F350): the first planned job is pushed to "now" by the clock each minute, so its start can already be a few
+  // r750 (F355): the first planned job is pushed to "now" by the clock each minute, so its start can already be a few
   // seconds in the past when the button is pressed; the server refuses a past start. Never ask for earlier than now.
   const start = new Date(Math.max(workshopEntryStart(target).getTime(), workshopNormalizeStartDate(new Date()).getTime()));
   return { kind: 'before', dateKey: workshopDateKey(start), startMinutes: workshopMinuteOffset(start) };
@@ -8043,7 +8043,7 @@ async function scheduleWorkshopVehicle({ planId = '', vehicleKeyValue = '', stag
     if (existing && existing.sharedBookingId) {
       if (!workshopRequireSchedulableCandidate(requestedCandidate)) return false;
       const movingBetweenBays = normalizePmbStage(existing.stage) !== normalizedStage || Number(existing.bay) !== Number(bay);
-      // r746 (F350): the Schedule window's bay order places this booking (often a queued one with no bay yet) at another
+      // r750 (F355): the Schedule window's bay order places this booking (often a queued one with no bay yet) at another
       // job's start, so the server must push that job and the ones behind it back. Without cascade it refused the
       // occupied slot (bay_overlap) and nothing could be put between two jobs.
       const cascade = (preferRequestedTime && movingBetweenBays) || cascadeMove === true;

@@ -185,7 +185,7 @@
   const NO_HOURS = /<em\b[^>]*>\s*(?:Hours not stated|-?NaN h|-?Infinity h)[\s\S]*?<\/em>/g;
   const stripNoHours = body => String(body).replace(NO_HOURS, '');
   const lineNo = label => { const m = String(label).match(/([0-9]+)\s*$/); return m ? Number(m[1]) : 1e9; };
-  // r747 (F351, Craig 30 Oct 10:12): the Sublet box is two groups. "Standard sublets" are the ones done all the time:
+  // r751 (F356, Craig 30 Oct 10:12): the Sublet box is two groups. "Standard sublets" are the ones done all the time:
   // Malaga Motor Trimmers (MMT seat covers), Perth Signcraft, Full tank of fuel, Pit and weigh. "Other sublets" is the
   // rest (Silverstone, Tyrepower, suspension on another line, ...). A row is standard when any of its text (PD line
   // description, sublet description from the upload, the operation line it sits on) names one of them. A line anywhere
@@ -253,7 +253,7 @@
     let out = html.replace(SECTION, (all, open, station, inner, close) => station.toUpperCase() === 'SUBLET' ? all : open + inner.replace(LI, (li, sid, attrs, body) => {
       const line = find(sid, body);
       if (!line) {
-        // r747: a Pit and weigh (or other standard sublet) line without a GP PO is still a sublet; list it under Standard.
+        // r751: a Pit and weigh (or other standard sublet) line without a GP PO is still a sublet; list it under Standard.
         if (standardSublet(body)) standardLines.push({ label: unescape((body.match(LABEL) || [])[1] || ''), op: unescape(((body.match(SPAN) || [])[2] || '').replace(/<[^>]*>/g, '')).trim(), category: unescape(((open.match(/data-operation-category="([^"]*)"/) || [])[1]) || '') });
         return li;
       }
@@ -496,7 +496,7 @@
     + SUB + ' .pdc-sublet-po-chip,' + SUB + ' .pdc-sublet-po-nopo{display:inline-block;box-sizing:border-box;min-width:8.2em;padding:0 6px;border:1px solid #fdba74;border-radius:4px;background:#fff7ed;color:#9a3412;font-weight:700;text-align:center;white-space:nowrap}'
     + SUB + ' .pdc-sublet-po-nopo{border-color:#fb923c;color:#c2410c;margin-right:19px!important}'
     + SUB + ' .pdc-sublet-po-inline.is-done .pdc-sublet-po-chip{background:#f0fdf4;border-color:#86efac;color:#166534}'
-    // r747 (F351): two groups in the Sublet box, each with a heading row and its own done count.
+    // r751 (F356): two groups in the Sublet box, each with a heading row and its own done count.
     + SUB + ' li.pdc-sublet-group{display:flex!important;align-items:center;gap:.5rem;margin-top:.35rem;padding:.25rem .55rem!important;background:#e2e8f0;border-top:2px solid #94a3b8;border-bottom:1px solid #cbd5e1}'
     + SUB + ' li.pdc-sublet-group:first-child{margin-top:0;border-top:0}'
     + SUB + ' li.pdc-sublet-group>strong{color:#1e293b;font-weight:800!important}'

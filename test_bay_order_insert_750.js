@@ -1,5 +1,5 @@
 'use strict';
-// r746 (F350): Insert here between two jobs works for a booking that already exists (queued, no bay): the move cascades,
+// r750 (F355): Insert here between two jobs works for a booking that already exists (queued, no bay): the move cascades,
 // and the requested start is never earlier than now.
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
@@ -48,7 +48,7 @@ test('Insert here never asks for a start before now', () => {
   assert.equal(second.startMinutes, ctx.workshopMinuteOffset(new Date('2026-10-30T03:15:00Z')), 'a future start is kept');
 });
 
-test('planner script cache tag r746 on both loaders', () => {
+test('planner script cache tag r750 on both loaders', () => {
   const app = fs.readFileSync('app.js', 'utf8');
-  assert.equal((app.match(/workshop-planner\.js\?[^`]*&r746=2026\.10\.30\.r746`/g) || []).length, 2);
+  assert.equal((app.match(/workshop-planner\.js\?[^`]*&r750=2026\.10\.30\.r750`/g) || []).length, 2);
 });
