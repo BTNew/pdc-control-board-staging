@@ -11,6 +11,6 @@ test('r761: queue hold on new vehicles removed; dry run gates only cars leaving 
   const parse = fs.readFileSync('supabase/functions/revolution-upload/parse.js', 'utf8');
   assert.match(parse, /const sanity = archived > 15;/);
   assert.doesNotMatch(parse, /fresh > 15/);
-  assert.match(fs.readFileSync('index.html', 'utf8'), /pdc-revolution-upload\.js\?[^"]*&amp;r761=2026\.10\.31\.r761"/);
+  assert.match(fs.readFileSync('index.html', 'utf8'), /pdc-revolution-upload\.js\?[^"]*&amp;r761=2026\.10\.31\.r761/);
   assert.match(fs.readFileSync('supabase/rollbacks/20261031051500_r761_no_new_vehicle_limit.down.sql', 'utf8'), /would not return to the pre-r761 md5/);
 });

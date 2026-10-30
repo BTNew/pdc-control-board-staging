@@ -94,3 +94,13 @@
 .pdc-import-banner[hidden] { display: none; }
 .pdc-import-banner strong { font-size: .9rem; }
 .pdc-import-banner span { font-size: .75rem; }
+
+/* r762 (F368): stock-number preview under the counts */
+#revolution-upload .ru-changes { display: grid; gap: 8px; margin: 10px 0; }
+#revolution-upload .ru-change { border: 1px solid #e2e8f0; border-radius: 8px; padding: 6px 10px; background: #fff; }
+#revolution-upload .ru-change summary { cursor: pointer; font-weight: 600; color: #0f172a; }
+#revolution-upload .ru-change-archived summary { color: #b91c1c; }
+#revolution-upload .ru-change-new summary { color: #15803d; }
+#revolution-upload .ru-change-list { margin: 6px 0 0; padding-left: 18px; columns: 2; column-gap: 24px; font-size: 0.88rem; font-variant-numeric: tabular-nums; }
+#revolution-upload .ru-change-list li { break-inside: avoid; }
+@media (max-width: 720px) { #revolution-upload .ru-change-list { columns: 1; } }

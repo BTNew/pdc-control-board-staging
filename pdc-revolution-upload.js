@@ -67,6 +67,76 @@ if (typeof window !== 'undefined') (function () {
     if (node) node.textContent = text;
   }
 
+  // r762 (F368, Craig 31 Oct 05:27): "give me a preview when i load it". List the stock numbers behind every count.
+  function changeLine762(entry) {
+    const bits = [];
+    if (entry.stock) bits.push(entry.stock);
+    if (entry.rego && entry.rego !== entry.stock) bits.push(`rego ${entry.rego}`);
+    if (entry.ro) bits.push(entry.ro);
+    if (entry.key_number) bits.push(`key ${entry.key_number}`);
+    if (Number.isInteger(entry.lines)) bits.push(`${entry.lines} line${entry.lines === 1 ? '' : 's'}`);
+    return bits.join(' · ');
+  }
+
+  function renderChanges762(host, payload) {
+    const changes = payload.changes;
+    if (!changes || typeof changes !== 'object') return;
+    const sections = [
+      ['archived', 'Leaving the board', 'Not on the Revolution list any more. Completed, or tagged "not on Revolution list" if the car is still on Navision.', true],
+      ['new', 'Coming onto the board', 'Not on the board yet.', true],
+      ['kept_open_job_card', 'Kept, job card still open', 'Not on the list but a job card is open, so the car stays.', true],
+      ['updated', 'Updated', 'Already on the board; lines change.', false],
+      ['unchanged', 'Unchanged', '', false],
+      ['sales_left_alone', 'Sales boards left alone', '', false],
+    ];
+    const wrap = document.createElement('div');
+    wrap.className = 'ru-changes';
+    for (const [keyName, label, note, open] of sections) {
+      const rows = Array.isArray(changes[keyName]) ? changes[keyName] : [];
+      if (!rows.length) continue;
+      const details = document.createElement('details');
+      details.className = `ru-change ru-change-${keyName}`;
+      if (open) details.open = true;
+      const summary = document.createElement('summary');
+      summary.textContent = `${label} (${rows.length})`;
+      details.append(summary);
+      if (note) {
+        const p = document.createElement('p');
+        p.className = 'ru-note';
+        p.textContent = note;
+        details.append(p);
+      }
+      const list = document.createElement('ul');
+      list.className = 'ru-change-list';
+      for (const entry of rows) {
+        const item = document.createElement('li');
+        item.textContent = changeLine762(entry);
+        list.append(item);
+      }
+      details.append(list);
+      wrap.append(details);
+    }
+    const holds = Array.isArray(payload.holds) ? payload.holds : [];
+    if (holds.length) {
+      const details = document.createElement('details');
+      details.className = 'ru-change ru-change-holds';
+      details.open = true;
+      const summary = document.createElement('summary');
+      summary.textContent = `Held lines (${holds.length})`;
+      details.append(summary);
+      const list = document.createElement('ul');
+      list.className = 'ru-change-list';
+      for (const hold of holds) {
+        const item = document.createElement('li');
+        item.textContent = [hold.stock, hold.ro, hold.line ? `line ${hold.line}` : '', hold.reason].filter(Boolean).join(' · ');
+        list.append(item);
+      }
+      details.append(list);
+      wrap.append(details);
+    }
+    if (wrap.childElementCount) host.append(wrap);
+  }
+
   function renderResult(payload) {
     const host = document.getElementById('revolution-upload-result');
     if (!host) return;
@@ -120,6 +190,7 @@ if (typeof window !== 'undefined') (function () {
       }
       host.append(list);
     }
+    renderChanges762(host, payload);
     const plan = document.createElement('p');
     plan.className = 'ru-note';
     plan.textContent = payload.apply_enabled

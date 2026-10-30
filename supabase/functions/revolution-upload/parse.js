@@ -806,6 +806,8 @@ export function dryRun(parsed, options = {}) {
   const duplicate = known.has(parsed.sha256);
   const errors = [];
   let keyClashesIgnored = 0;
+  // r762 (F368, Craig 31 Oct 05:27): "give me a preview when i load it". The dry run lists the stock numbers behind every count.
+  const changes = { new: [], updated: [], unchanged: [], archived: [], kept_open_job_card: [], sales_left_alone: [] };
   if (duplicate) errors.push({ code: 'duplicate_file', message: 'This file sha256 is already in the import ledger.' });
   const vehicles = board.vehicles || [];
   const jobs = board.jobs || [];
@@ -850,8 +852,10 @@ export function dryRun(parsed, options = {}) {
       const open = actionable.filter((row) => statusText(row.sub_status) !== '99');
       if (open.length && open.every((row) => statusText(row.sub_status) === '80')) closedVehicles.push(key);
       if (!actionable.length) continue;
-      if (byStock.has(key)) updated += 1;
-      else fresh += 1;
+      const first = rows[0];
+      const entry = { stock: key, rego: norm(first.rego) || null, ro: norm(first.repair_order_number).toUpperCase() || null, lines: actionable.length };
+      if (byStock.has(key)) { updated += 1; changes.updated.push(entry); }
+      else { fresh += 1; changes.new.push(entry); }
     }
     // r760 (F366, Craig 30 Oct 20:24): the key on the board is the key. The Key Tag Number column is not imported and
     // a clash inside the file, or with a board key, is not an error any more; it is reported as a count only.
@@ -871,15 +875,17 @@ export function dryRun(parsed, options = {}) {
       const live = vehicle.visible === true && vehicle.deleted !== true && ['active', 'rft'].includes(norm(vehicle.ls));
       if (!live || !key || onSheet.has(key) || !/^J13[89]/.test(card)) continue;
       const dealer = norm(vehicle.dealer_code);
-      if (SALES_DEALERS.has(dealer)) { salesLeft += 1; continue; }
-      if (openJobs.has(String(vehicle.id))) { heldOpen += 1; continue; }
+      const entry = { stock: key, ro: card || null, key_number: statusText(vehicle.key) || null };
+      if (SALES_DEALERS.has(dealer)) { salesLeft += 1; changes.sales_left_alone.push(entry); continue; }
+      if (openJobs.has(String(vehicle.id))) { heldOpen += 1; changes.kept_open_job_card.push(entry); continue; }
       archived += 1;
+      changes.archived.push(entry);
     }
   } else if (parsed.kind === 'cw_parts') {
     const ros = new Set(jobs.map((job) => norm(job.ro).toUpperCase()));
     for (const row of parsed.rows) {
       if (row.review_reasons) { errors.push({ code: 'parts_row', message: row.review_reasons.join(',') }); skipped += 1; continue; }
-      if (ros.has(norm(row['R/O #']).toUpperCase())) updated += 1;
+      if (ros.has(norm(row['R/O #']).toUpperCase())) { updated += 1; changes.updated.push({ ro: norm(row['R/O #']).toUpperCase() }); }
       else skipped += 1;
     }
     skipped += parsed.excludedDepartments || 0;
@@ -903,9 +909,9 @@ export function dryRun(parsed, options = {}) {
       seen.add(key);
       const lines = fileKeys.get(key) || [];
       const have = current.get(key);
-      if (!have) { fresh += 1; newLines += lines.length; continue; }
-      if (sameKeyList(have, lines)) { unchanged += 1; unchangedLines += lines.length; }
-      else { updated += 1; updatedLines += lines.length; }
+      if (!have) { fresh += 1; newLines += lines.length; changes.new.push({ stock: key, lines: lines.length }); continue; }
+      if (sameKeyList(have, lines)) { unchanged += 1; unchangedLines += lines.length; changes.unchanged.push({ stock: key, lines: lines.length }); }
+      else { updated += 1; updatedLines += lines.length; changes.updated.push({ stock: key, lines: lines.length }); }
     }
     const phrases = [`${fresh} new`];
     if (fresh) phrases.push(vehicleLinePhrase(fresh, newLines, 'new'));
@@ -950,6 +956,7 @@ export function dryRun(parsed, options = {}) {
     duplicate_file: duplicate,
     needs_admin_confirm: sanity,
     file_key_clashes_ignored: keyClashesIgnored,
+    changes,
     quiet_hours: quietWindow(options.now),
     apply_enabled: false,
     would_call: callPlan(parsed.kind),

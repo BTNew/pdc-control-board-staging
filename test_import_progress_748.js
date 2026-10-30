@@ -48,9 +48,9 @@ test('website: banner text, hidden when not running, wired into the service, mar
   assert.match(js, /onImportProgress: renderImportProgressBanner,/);
   const html = fs.readFileSync('index.html', 'utf8');
   assert.match(html, /<div class="pdc-import-banner" id="pdc-import-banner" role="status" aria-live="polite" hidden><\/div>/);
-  assert.match(html, /pdc-email-vehicle-location-service\.js\?[^"]*&amp;r748=2026\.10\.30\.r748(&amp;r\d{3}=2026\.10\.30\.r\d{3})*"/);
-  assert.match(html, /app\.js\?[^"]*&amp;r748=2026\.10\.30\.r748(&amp;r\d{3}=2026\.10\.30\.r\d{3})*"/);
-  assert.match(html, /pdc-revolution-upload\.css\?[^"]*&amp;r748=2026\.10\.30\.r748(&amp;r\d{3}=2026\.10\.30\.r\d{3})*"/);
+  assert.match(html, /pdc-email-vehicle-location-service\.js\?[^"]*&amp;r748=2026\.10\.30\.r748(&amp;r\d{3}=2026\.1[01]\.\d{2}\.r\d{3})*"/);
+  assert.match(html, /app\.js\?[^"]*&amp;r748=2026\.10\.30\.r748(&amp;r\d{3}=2026\.1[01]\.\d{2}\.r\d{3})*"/);
+  assert.match(html, /pdc-revolution-upload\.css\?[^"]*&amp;r748=2026\.10\.30\.r748(&amp;r\d{3}=2026\.1[01]\.\d{2}\.r\d{3})*"/);
   assert.match(fs.readFileSync('pdc-revolution-upload.css', 'utf8'), /\.pdc-import-banner\[hidden\] \{ display: none; \}/);
 });
 
