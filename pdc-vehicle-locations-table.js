@@ -404,7 +404,7 @@
 
   // ---------- Browser ----------
   const doc = root.document;
-  // r745 (F349): Vehicle Locations opens on the PMB tile (page load and every click on the Vehicle Locations menu item).
+  // r745 (F350): Vehicle Locations opens on the PMB tile (page load and every click on the Vehicle Locations menu item).
   const DEFAULT_BUCKET = 'pmb';
   const state = { station: '', bucket: DEFAULT_BUCKET, stoppages: false, openKey: '', view: DROPDOWN_VIEW_ENABLED ? VIEWS.dropdown : VIEWS.table, partsSort: '', widths: {}, search: { needle: '', pick: null } };
   let dualSearchReady = false;
@@ -1188,7 +1188,7 @@
     if (event.key === storageKey(userId())) syncViewForUser();
     if (event.key === columnStorageKey(userId()) && tableOn()) { state.widths = readWidths(storage(), userId()); applyWidths(doc.getElementById('vlt-table-host')); }
   });
-  // r745 (F349): clicking Vehicle Locations in the menu always lands on the PMB tile (capture runs before showView renders).
+  // r745 (F350): clicking Vehicle Locations in the menu always lands on the PMB tile (capture runs before showView renders).
   doc.addEventListener('click', event => {
     if (!event.target?.closest?.('.nav-item[data-view="dashboard"]')) return;
     Object.assign(state, { bucket: DEFAULT_BUCKET, stoppages: false });
