@@ -8272,13 +8272,17 @@ async function startWorkshopPlan(planId = '') {
     const bookingActionToken = workshopBeginBookingAction(entry.sharedBookingId || entry.id, 'startWork');
     if (!bookingActionToken) return;
     WORKSHOP_PENDING_STARTS.add(planId);
-    workshopStartFeedback={stage:entry.stage,message:'Starting job… Checking the schedule and moving affected unstarted bookings where needed.'};
+    // 30 Oct (Craig): Start just starts. A future job in an idle bay starts now and the server pushes the rest back;
+    // no question, no warning. While it works the page shows a loading screen naming the key.
+    const startLabel = (() => { try { return typeof workshopResequenceLabel === 'function' ? workshopResequenceLabel(entry) : 'job'; } catch (_error) { return 'job'; } })();
+    workshopStartFeedback={stage:entry.stage,message:'Starting job… Moving later jobs back where needed.'};
     try {
       renderWorkshopPlanner();
-      const result=await workshopDispatchSharedAction('startWork', {
+      const startWork = workshopDispatchSharedAction('startWork', {
         bookingId: entry.sharedBookingId || entry.id,
         expectedVersion: entry.sharedVersion,
       }, renderWorkshopPlanner, {suppressRender:true,suppressFailureAlert:true,bookingActionToken});
+      const result = await (window.PDC_BUSY?.track ? window.PDC_BUSY.track(startWork, `Starting ${startLabel}… moving later jobs back`) : startWork);
       const shifted=result?.start_priority===true&&Number.isInteger(result.shifted_count)&&result.shifted_count>=0?result.shifted_count:null;
       workshopStartFeedback={stage:entry.stage,message:result?.ok===true
         ? result.refreshRequired===true?'The job start was confirmed, but the planner could not refresh yet. Refresh the planner before making another change.':result.already_started?'This job is already running on the planner.':`Job started.${shifted===null?'':shifted===0?' No other bookings needed to move.':` ${shifted} affected booking${shifted===1?'':'s'} moved later.`}`

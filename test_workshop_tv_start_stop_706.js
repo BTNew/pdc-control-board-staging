@@ -34,7 +34,7 @@ test('no buttons when this login cannot start work', () => {
 test('the read carries ids, version and can_act; the page cache-busts', () => {
   const sql = fs.readFileSync('supabase/migrations/20261029120000_r706_tv_tint_tyre_start_stop.sql', 'utf8');
   assert.match(sql, /''can_act'', coalesce\(public\.workshop_is_planner_operator\(\), false\)/);
-  assert.match(fs.readFileSync('workshop-tv.html', 'utf8'), /&amp;r706=2026\.10\.29\.r706(&amp;r710=2026\.10\.29\.r710)?(&amp;r711=2026\.10\.29\.r711)?(&amp;r720=2026\.10\.29\.r720)?(&amp;r722=2026\.10\.29\.r722)?"/);
+  assert.match(fs.readFileSync('workshop-tv.html', 'utf8'), /&amp;r706=2026\.10\.29\.r706(&amp;r710=2026\.10\.29\.r710)?(&amp;r711=2026\.10\.29\.r711)?(&amp;r720=2026\.10\.29\.r720)?(&amp;r722=2026\.10\.29\.r722)?(&amp;r\d+=[\d.]+r\d+)*"/);
 });
 test('r710: each zone shows the current job, the next and the one after; no done jobs', () => {
   const jobs = [
@@ -52,4 +52,12 @@ test('r711: a refused Start or Stop shows the reason on the bay in big type and 
   assert.match(js, /admin_block_conflict: 'an admin block is booked in this bay/);
   assert.match(js, /paintNotes\(\);\n      await load\(\); \/\/ refresh straight away\n      paintNotes\(\);/);
   assert.match(fs.readFileSync('workshop-tv.html', 'utf8'), /\.tv-znote\.is-bad/);
+});
+test('r741: Tint and Tyre button reads Complete; a busy-lock refusal retries once', () => {
+  const html = tv.boardHtml(data(true, [job()]), { now });
+  assert.match(html, /data-tv-act="stop"[^>]*>Complete<\/button>/);
+  assert.doesNotMatch(html, />Stop<\/button>/);
+  const js = fs.readFileSync('workshop-tv.js', 'utf8');
+  assert.match(js, /lock timeout\|deadlock/);
+  assert.match(js, /'Completing…'/);
 });

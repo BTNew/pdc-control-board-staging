@@ -150,7 +150,7 @@
         let act = '';
         if (canAct && j.id && Number.isInteger(Number(j.booking_version))) {
           if (state === 'plan') act = `<button type="button" class="tv-act tv-act-start" data-tv-act="start" data-id="${esc(j.id)}" data-v="${esc(j.booking_version)}" data-work="${esc(s.work_key || '')}" aria-label="Start key ${esc(key)}">Start</button>`;
-          else if (state === 'live' || state === 'over' || state === 'stop') act = `<button type="button" class="tv-act tv-act-stop" data-tv-act="stop" data-id="${esc(j.id)}" data-v="${esc(j.booking_version)}" data-work="${esc(s.work_key || '')}" aria-label="Stop key ${esc(key)}">Stop</button>`;
+          else if (state === 'live' || state === 'over' || state === 'stop') act = `<button type="button" class="tv-act tv-act-stop" data-tv-act="stop" data-id="${esc(j.id)}" data-v="${esc(j.booking_version)}" data-work="${esc(s.work_key || '')}" aria-label="Complete key ${esc(key)}">Complete</button>`;
         }
         // r710: key number, car type and the button only.
         return `<li class="tv-aj is-${state}"><strong class="tv-aj-key">${key ? `Key ${esc(key)}` : 'No key'}</strong><span class="tv-aj-info">${esc(j.vehicle || '')}</span>${act || (state === 'done' ? '<span class="tv-aj-when">Done</span>' : '')}</li>`;
@@ -238,13 +238,15 @@
   const TV_ERRORS = {
     admin_block_conflict: 'an admin block is booked in this bay before this job would finish. Move or delete the block on the planner, then press Start again.',
     version_conflict: 'the board changed. Press it again.',
+    lock_busy: 'the board was busy. Press it again.',
     booking_version_conflict: 'the board changed. Press it again.',
-    not_authorized: 'this TV login cannot start or stop jobs. Sign in with a controller login.',
+    not_authorized: 'this TV login cannot start or complete jobs. Sign in with a controller login.',
   };
   function tvReason(error, result) {
     const code = String(result?.error || result?.code || '').trim();
     if (TV_ERRORS[code]) return TV_ERRORS[code];
     if (/operator or administrator/i.test(error?.message || '')) return TV_ERRORS.not_authorized;
+    if (/lock timeout|deadlock/i.test(error?.message || '')) return TV_ERRORS.lock_busy;
     return String(result?.message || error?.message || code || 'refresh and try again').slice(0, 140);
   }
   function paintNotes() {
@@ -267,13 +269,20 @@
     const bay = button.closest('[data-bay]')?.dataset.bay || '';
     const keyText = button.closest('.tv-aj')?.querySelector('.tv-aj-key')?.textContent || 'This job';
     button.disabled = true;
-    button.textContent = kind === 'start' ? 'Starting…' : 'Stopping…';
+    button.textContent = kind === 'start' ? 'Starting…' : 'Completing…';
     let note = '';
     try {
-      const { data: result, error } = kind === 'start'
-        ? await client.rpc('start_workshop_work', { p_booking_id: id, p_expected_version: version, p_actual_start_at: null, p_metadata: { source: 'workshop_tv_706' } })
-        : await client.rpc('complete_workshop_work', { p_booking_id: id, p_expected_version: version, p_work_key: button.dataset.work || null, p_actual_end_at: null, p_metadata: { source: 'workshop_tv_706' } });
-      if (error || result?.ok !== true) { note = `${keyText} NOT ${kind === 'start' ? 'started' : 'stopped'}: ${tvReason(error, result)}`; if (bay) notes.set(bay, { text: note, ok: false, until: Date.now() + 20000 }); }
+      // r741 (Craig 30 Oct): the button reads Complete. A lock timeout or deadlock means the board was busy
+      // (someone moving cars at the same moment); nothing was saved, so try once more before showing an error.
+      const call = () => kind === 'start'
+        ? client.rpc('start_workshop_work', { p_booking_id: id, p_expected_version: version, p_actual_start_at: null, p_metadata: { source: 'workshop_tv_706' } })
+        : client.rpc('complete_workshop_work', { p_booking_id: id, p_expected_version: version, p_work_key: button.dataset.work || null, p_actual_end_at: null, p_metadata: { source: 'workshop_tv_706' } });
+      let { data: result, error } = await call();
+      if (error && /lock timeout|deadlock/i.test(error.message || '')) {
+        await new Promise(r => setTimeout(r, 1500));
+        ({ data: result, error } = await call());
+      }
+      if (error || result?.ok !== true) { note = `${keyText} NOT ${kind === 'start' ? 'started' : 'completed'}: ${tvReason(error, result)}`; if (bay) notes.set(bay, { text: note, ok: false, until: Date.now() + 20000 }); }
       else { note = `${keyText} ${kind === 'start' ? 'started' : 'done'}`; if (bay) notes.set(bay, { text: note, ok: true, until: Date.now() + 8000 }); }
     } catch (e) {
       note = 'Not saved. Check the connection and try again.';
