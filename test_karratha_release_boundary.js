@@ -134,7 +134,7 @@ const approvedRootImportPatch = Object.freeze({
   // r597: an occupied-bay drop cascades and says which jobs moved; a bayless card shows the unticked hours (F211). Department 135 keeps its frozen planner.
   // 30 Oct 2026: a same-bay swap applies straight away (no preview screen); Undo re-order stays. Department 135 keeps its frozen planner.
   // 30 Oct 2026: Start wraps its server call in the busy overlay ("Starting Key N… moving later jobs back"). Department 135 keeps its frozen planner.
-  "workshop-planner.js": "e5dad7215d8dbb3737c9657a615d0e9755c7b224b2408574143f7566dfe7c223",
+  "workshop-planner.js": "5e55474b6f2f91473b63a0db7bb42072911cce47451fcedcaa3c9b699ebf1234",
   // r527: a refused set_bay_default_technician no longer wipes the cached bay list (F141). Department 135 keeps the baseline bytes.
   // r549: setWorkshopBayDisplayName calls set_workshop_bay_display_name (F163). Department 135 keeps the baseline bytes.
   "workshop-reference-data-service.js": "105e1f26100390826b8a4b0b8dabd12233a356995d067c24bf9585d9277319a9",
@@ -317,7 +317,7 @@ const approvedRootImportPatch = Object.freeze({
   // r593: a recent key is listed in New to PMB and stays in the PMB bucket. No department tick (F207). Department 135 keeps its frozen app.js.
   // r591: Admin > Revolution uploads is administrators only (F205). Department 135 is not tagged.
   // r687: ".2" hours save as 0.2 in Edit hours and jobs (F297). Department 135 keeps its frozen app.js.
-  "app.js": "68ecfd6c7030e51b14a210e8d10e79c5a91741df69bf61982af422e1ecce2016", // r710 (F320): key list keys never offered as spare at To PMB
+  "app.js": "89405907503d48e16c69afa02f1335941049e2f0a556a5227f9b6ae4433f9732", // r710 (F320): key list keys never offered as spare at To PMB
   "vehicle-requirements-guard.js": "7462e178c839df0ce1bd2509b838dab61fd739172f20fd0c34a419e011052658",
   // r464: a booking that runs past the day divider is one bar (joined per-day pieces, display only; F77). The Karratha copy stays frozen.
   // r465: overview bar labels show Key · JC and the customer only (Stock and the vehicle description stay in the hover title); the customer span is classed for the Running layout (F78).

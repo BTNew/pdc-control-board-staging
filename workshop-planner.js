@@ -7468,7 +7468,9 @@ function workshopBayQueuePlacement(stage = '', bay = 0, targetId = '', excludeId
   }
   const target = queue.find(row => String(row.id) === String(targetId));
   if (!target || !workshopBayQueueMovable(target)) return { kind: 'blocked' };
-  const start = workshopEntryStart(target);
+  // r746 (F350): the first planned job is pushed to "now" by the clock each minute, so its start can already be a few
+  // seconds in the past when the button is pressed; the server refuses a past start. Never ask for earlier than now.
+  const start = new Date(Math.max(workshopEntryStart(target).getTime(), workshopNormalizeStartDate(new Date()).getTime()));
   return { kind: 'before', dateKey: workshopDateKey(start), startMinutes: workshopMinuteOffset(start) };
 }
 
@@ -7572,6 +7574,7 @@ function openWorkshopScheduleModal(vehicleKeyValue = '', stage = '', dateKey = '
         hoursValue: jobHours(),
         assigneeValue: null,
         cascadeNewBooking: true,
+        cascadeMove: true,
         ...(workCategory === 'BUS_WHOLE_JOB' ? { workCategoryValue: workCategory, baseHoursValue: wholeJob.hours } : {}),
       });
       if (scheduled) commitClose.closeOnce();
@@ -7951,7 +7954,7 @@ async function workshopScheduleVehicleNextAvailable({ vehicleId = '', vehicleKey
   });
 }
 
-async function scheduleWorkshopVehicle({ planId = '', vehicleKeyValue = '', stage = '', bay = 0, dateKey = '', startMinutes = 0, hoursValue = null, assigneeValue = null, preferRequestedTime = false, cascadeNewBooking = true, workCategoryValue = '', baseHoursValue = 0 } = {}) {
+async function scheduleWorkshopVehicle({ planId = '', vehicleKeyValue = '', stage = '', bay = 0, dateKey = '', startMinutes = 0, hoursValue = null, assigneeValue = null, preferRequestedTime = false, cascadeNewBooking = true, cascadeMove = false, workCategoryValue = '', baseHoursValue = 0 } = {}) {
   const rows = workshopLoadPlans();
   const existing = rows.find(entry => entry.id === planId) || rows.find(entry => entry.id === workshopPlanId(vehicleKeyValue, stage));
   if (planId && !existing) { workshopNotify('This booking changed. Refresh and try again.'); return false; }
@@ -8040,7 +8043,10 @@ async function scheduleWorkshopVehicle({ planId = '', vehicleKeyValue = '', stag
     if (existing && existing.sharedBookingId) {
       if (!workshopRequireSchedulableCandidate(requestedCandidate)) return false;
       const movingBetweenBays = normalizePmbStage(existing.stage) !== normalizedStage || Number(existing.bay) !== Number(bay);
-      const cascade = preferRequestedTime && movingBetweenBays;
+      // r746 (F350): the Schedule window's bay order places this booking (often a queued one with no bay yet) at another
+      // job's start, so the server must push that job and the ones behind it back. Without cascade it refused the
+      // occupied slot (bay_overlap) and nothing could be put between two jobs.
+      const cascade = (preferRequestedTime && movingBetweenBays) || cascadeMove === true;
       const action = workshopAdministratorCanMove()
         ? 'administratorMoveBooking'
         : (cascade ? 'cascadeMoveBooking' : 'moveBooking');
