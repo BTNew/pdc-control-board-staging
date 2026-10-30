@@ -48,15 +48,9 @@ test('website: banner text, hidden when not running, wired into the service, mar
   assert.match(js, /onImportProgress: renderImportProgressBanner,/);
   const html = fs.readFileSync('index.html', 'utf8');
   assert.match(html, /<div class="pdc-import-banner" id="pdc-import-banner" role="status" aria-live="polite" hidden><\/div>/);
-<<<<<<< HEAD
   assert.match(html, /pdc-email-vehicle-location-service\.js\?[^"]*&amp;r748=2026\.10\.30\.r748(&amp;r7\d\d=2026\.10\.30\.r7\d\d)*"/);
   assert.match(html, /app\.js\?[^"]*&amp;r748=2026\.10\.30\.r748(&amp;r7\d\d=2026\.10\.30\.r7\d\d)*"/);
   assert.match(html, /pdc-revolution-upload\.css\?[^"]*&amp;r748=2026\.10\.30\.r748(&amp;r7\d\d=2026\.10\.30\.r7\d\d)*"/);
-=======
-  assert.match(html, /pdc-email-vehicle-location-service\.js\?[^"]*&amp;r748=2026\.10\.30\.r748(&amp;r753=2026\.10\.30\.r753)?"/);
-  assert.match(html, /app\.js\?[^"]*&amp;r748=2026\.10\.30\.r748(&amp;r753=2026\.10\.30\.r753)?"/);
-  assert.match(html, /pdc-revolution-upload\.css\?[^"]*&amp;r748=2026\.10\.30\.r748(&amp;r753=2026\.10\.30\.r753)?"/);
->>>>>>> origin/main
   assert.match(fs.readFileSync('pdc-revolution-upload.css', 'utf8'), /\.pdc-import-banner\[hidden\] \{ display: none; \}/);
 });
 

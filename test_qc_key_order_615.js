@@ -19,9 +19,5 @@ test('QC cards show a key badge (desktop html and phone decorator), cache bust',
   assert.match(src, /qcPageSortByKeyNumber\(eligible\) : eligible; \/\/ r615/);
   assert.match(src, /class="qc-key-badge" style="\$\{QC_KEY_BADGE_STYLE\}">K\$\{escapeHtml\(vehicleKeyNumber\(vehicle\)\)\}/);
   assert.match(src, /querySelectorAll\('\.qc-phone-vehicle\[data-qc-open-vehicle\]'\)/);
-<<<<<<< HEAD
   assert.match(fs.readFileSync('index.html', 'utf8'), /app\.js\?[^"]*&amp;r615=2026\.10\.28\.r615(&amp;r619=2026\.10\.28\.r619)?(&amp;r642=2026\.10\.28\.r642)?(&amp;r679=2026\.10\.29\.r679)?(&amp;r681=2026\.10\.29\.r681)?(&amp;r687=2026\.10\.29\.r687)?(&amp;r683=2026\.10\.29\.r683)?(&amp;r692=2026\.10\.29\.r692)?(&amp;r693=2026\.10\.29\.r693)?(&amp;r698=2026\.10\.29\.r698)?(&amp;r707=2026\.10\.29\.r707)?(&amp;r710=2026\.10\.29\.r710)?(&amp;r720=2026\.10\.29\.r720)?(&amp;r722=2026\.10\.29\.r722)?(&amp;r748=2026\.10\.30\.r748)?(&amp;r7\d\d=2026\.10\.30\.r7\d\d)*"/);
-=======
-  assert.match(fs.readFileSync('index.html', 'utf8'), /app\.js\?[^"]*&amp;r615=2026\.10\.28\.r615(&amp;r619=2026\.10\.28\.r619)?(&amp;r642=2026\.10\.28\.r642)?(&amp;r679=2026\.10\.29\.r679)?(&amp;r681=2026\.10\.29\.r681)?(&amp;r687=2026\.10\.29\.r687)?(&amp;r683=2026\.10\.29\.r683)?(&amp;r692=2026\.10\.29\.r692)?(&amp;r693=2026\.10\.29\.r693)?(&amp;r698=2026\.10\.29\.r698)?(&amp;r707=2026\.10\.29\.r707)?(&amp;r710=2026\.10\.29\.r710)?(&amp;r720=2026\.10\.29\.r720)?(&amp;r722=2026\.10\.29\.r722)?(&amp;r748=2026\.10\.30\.r748)?(&amp;r753=2026\.10\.30\.r753)?"/);
->>>>>>> origin/main
 });

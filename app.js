@@ -4037,6 +4037,7 @@ function bindNav() {
   on($('#rft-status-filter'), 'change', renderRftHome);
   on($('#completed-export-csv'), 'click', exportCompletedVehiclesCsv);
   on($('#completed-search'), 'input', renderCompletedVehicles);
+  $$('[data-completed-scope-pick]').forEach(button => on(button, 'click', () => { app.completedScope756 = button.dataset.completedScopePick; if (app.completedScope756 !== 'completed') void loadArchivedVehicles756(true).then(renderCompletedVehicles); renderCompletedVehicles(); })); // r756a
   on($('#collected-search'), 'input', renderCollectedVehicles);
   on($('#deleted-export-csv'), 'click', exportDeletedVehiclesCsv);
   on($('#deleted-search'), 'input', renderDeletedVehicles);
@@ -20196,9 +20197,52 @@ function completedHistoryCanOpen(vehicle = {}) {
   return canonicalId ? canonicalId === retainedId : matches[0].id === vehicle.id && !vehicle.__sharedNavisionReadOnly;
 }
 
+// r756a (F361, Craig 30 Oct 11:55): the Completed page also lists Archived cars (off the board by an upload or an
+// administrator, not deleted, not completed; they were on no page) and an All view of every car that has left the board.
+async function loadArchivedVehicles756(force = false) {
+  if (app.archivedVehicles756 && !force) return app.archivedVehicles756;
+  const client = typeof window === 'object' ? window.PDC_SUPABASE : null;
+  if (!client || typeof client.rpc !== 'function') return [];
+  try {
+    const { data, error } = await client.rpc('list_archived_vehicles_756');
+    if (error || !data || data.ok !== true) return app.archivedVehicles756 || [];
+    app.archivedVehicles756 = Array.isArray(data.rows) ? data.rows : [];
+  } catch (_) { return app.archivedVehicles756 || []; }
+  return app.archivedVehicles756;
+}
+function completedScope756() { return ['completed', 'archived', 'all'].includes(app.completedScope756) ? app.completedScope756 : 'completed'; }
+function leftBoardRows756(scope, archived) {
+  const q = ($('#completed-search')?.value || '').trim().toLowerCase();
+  const when = v => { const d = v ? new Date(v) : null; return d && !Number.isNaN(d.getTime()) ? d.toLocaleString('en-AU', { timeZone: 'Australia/Perth', dateStyle: 'medium', timeStyle: 'short' }) : '—'; };
+  const rows = [];
+  archived.forEach(r => rows.push({ state: 'Archived', stock: r.stock_number || '', key: r.key_number || '', customer: r.customer_name || '', vehicle: r.vehicle_description || '', at: r.archived_at || '',
+    detail: `${r.prior_location ? `was ${r.prior_location} · ` : ''}${r.reason || ''}${r.navision_current ? ` · still on Navision${r.navision_status ? ` (${r.navision_status})` : ''}` : ''}` }));
+  if (scope === 'all') {
+    completedHistoryRows().forEach(v => { const m = completedHistoryMilestones(v); rows.push({ state: 'Completed', stock: displayStockNumber(v) || '', key: vehicleKeyNumber(v) || '', customer: vehicleCustomerName(v) || '', vehicle: displayVehicle(v) || '', at: m.delivered?.date?.toISOString?.() || v.rftCollectedAt || '', detail: 'Delivered / collected' }); });
+    deletedVehicleRecords().forEach(r => rows.push({ state: 'Deleted', stock: displayStockNumber(r.vehicle || {}) || r.key || '', key: vehicleKeyNumber(r.vehicle || {}) || '', customer: vehicleCustomerName(r.vehicle || {}) || '', vehicle: displayVehicle(r.vehicle || {}) || '', at: r.deletedAt || '', detail: r.deletedBy ? `by ${r.deletedBy}` : '' }));
+  }
+  return rows.filter(r => !q || [r.state, r.stock, r.key, r.customer, r.vehicle, r.detail].join(' ').toLowerCase().includes(q))
+    .sort((a, b) => (Date.parse(b.at) || 0) - (Date.parse(a.at) || 0)).map(r => ({ ...r, whenLabel: when(r.at) }));
+}
+function renderLeftBoard756(host, scope, archived) {
+  const rows = leftBoardRows756(scope, archived);
+  const stats = $('#completed-pmb-statistics'); if (stats) stats.innerHTML = '';
+  if (!rows.length) { host.innerHTML = `<div class="empty-state"><strong>${scope === 'archived' ? 'No archived vehicles' : 'No vehicles have left the board'}</strong><span>${($('#completed-search')?.value || '').trim() ? 'Clear the search to see them all.' : 'Nothing to show.'}</span></div>`; return; }
+  host.innerHTML = `<div class="parts-table-wrap completed-table-wrap pdc-grid-table-wrap"><table class="data-table compact-table completed-table pdc-grid-table">
+    <thead><tr>${scope === 'all' ? '<th>State</th>' : ''}<th>Stock / job card</th><th>Key</th><th>Customer / vehicle</th><th>Left the board</th><th>Detail</th></tr></thead>
+    <tbody>${rows.map(r => `<tr class="completed-vehicle-row completed-left-row is-${escapeHtml(r.state.toLowerCase())}">${scope === 'all' ? `<td><span class="badge neutral">${escapeHtml(r.state)}</span></td>` : ''}<td><strong>${escapeHtml(r.stock || '—')}</strong></td><td>${escapeHtml(r.key || '—')}</td><td><strong>${escapeHtml(r.customer || 'Dealer Order')}</strong><small>${escapeHtml(r.vehicle || 'Vehicle not listed')}</small></td><td>${escapeHtml(r.whenLabel)}</td><td>${escapeHtml(r.detail || '')}</td></tr>`).join('')}</tbody></table></div>`;
+}
 function renderCompletedVehicles() {
   const host = $('#completed-vehicles-content');
   if (!host) return;
+  const scope = typeof completedScope756 === 'function' ? completedScope756() : 'completed';
+  if (typeof $$ === 'function') $$('[data-completed-scope-pick]').forEach(b => { const on = b.dataset.completedScopePick === scope; b.classList.toggle('is-selected', on); b.setAttribute('aria-selected', on ? 'true' : 'false'); });
+  if (scope !== 'completed') {
+    const cached = app.archivedVehicles756;
+    if (!cached) { host.innerHTML = '<div class="empty-state"><strong>Loading archived vehicles…</strong></div>'; void loadArchivedVehicles756().then(() => { if (completedScope756() !== 'completed') renderCompletedVehicles(); }); return; }
+    renderLeftBoard756(host, scope, cached);
+    return;
+  }
   const rows = completedVehicleRows();
   renderCompletedPmbStatistics(rows);
   if (!rows.length) {

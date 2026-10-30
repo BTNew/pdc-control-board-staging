@@ -15,3 +15,10 @@
 @media (max-width: 700px) {
   #completed .completed-history-statistics { grid-template-columns: 1fr; }
 }
+
+/* r756a (F361): Completed | Archived | All left the board scope on the Completed page. */
+.completed-scope { display: inline-flex; gap: 4px; align-items: center; padding: 2px; border: 1px solid #d6dde6; border-radius: 10px; background: #f6f8fb; }
+.completed-scope .small-button { border: 0; background: transparent; box-shadow: none; border-radius: 8px; }
+.completed-scope .small-button.is-selected { background: #0f3d6e; color: #fff; }
+.completed-left-row.is-archived td:first-child strong { color: #7a4b00; }
+.completed-left-row.is-deleted td { color: #6b7280; }
