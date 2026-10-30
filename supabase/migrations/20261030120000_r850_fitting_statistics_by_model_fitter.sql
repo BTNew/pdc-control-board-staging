@@ -1,4 +1,4 @@
--- r850 (F400) / sort 520. Staging cdsmnqxtyyoeoznmbidd only. PREPARED - apply only after Craig's go-live.
+-- r850 (F400) / sort 520. Staging cdsmnqxtyyoeoznmbidd only. Applied 30 Oct 2026 11:25 AWST after Craig approved.
 -- Craig 30 Oct 2026 11:03: "On the fitting statistics, I want you to break it down by model. So Hilux, Prado, Land Cruiser, 70 series,
 --   etc. And then you can also filter it by fitter ... select Ben Palmer, and it'll show all the stuff that he's ever fitted. And then you
 --   can go to Hilux, it drops down and it shows all the Hilux bull bars, all the Hilux cargo barriers ... make sure it doesn't break anything".
