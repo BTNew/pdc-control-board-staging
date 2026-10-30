@@ -33,7 +33,7 @@ function context(extra = {}) {
   for (const name of ['workshopDateKey', 'workshopValidDateKey', 'workshopVehiclePlanningLocation', 'workshopUnallocatedGroup',
     'workshopKewdaleEtaDateKey', 'workshopDaysUntilDateKey', 'workshopPmbSinceMs', 'workshopUnallocatedLocationLabel',
     'workshopUnallocatedGroups', 'workshopQueueCardWithLocationHtml', 'workshopIncrementalRenderRows',
-    'workshopIncrementalLoadMoreHtml', 'workshopReturnedCardWithLocationHtml', 'workshopUnallocatedBoxesHtml']) vm.runInContext(fn(name), ctx);
+    'workshopIncrementalLoadMoreHtml', 'workshopReturnedCardWithLocationHtml', 'workshopPmbSortChoice', 'workshopUnallocatedBoxesHtml']) vm.runInContext(fn(name), ctx);
   ctx.statusCategory = () => '';
   return ctx;
 }
@@ -77,30 +77,44 @@ test('location line: PMB days, Kewdale countdown, yard hold', () => {
   assert.equal(ctx.workshopUnallocatedLocationLabel({}, 'NOKEY', now), 'No key number');
 });
 
-test('boxes render with counts; returned bookings go by their own car (r861: no key is never At PMB)', () => {
-  const ctx = context();
-  const returnedPlans = [{ id: 'rK', vehicleKey: 'K281' }, { id: 'rIT', vehicleKey: 'IT9' }, { id: 'rNK', vehicleKey: 'NK1' }];
+const returnedCars = [
+  { stock: 'RK1', keyNumber: '500', currentLocation: 'PMB', keyAt: '2026-10-29T01:00:00Z' },
+  { stock: 'RK0', keyNumber: '501', currentLocation: 'PMB', keyAt: '2026-10-10T01:00:00Z' },
+  { stock: 'RIT', currentLocation: 'IT', navisionKewdaleEta: '05/11/2026' },
+  { stock: 'RNK', currentLocation: 'PMB' },
+];
+
+test('boxes: returned bookings go by their own car and are sorted in, not pinned on top (r861, r862)', () => {
+  const ctx = context({ workshopVehicle: key => [...cars, ...returnedCars].find(car => car.stock === key) || null });
+  const returnedPlans = returnedCars.map(car => ({ id: `r-${car.stock}`, vehicleKey: car.stock }));
   const html = ctx.workshopUnallocatedBoxesHtml({ returnedPlans, queue: cars, stage: 'FITTING', dateKey: '2026-10-30', plans: [], limit: 40 });
   const incomingAt = html.indexOf('data-workshop-unallocated-box="incoming"');
-  assert.match(html, /<strong>At PMB<\/strong><span>4<\/span>/);
+  assert.match(html, /<strong>At PMB<\/strong><span>5<\/span>/);
   assert.match(html, /<strong>In transit \/ Yard hold<\/strong><span>7<\/span>/);
-  assert.ok(html.indexOf('data-plan="rK"') < incomingAt, 'keyed returned booking is At PMB');
-  assert.ok(html.indexOf('data-plan="rIT"') > incomingAt, 'IT returned booking is not At PMB');
-  assert.ok(html.indexOf('data-plan="rNK"') > incomingAt, 'no-key returned booking is not At PMB');
-  assert.ok(html.indexOf('data-stock="NK1"') > incomingAt, 'no-key car with a PMB location is not At PMB');
-  assert.match(html, /data-plan="rIT"><small class="workshop-unallocated-location is-it">In transit · Kewdale in[^<]*<\/small>/);
+  const order = [...html.slice(0, incomingAt).matchAll(/data-(?:stock|plan)="([^"]+)"/g)].map(m => m[1]);
+  assert.deepEqual(order, ['r-RK0', 'K13', 'QC1', 'K281', 'r-RK1'], 'longest at PMB first, returned bookings sorted in');
+  assert.ok(html.indexOf('data-plan="r-RIT"') > incomingAt);
+  assert.ok(html.indexOf('data-plan="r-RNK"') > incomingAt);
+  assert.match(html, /data-plan="r-RIT"><small class="workshop-unallocated-location is-it">In transit · Kewdale in[^<]*<\/small>/);
   assert.match(html, /workshop-unallocated-location is-nokey">No key number<\/small>/);
-  assert.match(html, /workshop-unallocated-location is-it">In transit · Kewdale in[^<]*<\/small><div class="workshop-queue-actions">/);
   assert.doesNotMatch(html, /data-stock="OTH"/);
+  assert.match(html, /<select class="workshop-pmb-sort" data-workshop-pmb-sort[^>]*><option value="longest" selected>Longest at PMB first<\/option><option value="newest">Newest at PMB first<\/option><option value="key">Key number<\/option><\/select>/);
+});
+
+test('At PMB sort: newest first and key number', () => {
+  const ctx = context();
+  assert.deepEqual([...ctx.workshopUnallocatedGroups(cars, '', now, 'newest').pmb].map(v => v.stock), ['K281', 'QC1', 'K13']);
+  assert.deepEqual([...ctx.workshopUnallocatedGroups(cars, '', now, 'key').pmb].map(v => v.stock), ['K13', 'K281', 'QC1']);
+  assert.deepEqual([...ctx.workshopUnallocatedGroups(cars, '', now).pmb].map(v => v.stock), ['K13', 'QC1', 'K281']);
 });
 
 test('planner uses the boxes for every station and loads key dates; app re-renders the planner when they land', () => {
-  assert.match(planner, /workshopUnallocatedBoxesHtml\(\{ returnedPlans, queue, stage, dateKey, plans, highlightVehicleKey: state\.highlightVehicleKey, limit: state\.incrementalQueueLimit \}\)/);
+  assert.match(planner, /workshopUnallocatedBoxesHtml\(\{ returnedPlans, queue, stage, dateKey, plans, highlightVehicleKey: state\.highlightVehicleKey, limit: state\.incrementalQueueLimit, pmbSort: workshopPmbSortChoice\(\) \}\)/);
   assert.match(planner, /if \(!focusedBookingMode && typeof ensurePmbKeyAssigned === 'function'\) ensurePmbKeyAssigned\(\);/);
   assert.match(app, /if \(changed && app\.currentView === 'workshop' && typeof scheduleWorkshopPlannerRender === 'function'\) scheduleWorkshopPlannerRender\(\);/);
-  assert.equal((app.match(/r860=2026\.10\.30\.r860&r861=2026\.10\.30\.r861`, 'workshop-planner-script'/g) || []).length, 2);
+  assert.equal((app.match(/r860=2026\.10\.30\.r860&r861=2026\.10\.30\.r861&r862=2026\.10\.30\.r862`, 'workshop-planner-script'/g) || []).length, 2);
   const html = fs.readFileSync('index.html', 'utf8');
-  assert.match(html, /app\.js\?[^"]*&amp;r860=2026\.10\.30\.r860&amp;r861=2026\.10\.30\.r861"/);
-  assert.match(html, /workshop-planner\.css\?[^"]*&amp;r860=2026\.10\.30\.r860&amp;r861=2026\.10\.30\.r861"/);
+  assert.match(html, /app\.js\?[^"]*&amp;r860=2026\.10\.30\.r860&amp;r861=2026\.10\.30\.r861&amp;r862=2026\.10\.30\.r862"/);
+  assert.match(html, /workshop-planner\.css\?[^"]*&amp;r860=2026\.10\.30\.r860&amp;r861=2026\.10\.30\.r861&amp;r862=2026\.10\.30\.r862"/);
   assert.doesNotMatch(html, /^(<<<<<<<|=======|>>>>>>>)/m);
 });

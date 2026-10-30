@@ -138,7 +138,7 @@ const approvedRootImportPatch = Object.freeze({
   // r597: an occupied-bay drop cascades and says which jobs moved; a bayless card shows the unticked hours (F211). Department 135 keeps its frozen planner.
   // 30 Oct 2026: a same-bay swap applies straight away (no preview screen); Undo re-order stays. Department 135 keeps its frozen planner.
   // 30 Oct 2026: Start wraps its server call in the busy overlay ("Starting Key N… moving later jobs back"). Department 135 keeps its frozen planner.
-  "workshop-planner.js": "01ab5615736454ece2b637f8efcdc79ce7b509ac1a31cf3f74d9f2257664e494", // r861 (F411): At PMB is key-only; returned bookings placed by their car (r860 F410 boxes)
+  "workshop-planner.js": "fca04c3cbcb2581c449f6624c1efd3cd1790ace69a179ced3da57fa840115a22", // r862 (F413): At PMB sort; returned bookings sorted in (r861 F411, r860 F410)
   // r527: a refused set_bay_default_technician no longer wipes the cached bay list (F141). Department 135 keeps the baseline bytes.
   // r549: setWorkshopBayDisplayName calls set_workshop_bay_display_name (F163). Department 135 keeps the baseline bytes.
   "workshop-reference-data-service.js": "105e1f26100390826b8a4b0b8dabd12233a356995d067c24bf9585d9277319a9",
@@ -151,7 +151,7 @@ const approvedRootImportPatch = Object.freeze({
   // r561: slim Workshop Planner header chrome (F175). Department 135 keeps its frozen stylesheet.
   // r570: blue bay-hours caption under the bay name (F184). Department 135 keeps its frozen stylesheet.
   // r573: Stoppage section cards are blue (F187). Department 135 keeps its frozen stylesheet.
-  "workshop-planner.css": "979dcb2100f0095c5f6d3e663efd294c503964f4148d161c62a092aea6bf0b2a", // r861 (F411): At PMB is key-only; returned bookings placed by their car (r860 F410 boxes)
+  "workshop-planner.css": "449f1d4c768b99339db80387dee3c0dbaada1b4faa70ef12d42526bc238d870c", // r862 (F413): At PMB sort; returned bookings sorted in (r861 F411, r860 F410)
   // Publish minifies app.js and styles.css in the Pages artifact only.
   // Department 135 still compares the unminified source pin below.
   // r526: outstanding Parts (class imported-parts-orange) paints #dbeafe / #1d4ed8 / #2563eb (F140).
@@ -325,7 +325,7 @@ const approvedRootImportPatch = Object.freeze({
   // r593: a recent key is listed in New to PMB and stays in the PMB bucket. No department tick (F207). Department 135 keeps its frozen app.js.
   // r591: Admin > Revolution uploads is administrators only (F205). Department 135 is not tagged.
   // r687: ".2" hours save as 0.2 in Edit hours and jobs (F297). Department 135 keeps its frozen app.js.
-  "app.js": "44df46992bda4978bd83e823ec15be5bb8605a1d8f8dfdcdf89e052ad7e125d6", // r861 (F411) over r756a (F361) Archived / All on the Completed page, over r860 (F410) key dates redraw the planner
+  "app.js": "c752f8e837b93aa108c1eccd02e1d85c34121f6eb788b5294cc199265e6d73bb", // r862 (F413): At PMB sort; returned bookings sorted in (r861 F411, r860 F410)
   "vehicle-requirements-guard.js": "7462e178c839df0ce1bd2509b838dab61fd739172f20fd0c34a419e011052658",
   // r464: a booking that runs past the day divider is one bar (joined per-day pieces, display only; F77). The Karratha copy stays frozen.
   // r465: overview bar labels show Key · JC and the customer only (Stock and the vehicle description stay in the hover title); the customer span is classed for the Running layout (F78).
@@ -476,7 +476,7 @@ const approvedRootImportPatch = Object.freeze({
   // r604: index.html adds r604=2026.10.28.r604 on canonical-entry.js (pit bookings, F218). Department 135 is not tagged.
   // r616: pdc-auth.js, pdc-bay-manager.js and canonical-entry.js carry r616=2026.10.28.r616 (fitter sessions send only Fitters bay requests, F231). Department 135 is not tagged.
   // r642: Sublet · MMT nav and view, pdc-mmt-sublet.css/js, r642 on app.js and pdc-staff-usage.js (F257). Department 135 is not tagged.
-  "index.html": "eaed0a7ae69dd36109cda09b9d46941f72c5fe5995d919df38cfd300226157fe", // r861 (F411) over r756a scope buttons and tags over r860 tags; merge markers removed
+  "index.html": "a81f2b89870ace6d5b4e0e95c232b7ba3e4885a89bf7cd569d9fe2bc83a26df8", // r862 (F413): At PMB sort; returned bookings sorted in (r861 F411, r860 F410)
   "pdc-conversions.js": "0a99e7a5306f15e434b293a3ca9a318ffad4b78eb814c27144d75ff98821d810",
   // r401: Pit tick and read RPCs (set_pdc_pit_line_tick_401, get_pdc_pit_line_ticks_401).
   // r414: readQcPhotoReceipt (get_pdc_qc_photo_receipt_414) for the QC page (F30).

@@ -1759,3 +1759,6 @@ button.workshop-search-result:hover, button.workshop-search-result:focus-visible
 .workshop-queue-card small.workshop-unallocated-location.is-it { color: #92400e; }
 .workshop-queue-card small.workshop-unallocated-location.is-yh { color: #1d4ed8; }
 .workshop-queue-card small.workshop-unallocated-location.is-nokey { color: #b91c1c; }
+/* r862 (F413): At PMB sort. */
+.workshop-unallocated-box-sort { padding: 0 2px; }
+.workshop-pmb-sort { width: 100%; min-height: 26px; padding: 2px 6px; border: 1px solid #86efac; border-radius: 6px; background: #fff; color: #0f172a; font-size: .66rem; font-weight: 850; }
