@@ -4,6 +4,7 @@ DECLARE v_old text; v_new text; v_def text; v_md5 text;
   c_new text := E'\n         -- r754 (F359): an overdue planned job follows the clock within 5 minutes; a live overrun keeps the 15 minute step.\n         OR (status=''planned'' AND actual_start_at IS NULL AND original_start<p_now AND abs(extract(epoch FROM ((movement->>''to'')::timestamptz-original_start)))>=300));';
 BEGIN
   SELECT prosrc, md5(prosrc) INTO v_old, v_md5 FROM pg_proc WHERE oid = 'public.workshop_clock_tick(boolean,timestamptz)'::regprocedure;
+  v_old := replace(v_old, 'original_start)))>=60));', 'original_start)))>=300));'); -- r754b state folds back to the r754 text first
   IF (length(v_old) - length(replace(v_old, c_new, ''))) / length(c_new) <> 1 THEN RAISE EXCEPTION 'r754 down: anchor not found once'; END IF;
   v_new := replace(v_old, c_new, ');');
   v_def := regexp_replace(pg_get_functiondef('public.workshop_clock_tick(boolean,timestamptz)'::regprocedure), '(AS \$[a-zA-Z_]*\$).*$', '\1', 's');
