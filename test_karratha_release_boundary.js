@@ -59,6 +59,8 @@ test('all frozen native files outside declared boundary adaptations retain origi
     else if (item.file === 'vehicle-requirements-guard.js') assert.equal(sha(Buffer.from(native.toString('utf8').replace(/\r\n/g,'\n'))), item.baseline_sha256, item.file);
     // r695: the PMG copy exposes PDC_OPEN_LOCATION_OVERRIDE for the side panel's Override location button (F305). Department 135 keeps its frozen copy.
     else if (item.file === 'pdc-location-override.js') assert.equal(sha(Buffer.from(native.toString('utf8').replace(/\r\n/g,'\n'))), item.baseline_sha256, item.file);
+    // r747: the PMG copy counts the side-panel Parts complete tick as a confirmation (F353). Department 135 keeps its frozen copy.
+    else if (item.file === 'pdc-parts-confirmation.js') assert.equal(sha(Buffer.from(native.toString('utf8').replace(/\r\n/g,'\n'))), item.baseline_sha256, item.file);
     else assert.deepEqual(native,fs.readFileSync(path.join(original,item.file)),item.file);
   }
 });
@@ -229,8 +231,11 @@ const approvedRootImportPatch = Object.freeze({
   // r685: canonical-entry.js adds r685=2026.10.29.r685 to the table loader (station headings filter; F295). Department 135 is not tagged.
   // r738: canonical-entry.js adds r738=2026.10.30.r738 to the slide-out loader (line Complete only from its own tick; F343).
   // r745: canonical-entry.js adds r745=2026.10.30.r745 to the table loader (Vehicle Locations opens on PMB; F350).
-  "canonical-entry.js": "36284e2ad541cc0f9073ef68c7effd6e212e2d148a517467ab7bda88b9360470", // r739 (F344), r745 (F350) cache tags
+  // r747: canonical-entry.js adds r747=2026.10.30.r747 to the Parts stoppage and parts confirmation loaders (Parts complete tick; F353). Department 135 is not tagged.
+  "canonical-entry.js": "24cb0ba092c15904fa22fd7c025224a4df7f65203b4a7bb69c61c678c551a489", // r747 (F353) cache tags
   "pdc-workshop-vehicle-search.js": "d0be4a60c5ca2213ba71d4cd31cb7019736db3d7e0470d22b3fa88243e56eb4c",
+  // r747: the side-panel Parts complete tick counts as a parts confirmation on the PMG board (F353). Department 135 keeps its frozen copy.
+  "pdc-parts-confirmation.js": "1e7486ae60922154ec2d0ec05cb0ce007f47daf5f03bc508e6e6e4b38d6f8bf9",
   // Owner-authorised PMG fitter read recovery, 13 October 2026.
   // Coaster and HiAce conversions: one Start / Done tick per section in a
   // dropdown (20 Oct 2026); every bay item gets Start / Done and the board
@@ -469,7 +474,7 @@ const approvedRootImportPatch = Object.freeze({
   // r604: index.html adds r604=2026.10.28.r604 on canonical-entry.js (pit bookings, F218). Department 135 is not tagged.
   // r616: pdc-auth.js, pdc-bay-manager.js and canonical-entry.js carry r616=2026.10.28.r616 (fitter sessions send only Fitters bay requests, F231). Department 135 is not tagged.
   // r642: Sublet · MMT nav and view, pdc-mmt-sublet.css/js, r642 on app.js and pdc-staff-usage.js (F257). Department 135 is not tagged.
-  "index.html": "8b28924c6be46c4760fc3748c5c22cf6abde698fe52790f3107be586d235d0e6", // r741 pdc-fitters.js tag
+  "index.html": "0ae248f3b9d7917f6a9b5d5d490e4b517fb83007c335c7728c52bbd0bf83870b", // r747 (F353) canonical-entry tag
   "pdc-conversions.js": "0a99e7a5306f15e434b293a3ca9a318ffad4b78eb814c27144d75ff98821d810",
   // r401: Pit tick and read RPCs (set_pdc_pit_line_tick_401, get_pdc_pit_line_ticks_401).
   // r414: readQcPhotoReceipt (get_pdc_qc_photo_receipt_414) for the QC page (F30).

@@ -4,7 +4,8 @@
   if (typeof window === 'undefined' || window.PDC_SUPABASE_CONFIG?.projectRef !== 'cdsmnqxtyyoeoznmbidd' || window.PDC_PARTS_CONFIRMATION_VERSION) return;
   const confirmation = vehicle => {
     const status = importedPartsStatus(vehicle);
-    return status?.parts_complete === true && status.override_source === 'authorised_email_confirmation' ? status : null;
+    // r747 (F353): the side-panel Parts complete tick counts the same as a confirmation email.
+    return status?.parts_complete === true && (status.override_source === 'authorised_email_confirmation' || status.override_source === 'board_parts_complete') ? status : null;
   };
   const priorComplete = partsStateComplete;
   partsStateComplete = vehicle => {
@@ -14,7 +15,7 @@
   };
   const priorClass = partsDepartmentStatusClass;
   partsDepartmentStatusClass = status => {
-    if (status === 'import:Parts complete — person confirmed' || status === 'import:Parts complete — confirmed by Wayne' || status === 'import:All active jobs parts-ready') return 'parts-status-complete';
+    if (status === 'import:Parts complete — person confirmed' || status === 'import:Parts complete — marked on the board' || status === 'import:Parts complete — confirmed by Wayne' || status === 'import:All active jobs parts-ready') return 'parts-status-complete';
     if (status === 'import:Parts outstanding — see job cards') return 'parts-status-ordered';
     return priorClass(status);
   };
@@ -31,6 +32,7 @@
       const jobs = (p.jobs || []).map(j => `R/O ${j.job_number} (${j.company || 'scope unconfirmed'}/${j.division || '?' }): ${j.label}`).join('\n');
       return `${p.label}\n${jobs}\nParts snapshot: ${p.parts_snapshot_at ? time(p.parts_snapshot_at) : 'Not recorded'}\nLast successful parts import: ${p.last_successful_parts_feed_import_at ? time(p.last_successful_parts_feed_import_at) : 'Not recorded'} (Perth).\n${p.meaning || ''}`;
     }
+    if (status.override_source === 'board_parts_complete') return 'Parts complete. Ticked on the board by ' + person(status) + ' ' + time(status.confirmed_at) + ' (Perth). Untick it in the vehicle side panel to show the import status again.';
     return 'A person confirmed the parts are here. Confirmed by ' + person(status) + ' ' + time(status.confirmed_at) + ' (Perth). This email confirmation overrides import backorder flags. Original import evidence is retained.';
   };
   if (typeof incomingWorkChecklistHtml === 'function') {
@@ -98,5 +100,5 @@
     `;
     document.head.appendChild(style);
   }
-  window.PDC_PARTS_CONFIRMATION_VERSION = '2026.09.13.person-confirmed.1';
+  window.PDC_PARTS_CONFIRMATION_VERSION = '2026.10.30.r747';
 })();
