@@ -27,7 +27,7 @@ ok(service.includes('PDC_QC_PHOTO_BUCKET') && service.includes('uploadQcPhotoEvi
 ok(service.includes('compressQcPhoto') && service.includes('imageOrientation') && service.includes('750 * 1024'), 'client auto-orients, strips metadata through canvas and targets 750KB');
 ok(service.includes('finalizeQcToRft'), 'browser service calls the atomic finalization RPC');
 ok(app.includes('qcPhotoEvidence') && !app.includes('const qcPhotoDrafts = new Map()'), 'QC no longer uses an in-memory photo draft as authority');
-ok(app.includes('Signed off and moved to RFT'), 'QC UI reports the combined finalization outcome');
+ok(app.includes('Final check passed. Key number is now WPC'), 'QC UI reports the combined finalization outcome (r755 wording)');
 ok(app.includes('uploadQcPhotoEvidence') && app.includes('finalizeQcToRft'), 'QC UI uses receipt-backed upload and finalization');
 ok(!app.includes('data-transfer-rft-stock="${escapeHtml(key)}"'), 'successful QC finalization no longer exposes a separate manual RFT step');
 
