@@ -93,7 +93,8 @@ test('view only and wired: no write RPCs, page ships, staging only', () => {
   const rpcs = [...js.matchAll(/rpc\('([a-z0-9_]+)'/g)].map(m => m[1]);
   // r706 (F316): the only writes are Start / Stop for Tint and Tyres, through the planner's own start and complete.
   assert.deepEqual([...rpcs].sort(), ['complete_workshop_work', 'get_pdc_workshop_tv_605', 'start_workshop_work']);
-  assert.match(js, /const ACTION_STATIONS = \['TINT', 'TYRE'\];/);
+  // r744 (F349): Tyres first, then Tint.
+  assert.match(js, /const ACTION_STATIONS = \['TYRE', 'TINT'\];/);
   assert.doesNotMatch(js, /\.from\(/, 'no direct table access, so no table writes');
   assert.doesNotMatch(js, /channel\(|subscribe\(/, 'no realtime channel');
   const html = fs.readFileSync('workshop-tv.html', 'utf8');

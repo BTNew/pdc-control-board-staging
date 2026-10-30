@@ -9,10 +9,11 @@
  */
 (function (root) {
   'use strict';
-  const VERSION = '2026.10.29.r711';
+  const VERSION = '2026.10.30.r744';
   // r706 (F316, Craig 29 Oct): Tint and Tyres sit side by side at the bottom with each job's full key and Start / Stop.
   // They have one line and no iPad. Every other station stays view-only.
-  const ACTION_STATIONS = ['TINT', 'TYRE'];
+  // r744 (F349, Craig 30 Oct): the bottom is split in two, Tyres then Tint, one list per station with the whole day.
+  const ACTION_STATIONS = ['TYRE', 'TINT'];
   const PROJECT = 'cdsmnqxtyyoeoznmbidd';
   const HIDDEN_KEY = 'pdc.workshop-tv.hidden.v1';
   const REFRESH_MS = 60 * 1000;
@@ -107,7 +108,7 @@
     const head = wins.map((w, i) => `<div class="tv-hours"><em>${i === 0 ? 'Today' : esc(dayLabel(w.from))}</em>${hoursHtml(w.from, w.to)}</div>`).join('');
     const timeline = stations.filter(s => !isAction(s));
     const action = ACTION_STATIONS.map(code => stations.find(s => String(s.code).toUpperCase() === code)).filter(Boolean);
-    // r710 (F320, Craig 29 Oct): four zones, one per bay (Tint 1, Tint 2, Tyre 1, Tyre 2).
+    // r744 (F349): two halves (Tyres, Tint), each listing the station's day across its visible bays.
     const actionHtml = action.length ? `<div class="tv-actions">${action.map(s => actionStationHtml(s, data, wins, now)).join('')}</div>` : '';
     return timeline.map(s => {
       const bays = s.bays.map(b => {
@@ -124,47 +125,67 @@
     }).join('') + actionHtml;
   }
 
-  /** r706: the jobs a Tint / Tyres fitter can act on: running ones, then today's (and the next day's) by start. */
+  /**
+   * r744 (F349, Craig 30 Oct): the day's jobs for one station, all its visible bays together.
+   * Running and stopped jobs first, then today's waiting jobs by start time, then today's done jobs.
+   * Two tinters and two tyre fitters work at once, so every waiting job has its own Start.
+   * When nothing is left to start today, the next working day's jobs show so the fitters can pull work forward.
+   */
+  function stationDayJobs(station, wins, now) {
+    const today = wins[0];
+    const next = wins[1];
+    const rows = [];
+    for (const bay of station.bays || []) for (const j of bay.jobs || []) rows.push({ ...j, bay_id: bay.id, bay_name: bay.name });
+    const rank = j => { const st = jobState(j, now); return st === 'live' || st === 'over' || st === 'stop' ? 0 : st === 'done' ? 2 : 1; };
+    const startsBefore = (j, t) => { const st = ms(j.start); return st !== null && t && st < t; };
+    const doneToday = j => { const end = ms(j.actual_end); return end !== null && today && end >= today.from && end < today.to; };
+    let list = rows.filter(j => {
+      const r = rank(j);
+      if (r === 0) return true;
+      if (r === 2) return doneToday(j);
+      return startsBefore(j, today?.to);
+    });
+    if (!list.some(j => rank(j) === 1) && next) {
+      list = list.concat(rows.filter(j => rank(j) === 1 && !startsBefore(j, today?.to) && startsBefore(j, next.to)).map(j => ({ ...j, later: true })));
+    }
+    return list.sort((a, b) => rank(a) - rank(b) || (ms(a.start) ?? 0) - (ms(b.start) ?? 0));
+  }
+  /** Kept for callers of r706-r741: the first three of a single bay's day. */
   function actionJobs(bay, wins, now) {
-    const last = wins[wins.length - 1];
-    return (bay.jobs || []).filter(j => {
-      const state = jobState(j, now);
-      if (state === 'live' || state === 'over' || state === 'stop') return true;
-      if (state === 'done') return false; // r710 (F320): current job, next and the one after only
-      const st = ms(j.start);
-      return st !== null && last && st < last.to;
-    }).sort((a, b) => {
-      const ra = ['live', 'over', 'stop'].includes(jobState(a, now)) ? 0 : jobState(a, now) === 'done' ? 2 : 1;
-      const rb = ['live', 'over', 'stop'].includes(jobState(b, now)) ? 0 : jobState(b, now) === 'done' ? 2 : 1;
-      return ra - rb || (ms(a.start) ?? 0) - (ms(b.start) ?? 0);
-    }).slice(0, 3);
+    return stationDayJobs({ bays: [bay] }, wins, now).filter(j => jobState(j, now) !== 'done').slice(0, 3);
   }
   function actionStationHtml(s, data, wins, now) {
     const canAct = data?.can_act === true;
-    const bays = (s.bays || []).map(b => {
-      const jobs = actionJobs(b, wins, now);
-      const rows = jobs.map(j => {
-        const state = jobState(j, now);
-        const key = j.key ? String(j.key) : '';
-        const when = ms(j.start) !== null ? `${dayLabel(ms(j.start)) === dayLabel(now) ? '' : `${dayLabel(ms(j.start))} `}${hhmm(ms(j.start))}` : '';
-        let act = '';
-        if (canAct && j.id && Number.isInteger(Number(j.booking_version))) {
-          if (state === 'plan') act = `<button type="button" class="tv-act tv-act-start" data-tv-act="start" data-id="${esc(j.id)}" data-v="${esc(j.booking_version)}" data-work="${esc(s.work_key || '')}" aria-label="Start key ${esc(key)}">Start</button>`;
-          else if (state === 'live' || state === 'over' || state === 'stop') act = `<button type="button" class="tv-act tv-act-stop" data-tv-act="stop" data-id="${esc(j.id)}" data-v="${esc(j.booking_version)}" data-work="${esc(s.work_key || '')}" aria-label="Complete key ${esc(key)}">Complete</button>`;
-        }
-        // r710: key number, car type and the button only.
-        return `<li class="tv-aj is-${state}"><strong class="tv-aj-key">${key ? `Key ${esc(key)}` : 'No key'}</strong><span class="tv-aj-info">${esc(j.vehicle || '')}</span>${act || (state === 'done' ? '<span class="tv-aj-when">Done</span>' : '')}</li>`;
-      }).join('');
-      return `<section class="tv-astation tv-zone" data-station="${esc(s.code)}" data-bay="${esc(b.id)}"><h2>${esc(b.name)}${b.technician ? ` <small>${esc(b.technician)}</small>` : ''}</h2><ul>${rows || '<li class="tv-aj is-empty">No jobs booked</li>'}</ul></section>`;
+    const jobs = stationDayJobs(s, wins, now);
+    const multiBay = (s.bays || []).length > 1;
+    const running = jobs.filter(j => ['live', 'over', 'stop'].includes(jobState(j, now))).length;
+    const waiting = jobs.filter(j => jobState(j, now) === 'plan' && !j.later).length;
+    const done = jobs.filter(j => jobState(j, now) === 'done').length;
+    const rows = jobs.map(j => {
+      const state = jobState(j, now);
+      const key = j.key ? String(j.key) : '';
+      const st = ms(j.start);
+      const when = state === 'done' ? 'Done'
+        : st === null ? ''
+        : `${dayLabel(st) === dayLabel(now) ? '' : `${dayLabel(st)} `}${hhmm(st)}`;
+      let act = '';
+      if (canAct && j.id && Number.isInteger(Number(j.booking_version))) {
+        if (state === 'plan') act = `<button type="button" class="tv-act tv-act-start" data-tv-act="start" data-id="${esc(j.id)}" data-v="${esc(j.booking_version)}" data-work="${esc(s.work_key || '')}" aria-label="Start key ${esc(key)}">Start</button>`;
+        else if (state === 'live' || state === 'over' || state === 'stop') act = `<button type="button" class="tv-act tv-act-stop" data-tv-act="stop" data-id="${esc(j.id)}" data-v="${esc(j.booking_version)}" data-work="${esc(s.work_key || '')}" aria-label="Complete key ${esc(key)}">Complete</button>`;
+      }
+      const info = [j.vehicle || '', multiBay ? j.bay_name : ''].filter(Boolean).join(' · ');
+      return `<li class="tv-aj is-${state}${j.later ? ' is-later' : ''}"><strong class="tv-aj-key">${key ? `Key ${esc(key)}` : 'No key'}</strong><span class="tv-aj-info">${esc(info)}</span><span class="tv-aj-when">${esc(when)}</span>${act}</li>`;
     }).join('');
-    return bays;
+    const counts = `<small>${running} running · ${waiting} to start · ${done} done</small>`;
+    const empty = '<li class="tv-aj is-empty">No jobs today</li>';
+    return `<section class="tv-astation tv-zone" data-station="${esc(s.code)}" data-bay="${esc(s.code)}"><h2>${esc(s.name)} ${counts}</h2><ul>${rows || empty}</ul></section>`;
   }
 
   function rowCount(data, hidden) {
     return visibleStations(data, hidden).filter(s => !isAction(s)).reduce((sum, s) => sum + s.bays.length + 1.4, 0);
   }
 
-  const api = { VERSION, ACTION_STATIONS, actionJobs, actionStationHtml, jobState, barHtml, boardHtml, hoursHtml, parseHidden, pct, perth, hhmm, dayLabel, rowCount, windows, visibleStations, bayKey };
+  const api = { VERSION, ACTION_STATIONS, actionJobs, stationDayJobs, actionStationHtml, jobState, barHtml, boardHtml, hoursHtml, parseHidden, pct, perth, hhmm, dayLabel, rowCount, windows, visibleStations, bayKey };
   if (typeof module !== 'undefined') module.exports = api;
   if (typeof window === 'undefined' || typeof document === 'undefined') return;
 
@@ -241,6 +262,7 @@
     lock_busy: 'the board was busy. Press it again.',
     booking_version_conflict: 'the board changed. Press it again.',
     not_authorized: 'this TV login cannot start or complete jobs. Sign in with a controller login.',
+    bay_already_started: 'another job is already running in this bay. The board allows one running job per bay.',
   };
   function tvReason(error, result) {
     const code = String(result?.error || result?.code || '').trim();
