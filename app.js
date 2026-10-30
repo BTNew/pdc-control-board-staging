@@ -680,11 +680,81 @@ function pmbEnteredDateValue(vehicle = {}) {
   return parsed.toISOString().slice(0, 10);
 }
 
+// r830 (F391, Craig 30 Oct): WPC means the car has left the PMB key tags (into QC) and its number is free for reuse.
+// Its age runs from the moment it became WPC until Autocare collects it; the PMB days before that are kept.
+function vehicleKeyIsWpc(vehicle = {}) {
+  return String(vehicle.keyNumber || vehicle.keyNo || vehicle.key_number || vehicle.keyTag || vehicle.pdcKeyNumber || '')
+    .replace(/\s+/g, '').toUpperCase() === 'WPC';
+}
+
+function wpcTimerRow(vehicle = {}) {
+  const map = typeof app === 'undefined' ? null : app.wpcTimers;
+  if (!map || typeof map.get !== 'function') return null;
+  for (const id of [vehicle.id, vehicle.__emailVehicleId, vehicle.sharedVehicleId, vehicle.permanent_vehicle_id]) {
+    const row = id ? map.get(String(id)) : null;
+    if (row) return row;
+  }
+  return null;
+}
+
+function ensureWpcTimers() {
+  const client = typeof window === 'object' ? window.PDC_SUPABASE : null;
+  if (!client || typeof client.rpc !== 'function' || !window.PDC_AUTH_CONTEXT) return;
+  if (app.wpcTimersLoading) return;
+  const revision = app.emailVehicleLocationRevision;
+  const revisionChanged = String(revision ?? '') !== String(app.wpcTimersRevision ?? '');
+  if (!revisionChanged && app.wpcTimersLoadedAt && Date.now() - app.wpcTimersLoadedAt < 15000) return;
+  app.wpcTimersLoading = true;
+  const started = Date.now();
+  client.rpc('list_wpc_timers_830').then(result => {
+    app.wpcTimersLoading = false;
+    app.wpcTimersLoadedAt = started;
+    app.wpcTimersRevision = revision;
+    if (result?.error) return;
+    const next = new Map();
+    (Array.isArray(result?.data) ? result.data : []).forEach(row => {
+      if (row?.vehicle_id) next.set(String(row.vehicle_id), row);
+    });
+    const signature = [...next.entries()].map(([id, row]) => `${id}|${row.wpc_at || ''}|${row.collected_at || ''}`).sort().join('\n');
+    const changed = signature !== app.wpcTimersSignature;
+    app.wpcTimers = next;
+    app.wpcTimersSignature = signature;
+    if (changed && app.currentView === 'dashboard' && typeof renderIncomingDashboardBoard === 'function') renderIncomingDashboardBoard();
+    if (changed && app.currentView === 'qc' && typeof renderQualityControlPage === 'function') renderQualityControlPage();
+  }).catch(() => {
+    app.wpcTimersLoading = false;
+    app.wpcTimersLoadedAt = started;
+  });
+}
+
+function wholeDaysBetween(from, to) {
+  const a = parseIsoTimestamp(from)?.getTime();
+  const b = to ? parseIsoTimestamp(to)?.getTime() : Date.now();
+  if (!Number.isFinite(a) || !Number.isFinite(b)) return null;
+  const perth = ms => Math.floor((ms + 8 * 3600000) / 86400000);
+  return Math.max(0, perth(b) - perth(a));
+}
+
+function wpcAgeInfo(vehicle = {}) {
+  if (!vehicleKeyIsWpc(vehicle)) return null;
+  ensureWpcTimers();
+  const row = wpcTimerRow(vehicle);
+  const days = row ? wholeDaysBetween(row.wpc_at, row.collected_at) : null;
+  const pmbDays = row && row.pmb_key_at ? wholeDaysBetween(row.pmb_key_at, row.wpc_at) : null;
+  const dayText = n => `${n} day${n === 1 ? '' : 's'}`;
+  const label = days === null ? 'WPC' : `WPC ${dayText(days)}`;
+  const parts = [days === null ? 'WPC start not recorded yet' : `${dayText(days)} since WPC${row.collected_at ? ' until Autocare collected it' : ', waiting for Autocare'}`];
+  if (row && row.freed_key) parts.push(`key ${row.freed_key} freed`);
+  if (pmbDays !== null) parts.push(`${dayText(pmbDays)} at PMB before WPC`);
+  return { days, pmbDays, label, title: parts.join('. ') + '.' };
+}
+
 // r562 (F176) recorded the key instant. r563 (F177) starts the PMB age at the
 // earlier of that instant and the first Tune import. When neither exists, the
 // board arrival is kept and flagged.
 function pmbVehicleHasKey(vehicle = {}) {
   const direct = String(vehicle.keyNumber || vehicle.keyNo || vehicle.key_number || vehicle.keyTag || vehicle.pdcKeyNumber || '').trim();
+  if (direct && vehicleKeyIsWpc(vehicle)) return false;
   if (direct) return true;
   const row = pmbKeyAssignedRow(vehicle);
   return row ? row.has_key === true : false;
@@ -719,6 +789,7 @@ function newToPmbWindowLabel() {
 }
 
 function pmbKeyIsNew(vehicle = {}) {
+  if (vehicleKeyIsWpc(vehicle)) return false;
   const raw = pmbKeyAssignedTimestamp(vehicle);
   if (!raw) return false;
   const when = new Date(raw).getTime();
@@ -786,6 +857,8 @@ function pmbAgeDays(vehicle = {}) {
 }
 
 function pmbAgeLabel(vehicle = {}) {
+  const wpc = wpcAgeInfo(vehicle);
+  if (wpc) return wpc.label;
   if (typeof ensurePmbKeyAssigned === 'function') ensurePmbKeyAssigned();
   if (typeof ensurePmbArrivalAge === 'function') ensurePmbArrivalAge();
   const days = pmbAgeDays(vehicle);
@@ -826,6 +899,8 @@ function partsEtaCounterClass(vehicle = {}) {
 }
 
 function pmbAgeDetailText(vehicle = {}) {
+  const wpc = wpcAgeInfo(vehicle);
+  if (wpc) return wpc.title;
   const basis = pmbArrivalAgeBasis(vehicle);
   const days = pmbAgeDays(vehicle);
   if (basis === 'tune') {
@@ -3373,7 +3448,8 @@ function boardKeyToken(value = '') {
 
 function boardVehicleWithSameKey(keyNumber = '', currentKey = '') {
   const token = boardKeyToken(keyNumber);
-  if (!token || /^0+$/.test(token)) return null;
+  // r830 (F391): any number of cars can be WPC.
+  if (!token || /^0+$/.test(token) || token === 'WPC') return null;
   return (app.data || []).find(vehicle => {
     const key = vehicleKey(vehicle);
     return key !== String(currentKey || '').trim() && boardKeyToken(vehicleKeyNumber(vehicle)) === token;
@@ -8100,7 +8176,7 @@ function qualityControlVehicleHtml(vehicle = {}) {
     <span class="control-board-work-identity">${vehicleIdentityStackHtml(vehicle)}</span>
     <span class="control-board-work-main"><strong>${escapeHtml(displayVehicle(vehicle) || 'Vehicle not listed')}</strong></span>
     <span class="control-board-work-location"><b>Now</b><span>QC</span></span>
-    <span class="control-board-work-age"><b>PMB</b><span>${escapeHtml(pmbAgeLabel(vehicle))}</span></span>
+    <span class="control-board-work-age"><b>${vehicleKeyIsWpc(vehicle) ? 'Since' : 'PMB'}</b><span title="${escapeHtml(pmbAgeDetailText(vehicle))}">${escapeHtml(pmbAgeLabel(vehicle))}</span></span>
     <span class="badge warning">Awaiting receipt-backed sign-off</span>
     ${action}
   </article>`;
@@ -9984,6 +10060,9 @@ function incomingVehicleAge(vehicle = {}, bucketKey = '') {
   // r563 (F177): PMB, New to PMB and QC count from the earlier of the key
   // number and the first Tune import. When neither exists, the board arrival
   // is kept and flagged.
+  // r830 (F391): a WPC car counts from WPC until Autocare collects it.
+  const wpc = atPmb ? wpcAgeInfo(vehicle) : null;
+  if (wpc) return { label: wpc.label, colourClass: `pmb-age-${vehicleAgeColourBand(wpc.days)}`, title: wpc.title };
   if (atPmb && typeof ensurePmbKeyAssigned === 'function') ensurePmbKeyAssigned();
   if (atPmb && typeof ensurePmbArrivalAge === 'function') ensurePmbArrivalAge();
   const days = atPmb ? pmbAgeDays(vehicle) : daysSinceDateValue(incomingKewdaleAgeValue(vehicle));

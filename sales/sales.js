@@ -171,7 +171,7 @@
   if (!root.document) return;
   const $ = id => root.document.getElementById(id);
   const defaultFilters=()=>({category:'all',search:'',salesperson:'',month:'',status:'',quick:'',sort:'stock',direction:1});
-  const state = { keyAssigned:new Map(),keyAssignedBusy:false,dispatchBusy:false,dispatchRequest:0,hiddenItems:[],showHidden:false,hiddenBusy:false,hiddenRequest:0,visibilitySaving:new Set(),visibilityConfirmed:new Map(),refreshQueued:false,branchFeedRows:0,items:[], context:null, generation:0, busy:false, accounts:null,view:'dashboard',selected:new Set(),detailId:null,reviewedOrders:null,importBusy:false,orderRevision:0,printBusy:false,printerBusy:false,printers:[],printerName:'',saving:new Map(),
+  const state = { keyAssigned:new Map(),wpc:new Map(),keyAssignedBusy:false,dispatchBusy:false,dispatchRequest:0,hiddenItems:[],showHidden:false,hiddenBusy:false,hiddenRequest:0,visibilitySaving:new Set(),visibilityConfirmed:new Map(),refreshQueued:false,branchFeedRows:0,items:[], context:null, generation:0, busy:false, accounts:null,view:'dashboard',selected:new Set(),detailId:null,reviewedOrders:null,importBusy:false,orderRevision:0,printBusy:false,printerBusy:false,printers:[],printerName:'',saving:new Map(),
     filters:defaultFilters(),workspace:null,workspaceRequest:0,workspaceBusy:false,searchTimer:null,html:new Map() };
   const columns = [
     ['salesperson_code','SP'],['stock','Stock / Toyota Order'],['production_month','P/Month'],['client','Client'],
@@ -401,7 +401,17 @@
     if(!Number.isFinite(ms))return null;
     return Math.max(0,Math.floor((Date.now()+8*3600000)/86400000)-Math.floor((ms+8*3600000)/86400000));
   }
+  // r830 (F391, Craig 30 Oct): a WPC car has left the PMB key tags (into QC). It stays At PMB and shows its WPC age:
+  // days since WPC until Autocare collects it.
+  function wpcAgeHtml(row){
+    const w=state.wpc.get(String(row.canonical_vehicle_id||''));
+    const days=w?keyAgeDays(w.wpc_at):null;
+    const pmb=w&&w.pmb_key_at?keyAgeDays(w.pmb_key_at)-days:null;
+    const title='WPC'+(w?' since '+dateLabel(w.wpc_at)+(w.freed_key?' (key '+w.freed_key+' freed)':'')+'. Waiting for Autocare.'+(pmb!==null&&pmb>=0?' '+pmb+' day'+(pmb===1?'':'s')+' at PMB before WPC.':''):'. WPC date not recorded yet.');
+    return '<span class="key-age" title="'+escapeHtml(title)+'"><strong>WPC</strong> · '+(days===null?'—':days+' day'+(days===1?'':'s'))+'</span>';
+  }
   function keyAgeHtml(row){
+    if(String(row.key_number||'').replace(/\s+/g,'').toUpperCase()==='WPC')return wpcAgeHtml(row);
     const at=state.keyAssigned.get(String(row.canonical_vehicle_id||''))||'';
     const days=keyAgeDays(at);
     const key=String(row.key_number).trim();
@@ -418,6 +428,12 @@
       const next=new Map();
       for(const r of data)if(r&&r.vehicle_id&&r.assigned_at)next.set(String(r.vehicle_id),r.assigned_at);
       state.keyAssigned=next;
+      const wpc=await root.PDC_SUPABASE.rpc('list_wpc_timers_830');
+      if(!wpc.error&&Array.isArray(wpc.data)){
+        const w=new Map();
+        for(const r of wpc.data)if(r&&r.vehicle_id&&r.wpc_at)w.set(String(r.vehicle_id),r);
+        state.wpc=w;
+      }
       render();
     }catch(_){/* key ages stay as dashes; the ETA view is unaffected */}
     finally{state.keyAssignedBusy=false;}

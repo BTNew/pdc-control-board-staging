@@ -14,7 +14,7 @@ function load(name) {
   const end = source.indexOf('\nfunction ', start + 1);
   vm.runInContext(source.slice(start, end), context);
 }
-for (const name of ['parseDateAU','scotEtaOnly','parseIsoTimestamp','pmbEnteredTimestamp','daysSinceTimestamp','daysSinceDateValue','kewdaleEtaValue','onSiteDays','vehicleAgeColourBand','onSiteDaysClass','pmbVehicleHasKey','pmbKeyAssignedRow','pmbKeyAssignedTimestamp','pmbArrivalAgeRow','pmbTuneImportedTimestamp','pmbArrivalAgeBasis','pmbArrivalAgeTimestamp','pmbAgeDays','incomingKewdaleAgeValue','incomingVehicleAge']) load(name);
+for (const name of ['parseDateAU','scotEtaOnly','parseIsoTimestamp','pmbEnteredTimestamp','daysSinceTimestamp','daysSinceDateValue','kewdaleEtaValue','onSiteDays','vehicleAgeColourBand','onSiteDaysClass','vehicleKeyIsWpc','wpcTimerRow','ensureWpcTimers','wholeDaysBetween','wpcAgeInfo','pmbVehicleHasKey','pmbKeyAssignedRow','pmbKeyAssignedTimestamp','pmbArrivalAgeRow','pmbTuneImportedTimestamp','pmbArrivalAgeBasis','pmbArrivalAgeTimestamp','pmbAgeDays','incomingKewdaleAgeValue','incomingVehicleAge']) load(name);
 const age = (v, bucket) => context.incomingVehicleAge(v,bucket);
 const car = {pmbEnteredAt:'2026-09-15T08:00:00+08:00',navisionKewdaleEta:'2026-08-01'};
 assert.equal(age(car,'pmb').label,'0 days');
