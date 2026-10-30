@@ -228,7 +228,8 @@ const approvedRootImportPatch = Object.freeze({
   // r632: canonical-entry.js adds r632=2026.10.28.r632 to the pit loader (Welshpool, quarter hours; F247). Department 135 is not tagged.
   // r685: canonical-entry.js adds r685=2026.10.29.r685 to the table loader (station headings filter; F295). Department 135 is not tagged.
   // r738: canonical-entry.js adds r738=2026.10.30.r738 to the slide-out loader (line Complete only from its own tick; F343).
-  "canonical-entry.js": "5ee1d94884edd9ddc814888ab46643a652eafa6eb151cb29da953a54798d4fca", // r739 (F344) cache tags
+  // r743: canonical-entry.js adds r743=2026.10.30.r743 to the table loader (Vehicle Locations opens on PMB; F347).
+  "canonical-entry.js": "b24fc66dd6a85652adfa95983d95611e1b99d0611e2551f4548c056ebfc95ea0", // r739 (F344), r743 (F347) cache tags
   "pdc-workshop-vehicle-search.js": "d0be4a60c5ca2213ba71d4cd31cb7019736db3d7e0470d22b3fa88243e56eb4c",
   // Owner-authorised PMG fitter read recovery, 13 October 2026.
   // Coaster and HiAce conversions: one Start / Done tick per section in a

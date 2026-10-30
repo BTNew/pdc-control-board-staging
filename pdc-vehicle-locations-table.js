@@ -404,7 +404,9 @@
 
   // ---------- Browser ----------
   const doc = root.document;
-  const state = { station: '', bucket: '', stoppages: false, openKey: '', view: DROPDOWN_VIEW_ENABLED ? VIEWS.dropdown : VIEWS.table, partsSort: '', widths: {}, search: { needle: '', pick: null } };
+  // r743 (F347): Vehicle Locations opens on the PMB tile (page load and every click on the Vehicle Locations menu item).
+  const DEFAULT_BUCKET = 'pmb';
+  const state = { station: '', bucket: DEFAULT_BUCKET, stoppages: false, openKey: '', view: DROPDOWN_VIEW_ENABLED ? VIEWS.dropdown : VIEWS.table, partsSort: '', widths: {}, search: { needle: '', pick: null } };
   let dualSearchReady = false;
   let drawerOpener = null; // r462: { open(key, bucket), refresh(key, bucket), close() } from pdc-vehicle-slideout.js
   const userId = () => root.PDC_AUTH_CONTEXT?.userId || '';
@@ -1186,6 +1188,11 @@
     if (event.key === storageKey(userId())) syncViewForUser();
     if (event.key === columnStorageKey(userId()) && tableOn()) { state.widths = readWidths(storage(), userId()); applyWidths(doc.getElementById('vlt-table-host')); }
   });
+  // r743 (F347): clicking Vehicle Locations in the menu always lands on the PMB tile (capture runs before showView renders).
+  doc.addEventListener('click', event => {
+    if (!event.target?.closest?.('.nav-item[data-view="dashboard"]')) return;
+    Object.assign(state, { bucket: DEFAULT_BUCKET, stoppages: false });
+  }, true);
   doc.addEventListener('keydown', event => { if (event.key === 'Escape' && tableOn() && state.openKey && !doc.querySelector('.modal[open], dialog[open]')) closeDrawer(); });
 
   root.PDC_VEHICLE_LOCATIONS_TABLE = Object.freeze({ ...api, state, setView, openDrawer, closeDrawer, parity, render: () => root.renderIncomingDashboardBoard(),
