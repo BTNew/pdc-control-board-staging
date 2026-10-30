@@ -1744,3 +1744,17 @@ button.workshop-search-result:hover, button.workshop-search-result:focus-visible
   }
   .workshop-header-more[open] > .workshop-header-more-panel { display: flex; }
 }
+
+/* r860 (F410, Craig 30 Oct 2026): Unallocated split into At PMB and In transit / Yard hold boxes. */
+.workshop-unallocated-boxes { gap: 6px; }
+.workshop-unallocated-box { display: grid; gap: 4px; min-width: 0; padding: 4px; border: 1px solid #cbd5e1; border-radius: 8px; background: #f8fafc; }
+.workshop-unallocated-box.is-pmb { border-color: #86efac; background: #f0fdf4; }
+.workshop-unallocated-box.is-incoming { border-color: #fcd34d; background: #fffbeb; }
+.workshop-unallocated-box-heading { display: flex; align-items: center; justify-content: space-between; gap: 6px; padding: 2px 4px; font-size: .7rem; }
+.workshop-unallocated-box-heading strong { color: #0f172a; font-weight: 950; }
+.workshop-unallocated-box-heading span { min-width: 22px; padding: 1px 7px; border-radius: 999px; background: #fff; color: #0f172a; font-weight: 950; text-align: center; }
+.workshop-unallocated-box-list { display: grid; align-content: start; grid-auto-rows: max-content; gap: 4px; min-width: 0; }
+.workshop-queue-card small.workshop-unallocated-location { display: block; font-size: .62rem; font-weight: 950; }
+.workshop-queue-card small.workshop-unallocated-location.is-pmb { color: #166534; }
+.workshop-queue-card small.workshop-unallocated-location.is-it { color: #92400e; }
+.workshop-queue-card small.workshop-unallocated-location.is-yh { color: #1d4ed8; }

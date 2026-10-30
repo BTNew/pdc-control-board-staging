@@ -50,5 +50,5 @@ test('Insert here never asks for a start before now', () => {
 
 test('planner script cache tag r750 on both loaders', () => {
   const app = fs.readFileSync('app.js', 'utf8');
-  assert.equal((app.match(/workshop-planner\.js\?[^`]*&r750=2026\.10\.30\.r750`/g) || []).length, 2);
+  assert.equal((app.match(/workshop-planner\.js\?[^`]*&r750=2026\.10\.30\.r750(&r\d{3}=2026\.10\.30\.r\d{3})*`/g) || []).length, 2);
 });

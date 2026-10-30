@@ -6041,6 +6041,128 @@ function workshopUnallocatedHeadingCounts(outstanding = [], returnedPlans = [], 
   return { unallocated, booked };
 }
 
+// r860 (F410, Craig 30 Oct 2026): every station's Unallocated list is two boxes.
+// At PMB: every car with a key (or located at PMB/QC), longest at PMB first.
+// In transit / Yard hold: IT cars by Kewdale ETA (soonest first), then Yard hold.
+// Cars with no key in Other or Completed are not listed. Display and order only:
+// scheduling, eligibility and bookings are unchanged.
+function workshopUnallocatedGroup(vehicle = {}) {
+  const key = String(vehicle.keyNumber || vehicle.key_number || vehicle.keyNo || vehicle.pdcKeyNumber || '').trim();
+  if (key) return 'PMB';
+  const location = workshopVehiclePlanningLocation(vehicle);
+  if (location === 'IT' || location === 'YH') return location;
+  if (location === 'PMB' || location === 'QC') return 'PMB';
+  return '';
+}
+
+function workshopKewdaleEtaDateKey(vehicle = {}) {
+  const supplied = typeof kewdaleEtaValue === 'function' ? kewdaleEtaValue(vehicle) : '';
+  const raw = cleanNavisionText(supplied || vehicle.eta_to_kewdale || vehicle.navisionKewdaleEta || vehicle.etaAtKewdale || vehicle.navisionEtaDate || '');
+  let match = raw.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  let key = match ? `${match[1]}-${match[2]}-${match[3]}` : '';
+  if (!key) {
+    match = raw.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2}|\d{4})$/);
+    if (match) key = `${match[3].length === 2 ? `20${match[3]}` : match[3]}-${match[2].padStart(2, '0')}-${match[1].padStart(2, '0')}`;
+  }
+  return workshopValidDateKey(key) ? key : '';
+}
+
+function workshopDaysUntilDateKey(dateKey = '', now = new Date()) {
+  if (!dateKey) return null;
+  const toUtc = value => { const [y, m, d] = value.split('-').map(Number); return Date.UTC(y, m - 1, d); };
+  return Math.round((toUtc(dateKey) - toUtc(workshopDateKey(now))) / 86400000);
+}
+
+function workshopPmbSinceMs(vehicle = {}) {
+  const raw = typeof pmbArrivalAgeTimestamp === 'function' ? pmbArrivalAgeTimestamp(vehicle) : '';
+  const ms = raw ? new Date(raw).getTime() : NaN;
+  return Number.isFinite(ms) ? ms : NaN;
+}
+
+function workshopUnallocatedLocationLabel(vehicle = {}, group = workshopUnallocatedGroup(vehicle), now = new Date()) {
+  const plural = n => `${n} day${n === 1 ? '' : 's'}`;
+  if (group === 'PMB') {
+    const since = workshopPmbSinceMs(vehicle);
+    if (!Number.isFinite(since)) return 'At PMB';
+    const days = Math.max(0, Math.floor((now.getTime() - since) / 86400000));
+    return days === 0 ? 'At PMB · today' : `At PMB · ${plural(days)}`;
+  }
+  if (group === 'YH') return 'Yard hold';
+  if (group === 'IT') {
+    const days = workshopDaysUntilDateKey(workshopKewdaleEtaDateKey(vehicle), now);
+    if (days === null) return 'In transit · no Kewdale ETA';
+    if (days === 0) return 'In transit · Kewdale today';
+    return days > 0 ? `In transit · Kewdale in ${plural(days)}` : `In transit · Kewdale ETA ${plural(-days)} ago`;
+  }
+  return '';
+}
+
+function workshopUnallocatedGroups(queue = [], highlightVehicleKey = '', now = new Date()) {
+  const pmb = [];
+  const incoming = [];
+  (Array.isArray(queue) ? queue : []).forEach(vehicle => {
+    let group = workshopUnallocatedGroup(vehicle);
+    if (!group && highlightVehicleKey && vehicleKey(vehicle) === highlightVehicleKey) group = 'YH';
+    if (group === 'PMB') pmb.push(vehicle);
+    else if (group === 'IT' || group === 'YH') incoming.push({ vehicle, group });
+  });
+  const keyNumber = vehicle => Number.parseInt(String(vehicle.keyNumber || vehicle.key_number || ''), 10);
+  const pmbRows = pmb.map(vehicle => ({ vehicle, since: workshopPmbSinceMs(vehicle), key: keyNumber(vehicle) }));
+  pmbRows.sort((a, b) => {
+    const aHas = Number.isFinite(a.since), bHas = Number.isFinite(b.since);
+    if (aHas !== bHas) return aHas ? -1 : 1;
+    if (aHas && a.since !== b.since) return a.since - b.since;
+    const aKey = Number.isFinite(a.key) ? a.key : Infinity, bKey = Number.isFinite(b.key) ? b.key : Infinity;
+    return aKey - bKey;
+  });
+  const incomingRows = incoming.map(row => ({ ...row, days: row.group === 'IT' ? workshopDaysUntilDateKey(workshopKewdaleEtaDateKey(row.vehicle), now) : null }));
+  incomingRows.sort((a, b) => {
+    const rank = row => row.group === 'IT' ? (row.days === null ? 1 : 0) : 2;
+    if (rank(a) !== rank(b)) return rank(a) - rank(b);
+    if (rank(a) === 0 && a.days !== b.days) return a.days - b.days;
+    return 0;
+  });
+  return {
+    pmb: pmbRows.map(row => row.vehicle),
+    incoming: incomingRows.map(row => row.vehicle),
+    hidden: (Array.isArray(queue) ? queue.length : 0) - pmbRows.length - incomingRows.length,
+  };
+}
+
+function workshopQueueCardWithLocationHtml(vehicle = {}, stage, dateKey, plans) {
+  const html = workshopQueueCardHtml(vehicle, stage, dateKey, plans);
+  const label = workshopUnallocatedLocationLabel(vehicle);
+  if (!html || !label) return html;
+  const group = workshopUnallocatedGroup(vehicle) || 'YH';
+  const line = `<small class="workshop-unallocated-location is-${escapeHtml(group.toLowerCase())}">${escapeHtml(label)}</small>`;
+  return html.includes('<div class="workshop-queue-actions">')
+    ? html.replace('<div class="workshop-queue-actions">', `${line}<div class="workshop-queue-actions">`)
+    : html;
+}
+
+function workshopUnallocatedBoxesHtml({ returnedPlans = [], queue = [], stage, dateKey, plans, highlightVehicleKey = '', limit } = {}) {
+  const groups = workshopUnallocatedGroups(queue, highlightVehicleKey);
+  const ordered = [...groups.pmb, ...groups.incoming];
+  const batch = workshopIncrementalRenderRows(ordered, limit, highlightVehicleKey);
+  const pmbIds = new Set(groups.pmb.map(vehicle => vehicleKey(vehicle)));
+  const visiblePmb = batch.visible.filter(vehicle => pmbIds.has(vehicleKey(vehicle)));
+  const visibleIncoming = batch.visible.filter(vehicle => !pmbIds.has(vehicleKey(vehicle)));
+  const pmbCount = returnedPlans.length + groups.pmb.length;
+  const incomingCount = groups.incoming.length;
+  const pmbCards = returnedPlans.map(workshopReturnedQueueCardHtml).join('') + visiblePmb.map(vehicle => workshopQueueCardWithLocationHtml(vehicle, stage, dateKey, plans)).join('');
+  const incomingCards = visibleIncoming.map(vehicle => workshopQueueCardWithLocationHtml(vehicle, stage, dateKey, plans)).join('');
+  const pmbMore = groups.pmb.length > visiblePmb.length ? `<div class="workshop-empty">${groups.pmb.length - visiblePmb.length} more at PMB · use Show next below</div>` : '';
+  return `<section class="workshop-unallocated-box is-pmb" data-workshop-unallocated-box="pmb">
+      <div class="workshop-unallocated-box-heading"><strong>At PMB</strong><span>${pmbCount}</span></div>
+      <div class="workshop-unallocated-box-list">${pmbCards || '<div class="workshop-empty">No cars at PMB waiting for this station.</div>'}${pmbMore}</div>
+    </section>
+    <section class="workshop-unallocated-box is-incoming" data-workshop-unallocated-box="incoming">
+      <div class="workshop-unallocated-box-heading"><strong>In transit / Yard hold</strong><span>${incomingCount}</span></div>
+      <div class="workshop-unallocated-box-list">${incomingCards || (incomingCount ? '' : '<div class="workshop-empty">No cars in transit or yard hold for this station.</div>')}</div>
+    </section>
+    ${workshopIncrementalLoadMoreHtml('queue', batch)}`;
+}
+
 function workshopReturnedQueuePlans(plans, stage, category = '') {
   return plans.filter(entry => entry.stage === stage && (entry.sharedStatus === 'queued'
     // r424 (F38): stopped in a bay, then dragged to Unallocated (see workshopPlanStoppedUnallocated).
@@ -6265,13 +6387,14 @@ function renderWorkshopPlanner(options = {}) {
   // Once a vehicle is assigned to this station's physical bay it is no longer
   // actionable in the Outstanding candidates pile. The authoritative total is
   // still retained separately for reporting and reconciliation.
+  // r860 (F410): key dates order the At PMB box (longest at PMB first).
+  if (!focusedBookingMode && typeof ensurePmbKeyAssigned === 'function') ensurePmbKeyAssigned();
   const queue = focusedBookingMode ? [] : unscheduled.filter(vehicle => !returnedVehicleIds.has(vehicle.sharedVehicleId || vehicle.id));
   const incrementalScope = `${stage}:${dateKey}`;
   if (state.incrementalRenderScope !== incrementalScope) {
     state.incrementalRenderScope = incrementalScope;
     state.incrementalQueueLimit = WORKSHOP_INCREMENTAL_RENDER_BATCH;
   }
-  const queueBatch = workshopIncrementalRenderRows(queue, state.incrementalQueueLimit, state.highlightVehicleKey);
   const todaysPlans = activePlans.filter(entry => workshopEntrySegmentForDate(entry, dateKey));
   const selectedDateBookingCount = todaysPlans.length;
   const assigneeConflicts = todaysPlans.filter(entry => workshopEntryHasAssigneeConflict(entry, plans)).length;
@@ -6326,9 +6449,9 @@ function renderWorkshopPlanner(options = {}) {
     <div class="workshop-board-shell">
       ${focusedBookingMode ? '' : `<aside class="workshop-side-panel workshop-waiting-panel">
         ${typeof workshopPartsEtaStoppageSectionHtml === 'function' ? workshopPartsEtaStoppageSectionHtml() : '<section class="workshop-parts-stoppage" aria-label="Stoppage"><div class="workshop-side-heading"><strong>Stoppage</strong><span>Parts ETA</span></div><div class="workshop-empty">No parts ETA is placed as STOPPAGE.</div></section>'}
-        <div class="workshop-side-heading"><strong>Unallocated vehicles</strong><span>${unallocatedHeadingCount} unallocated · ${alreadyBookedOutstanding} already booked in bays</span></div>
+        <div class="workshop-side-heading"><strong>Unallocated vehicles</strong><span>${alreadyBookedOutstanding} already booked in bays</span></div>
         <div class="workshop-unallocated-drop" data-workshop-unallocated-drop><strong>Return to Unallocated</strong><span>Planned or live: choose Just move or STOPPAGE</span></div>
-        <div class="workshop-side-list">${returnedPlans.map(workshopReturnedQueueCardHtml).join('')}${queueBatch.visible.map(vehicle => workshopQueueCardHtml(vehicle, stage, dateKey, plans)).join('') || (returnedPlans.length ? '' : '<div class="workshop-empty">No outstanding requirements in this department.</div>')}${workshopIncrementalLoadMoreHtml('queue', queueBatch)}</div>
+        <div class="workshop-side-list workshop-unallocated-boxes">${workshopUnallocatedBoxesHtml({ returnedPlans, queue, stage, dateKey, plans, highlightVehicleKey: state.highlightVehicleKey, limit: state.incrementalQueueLimit })}</div>
       </aside>`}
       <section class="workshop-timeline-scroll">
         <div class="workshop-scroll-cue" role="note">Swipe or scroll schedule horizontally →</div>
