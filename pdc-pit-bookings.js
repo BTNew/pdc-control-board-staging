@@ -429,6 +429,15 @@
     });
   }
 
+  // r753 (F358, Craig 30 Oct): the PIT tile is gone; the list and calendar are their own page in the menu (Pit bookings).
+  function open() {
+    const host = document.getElementById('pit-bookings-content');
+    if (!host) return;
+    ui.host = host; ui.search = null;
+    host.innerHTML = loaded ? panelHtml(board, ui) : '<section class="pdc-pit-panel" data-pdc-pit-panel><p class="pdc-pit-hint">Loading pit bookings…</p></section>';
+    if (loaded) bindPanel(host.querySelector('[data-pdc-pit-panel]'));
+    else { const pending = load(); if (pending && typeof pending.then === 'function') pending.then(() => { if (ui.host === host && host.isConnected) paintPanel(); }); }
+  }
   /** Called by the Vehicle Locations table after each render. */
   function afterRender(host, { bucket, search = null } = {}) {
     if (!host) return;
@@ -452,6 +461,7 @@
     ...api,
     cell: rowKey => cellHtml(board.byKey.get(String(rowKey)) || board.byKey.get(stockKey(rowKey)), board.today),
     afterRender,
+    open,
     load,
     get board() { return board; },
   });

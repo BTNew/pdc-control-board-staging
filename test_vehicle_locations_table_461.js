@@ -63,7 +63,7 @@ test('parity gate: every station cell of every vehicle is identical in the drop-
   const seenBuckets = new Set();
   for (const vehicle of rows) {
     const key = c.vehicleKey(vehicle);
-    const bucket = c.incomingBucketForVehicle(vehicle);
+    const bucket = c.vehicleLocationsDisplayBucket(vehicle); // r753 (F358): the board draws the display bucket (PIT on PMB, WPC before RFT)
     seenBuckets.add(bucket);
     // The table renders from the very same incomingVehicleDetailRow() call the drop-down view makes.
     const card = c.incomingVehicleDetailRow(vehicle, bucket, { workshopPlans: plans, workshopProjectionAvailable: true, subletNavigation: true });
@@ -93,14 +93,17 @@ test('parity gate: every station cell of every vehicle is identical in the drop-
     }
   }
   assert.deepEqual(report.mismatches, [], `drop-down vs table mismatches: ${report.mismatches.length}`);
-  const expectedCells = rows.filter(vehicle => c.incomingBucketForVehicle(vehicle) !== 'rft')
+  const expectedCells = rows.filter(vehicle => !['rft', 'wpc'].includes(c.vehicleLocationsDisplayBucket(vehicle))) // r753: WPC rows carry the RFT controls too
     .reduce((sum, vehicle) => sum + elements(c.incomingWorkChecklistHtml(vehicle, { bookingProjection: c.vehicleWorkshopBookingProjection(vehicle, { plans }) }), '*', 'incoming-work-check').length, 0);
   assert.equal(report.cells, expectedCells, 'every station cell of every vehicle was compared (RFT rows carry the RFT controls instead)');
   assert.ok(report.cells >= 300, `enough cells compared (${report.cells})`);
   for (const state of ['not required', 'required', 'booked', 'complete', 'stoppage', 'parts green', 'parts orange', 'parts grey', 'parts review', 'parts red']) {
     assert.ok(report.states[state] > 0, `fixture covers the ${state} state`);
   }
-  assert.deepEqual([...seenBuckets].sort(), [...BUCKETS].sort(), 'fixture covers all eight location buckets');
+  // r753 (F358): the fixture still has PIT-located and RFT-located cars; on the board PIT shows on the PMB tile and an
+  // un-RFT'd car at RFT shows on WPC, so the seen display buckets are the fixture buckets minus pit and rft plus wpc.
+  assert.deepEqual([...seenBuckets].sort(), [...BUCKETS.filter(b => !['pit', 'rft'].includes(b)), 'wpc'].sort(), 'fixture covers every display bucket');
+  assert.deepEqual([...new Set(rows.map(v => c.incomingBucketForVehicle(v)))].sort(), [...BUCKETS].sort(), 'fixture covers all eight operational buckets');
   console.log(`r461 parity (synthetic): ${report.vehicles} vehicles, ${report.cells} station cells, 0 mismatches`, report.states);
 });
 
@@ -122,11 +125,12 @@ test('each state keeps its symbol: required •, booked !, complete ✓, STOPPAG
 
 test('tiles and rows follow Craig\'s journey order; a bucket added later is never dropped', () => {
   const { c } = board();
-  assert.deepEqual(table.journeyOrder(c.VEHICLE_LOCATION_BUCKET_DEFS ?? c.eval?.('VEHICLE_LOCATION_BUCKET_DEFS') ?? []).length ? table.journeyOrder(c.VEHICLE_LOCATION_BUCKET_DEFS) : table.JOURNEY,
-    ['overseas', 'transit', 'yardhold', 'nonnavision', 'newpmb', 'pmb', 'qc', 'pit', 'rft']);
+  // r753 (F358): the live tile defs (read from app.js) have no PIT tile and WPC sits before RFT.
+  const defKeys = [...fs.readFileSync('app.js', 'utf8').match(/const VEHICLE_LOCATION_BUCKET_DEFS = Object\.freeze\(\[[\s\S]*?\]\);/)[0].matchAll(/key: '([a-z]+)'/g)].map(m => ({ key: m[1] }));
+  assert.deepEqual(table.journeyOrder(defKeys), ['overseas', 'transit', 'yardhold', 'nonnavision', 'newpmb', 'pmb', 'qc', 'wpc', 'rft']);
   assert.deepEqual(table.journeyOrder([{ key: 'rft' }, { key: 'pmb' }, { key: 'future' }, { key: 'overseas' }]), ['overseas', 'pmb', 'rft', 'future']);
-  assert.deepEqual(table.JOURNEY, ['overseas', 'transit', 'yardhold', 'nonnavision', 'newpmb', 'pmb', 'qc', 'pit', 'rft']);
-  assert.deepEqual(table.JOURNEY.map(key => table.TILE[key][0]), ['Other', 'In transit (IT)', 'Yard Hold', 'Non-Navision', 'New to PMB', 'PMB', 'QC', 'PIT', 'RFT']);
+  assert.deepEqual(table.JOURNEY, ['overseas', 'transit', 'yardhold', 'nonnavision', 'newpmb', 'pmb', 'qc', 'pit', 'wpc', 'rft']);
+  assert.deepEqual(table.JOURNEY.map(key => table.TILE[key][0]), ['Other', 'In transit (IT)', 'Yard Hold', 'Non-Navision', 'New to PMB', 'PMB', 'Final check', 'PIT', 'WPC', 'RFT']);
   const source = fs.readFileSync('pdc-vehicle-locations-table.js', 'utf8');
   assert.match(source, /tile\('', 'All vehicles'[\s\S]*order\.map[\s\S]*tile\(STOPPAGES, 'STOPPAGES', priorityRows\.length/, 'All first, STOPPAGES last, counted from the board\'s own stoppage list');
 });

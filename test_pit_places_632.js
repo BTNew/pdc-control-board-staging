@@ -25,6 +25,6 @@ test('SQL: staging only, guarded on r630 bodies, widens checks, pins 241, undo e
   assert.match(sql, /'Wades'::text, 'Welshpool'::text/);
   assert.match(sql, /IN \(0, 15, 30, 45\)/);
   assert.match(sql, /true, 385, 'r632'\)/);
-  assert.match(fs.readFileSync('canonical-entry.js', 'utf8'), /pdc-pit-bookings\.js\?[^']*&r632=2026\.10\.28\.r632'/);
+  assert.match(fs.readFileSync('canonical-entry.js', 'utf8'), /pdc-pit-bookings\.js\?[^']*&r632=2026\.10\.28\.r632(?:&r753=2026\.10\.30\.r753)?'/);
   assert.ok(fs.existsSync('supabase/rollbacks/20261028230000_r632_pit_welshpool_quarter.down.sql'));
 });

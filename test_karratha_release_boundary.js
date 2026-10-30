@@ -232,7 +232,7 @@ const approvedRootImportPatch = Object.freeze({
   // r738: canonical-entry.js adds r738=2026.10.30.r738 to the slide-out loader (line Complete only from its own tick; F343).
   // r745: canonical-entry.js adds r745=2026.10.30.r745 to the table loader (Vehicle Locations opens on PMB; F350).
   // r747: canonical-entry.js adds r747=2026.10.30.r747 to the Parts stoppage and parts confirmation loaders (Parts complete tick; F353). Department 135 is not tagged.
-  "canonical-entry.js": "71d1a591edf67854875806d425fa4443c83113b09b5eeba4b5f1d3adeb0c65a4", // r747 (F353) cache tags
+  "canonical-entry.js": "b837e003de4eab0d4e35b69204c956458794cb43d9d50b2c4cb7f6f3e1bee768", // r747 (F353) cache tags
   "pdc-workshop-vehicle-search.js": "d0be4a60c5ca2213ba71d4cd31cb7019736db3d7e0470d22b3fa88243e56eb4c",
   // r747: the side-panel Parts complete tick counts as a parts confirmation on the PMG board (F353). Department 135 keeps its frozen copy.
   "pdc-parts-confirmation.js": "1e7486ae60922154ec2d0ec05cb0ce007f47daf5f03bc508e6e6e4b38d6f8bf9",
@@ -323,7 +323,7 @@ const approvedRootImportPatch = Object.freeze({
   // r593: a recent key is listed in New to PMB and stays in the PMB bucket. No department tick (F207). Department 135 keeps its frozen app.js.
   // r591: Admin > Revolution uploads is administrators only (F205). Department 135 is not tagged.
   // r687: ".2" hours save as 0.2 in Edit hours and jobs (F297). Department 135 keeps its frozen app.js.
-  "app.js": "4ce8d9b195614347998df5de3036119907b1c2a574195bbedb61dff2b980bc40", // r830 (F391): WPC is not a PMB key; WPC age until Autocare collects
+  "app.js": "bb7408ceb9477ca0196f1251eb7e5b5f79385b58664df915804ec2a912f74332", // r710 (F320): key list keys never offered as spare at To PMB
   "vehicle-requirements-guard.js": "7462e178c839df0ce1bd2509b838dab61fd739172f20fd0c34a419e011052658",
   // r464: a booking that runs past the day divider is one bar (joined per-day pieces, display only; F77). The Karratha copy stays frozen.
   // r465: overview bar labels show Key · JC and the customer only (Stock and the vehicle description stay in the hover title); the customer span is classed for the Running layout (F78).
@@ -474,7 +474,7 @@ const approvedRootImportPatch = Object.freeze({
   // r604: index.html adds r604=2026.10.28.r604 on canonical-entry.js (pit bookings, F218). Department 135 is not tagged.
   // r616: pdc-auth.js, pdc-bay-manager.js and canonical-entry.js carry r616=2026.10.28.r616 (fitter sessions send only Fitters bay requests, F231). Department 135 is not tagged.
   // r642: Sublet · MMT nav and view, pdc-mmt-sublet.css/js, r642 on app.js and pdc-staff-usage.js (F257). Department 135 is not tagged.
-  "index.html": "46dee022cbc758fa10a7039662cc995184c9f6a3889185739b660afbe46a91b4", // r830 (F391) app.js tag
+  "index.html": "5ca5d12388362dfa555876f939efcba27174da9fb91e740766c3bf02c4ffb441", // r747 (F353) canonical-entry tag
   "pdc-conversions.js": "0a99e7a5306f15e434b293a3ca9a318ffad4b78eb814c27144d75ff98821d810",
   // r401: Pit tick and read RPCs (set_pdc_pit_line_tick_401, get_pdc_pit_line_ticks_401).
   // r414: readQcPhotoReceipt (get_pdc_qc_photo_receipt_414) for the QC page (F30).
@@ -501,7 +501,7 @@ const approvedRootImportPatch = Object.freeze({
   // r525: Period option Last 24 hours (p_days 1) on Website activity (F139). The Karratha copy stays frozen.
   // r570: bay-manager counts under the Update History bucket (F184). The Karratha copy stays frozen.
   // r591: revolution-upload counts under the Update History bucket (F205). The Karratha copy stays frozen.
-  "pdc-staff-usage.js": "99ae0157a095a8ea140ee7b6f356fe80e4956cb038bb4de0ab25d0a157723ac0",
+  "pdc-staff-usage.js": "ee5be1fc863d9be6f0799c0761552a025749334f54382a6f0412fa7cd283e237",
   "site-switcher.css": "84882066f9ff13057de368d8af1418788e82b2723ec68683166e2f8ded6c8348",
   // r403: the own-role monitor reconnects instead of locking on a realtime blip
   // (F11); index.html and app.js/canonical-entry.js add r403=2026.10.21.01 for
