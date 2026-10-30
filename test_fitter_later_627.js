@@ -21,7 +21,7 @@ test('tablet: Start, Done and Later on one row; Later form and set chip; wired t
   assert.match(js, /<b class="fitter-done-cap" aria-hidden="true">Done<\/b><\/label>/);
   assert.match(js, /\.fitter-todo-list \.fitter-line>\.fitter-line-check\{display:contents\}/);
   assert.match(js, /\.fitter-todo-list \.fitter-item-ticks\{order:2\}'[\s\S]*fitter-line-check>input\{order:3/);
-  assert.match(fs.readFileSync('index.html', 'utf8'), /pdc-fitters\.js\?[^"]*&amp;r627=2026\.10\.28\.r627(&amp;r678=2026\.10\.29\.r678)?(&amp;r740=2026\.10\.30\.r740)?"/);
+  assert.match(fs.readFileSync('index.html', 'utf8'), /pdc-fitters\.js\?[^"]*&amp;r627=2026\.10\.28\.r627(&amp;r678=2026\.10\.29\.r678)?(&amp;r740=2026\.10\.30\.r740)?(&amp;r741=2026\.10\.30\.r741)?"/);
 });
 
 test('server: never ticks or completes, per booking, fitter on own booking only, gate allows it, Dept 135 untouched', () => {
@@ -40,7 +40,8 @@ test('server: never ticks or completes, per booking, fitter on own booking only,
 
 test('complete & leave items for later; station stays on the list to book', () => {
   assert.match(js, /data-fitter-complete-later/);
-  assert.match(js, /Complete &amp; leave \$\{left\} item/);
+  // r741: one Complete button; its label counts the items that stay open
+  assert.match(js, /Complete · \$\{left\} item\$\{left===1\?'':'s'\} stay/);
   assert.match(js, /p_reason:'time', p_note:'Not finished this booking'/);
   assert.match(js, /if \(detail\?\.progress\?\.can_complete\) await act\('complete'\);/);
   assert.match(sql, /CREATE TRIGGER keep_station_open_627 BEFORE INSERT OR UPDATE OF completed ON public\.vehicle_work_items/);

@@ -548,3 +548,15 @@ test('r740: the next job and later jobs show their key tag too (Craig, 30 Oct 20
   assert.match(f.html,/<strong>13000001 <span class="fitter-key-badge"[^>]*>Key 77<\/span><\/strong>/);
   assert.match(f.html,/<strong>13000002 <span class="fitter-key-badge is-missing"[^>]*>No key<\/span><\/strong>/);
 });
+
+test('r741: one Complete button; with unticked items it says how many stay open and routes to leave-for-later (Craig, 30 Oct 2026)',async()=>{
+  const f=screenFixture();
+  f.data.detail.status=f.data.jobs[0].status='started';
+  f.data.detail.stage_code='TINT';
+  f.data.detail.lines=[{line_identity:'line-a',description:'Tint',stage_code:'TINT',hours:1,completed:true,note:'',scope_hash:'a'},{line_identity:'line-b',description:'Bonnet protector',stage_code:'TINT',hours:1,completed:false,note:'',scope_hash:'b'}];
+  f.data.detail.progress={percent:50,total_hours:2,completed_hours:1,total_lines:2,completed_lines:1,can_complete:false};
+  await f.open();
+  assert.match(f.html,/<button type="button" class="fitter-primary" data-fitter-action="complete" data-fitter-complete-later >Complete · 1 item stays open<\/button>/);
+  assert.doesNotMatch(f.html,/fitter-complete-later"/);
+  assert.match(f.html,/1 unticked item is left\. Completing keeps it open for this station/);
+});

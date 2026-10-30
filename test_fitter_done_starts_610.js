@@ -9,5 +9,5 @@ test('Done falls back to Start then Done only for an unstarted item, never on re
   assert.match(src, /if\(retry \|\| action!=='line' \|\| completed!==true/, 'only a fresh Done tap, not a retry or an untick');
   assert.match(src, /p_action:'item_start',p_completed:null,p_note:null/);
   assert.match(src, /p_expected_version:started\?\.version\?\?body\.p_expected_version/);
-  assert.match(fs.readFileSync('index.html', 'utf8'), /pdc-fitters\.js\?[^"]*&amp;r610=2026\.10\.28\.r610(&amp;r621=2026\.10\.28\.r621)?(&amp;r626=2026\.10\.28\.r626)?(&amp;r627=2026\.10\.28\.r627)?(&amp;r678=2026\.10\.29\.r678)?(&amp;r740=2026\.10\.30\.r740)?"/);
+  assert.match(fs.readFileSync('index.html', 'utf8'), /pdc-fitters\.js\?[^"]*&amp;r610=2026\.10\.28\.r610(&amp;r621=2026\.10\.28\.r621)?(&amp;r626=2026\.10\.28\.r626)?(&amp;r627=2026\.10\.28\.r627)?(&amp;r678=2026\.10\.29\.r678)?(&amp;r740=2026\.10\.30\.r740)?(&amp;r741=2026\.10\.30\.r741)?"/);
 });
