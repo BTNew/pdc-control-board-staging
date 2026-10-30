@@ -71,7 +71,7 @@
   const VIEWS = Object.freeze({ dropdown: 'dropdown', table: 'table' });
   // Vehicle journey, left to right (Craig, 22 Oct 2026).
   // r557 (F171): New to PMB sits immediately before PMB. The operational bucket stays pmb.
-  const JOURNEY = Object.freeze(['overseas', 'transit', 'yardhold', 'nonnavision', 'newpmb', 'pmb', 'qc', 'pit', 'rft']);
+  const JOURNEY = Object.freeze(['overseas', 'transit', 'yardhold', 'nonnavision', 'newpmb', 'pmb', 'qc', 'pit', 'wpc', 'rft']); // r753: wpc between final check and RFT
   const TILE = Object.freeze({
     overseas: ['Other', 'All other active', 'unknown', 'OTHER'],
     transit: ['In transit (IT)', 'To WA / Kewdale', 'transit-it', 'IT'],
@@ -79,8 +79,9 @@
     nonnavision: ['Non-Navision', 'No Navision updates', 'unconfirmed', 'NON-NAV'],
     newpmb: ['New to PMB', 'Key under 24 hours', 'newpmb', 'NEW'],
     pmb: ['PMB', 'Work still active', 'transit', 'PMB'],
-    qc: ['QC', 'Awaiting QC sign-off', 'hold', 'QC'],
-    pit: ['PIT', 'Dept of Transport', 'production', 'PIT'],
+    qc: ['Final check', 'Awaiting final check', 'hold', 'FC'], // r753 (F358): QC reads Final check
+    pit: ['PIT', 'Dept of Transport', 'production', 'PIT'], // r753: no tile any more (Pit bookings page); kept for held searches
+    wpc: ['WPC', 'Work completed · waiting on Sales', 'released', 'WPC'], // r753 (F358)
     rft: ['RFT', 'Ready for transport', 'released', 'RFT'],
   });
   const STOPPAGES = '__stoppages';

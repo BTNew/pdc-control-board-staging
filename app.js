@@ -200,10 +200,14 @@ function pdcLocationSelectOptions(current = '', serverAuthoritative = false, veh
   }).join('');
 }
 
+// r753 (F358, Craig 30 Oct 10:51): the tile row is the car's journey. PIT is a sublet step, not a stop on the journey,
+// so its tile is gone (its list and calendar are the Pit bookings page in the menu). QC reads "Final check". WPC (work
+// completed) sits between Final check and RFT: the car has passed final check and waits for Sales to say where it goes;
+// the RFT'd tick moves it to RFT. Codes (qc, rft, PIT location) are unchanged underneath, so nothing else moves.
 const VEHICLE_LOCATION_BUCKET_DEFS = Object.freeze([
-  { key: 'rft', label: 'RFT', hint: 'Vehicles signed off by QC and ready for transport' },
-  { key: 'qc', label: 'QC', hint: 'All required station jobs complete · awaiting named QC sign-off' },
-  { key: 'pit', label: 'PIT', hint: 'At the Department of Transport for inspection' },
+  { key: 'rft', label: 'RFT', hint: 'RFT’d · Sales has given the destination · ready for transport' },
+  { key: 'wpc', label: 'WPC', hint: 'Work completed · passed final check · waiting on Sales for the destination' },
+  { key: 'qc', label: 'Final check', hint: 'All required station jobs complete · awaiting final check sign-off' },
   { key: 'newpmb', label: 'New to PMB', hint: 'Key number under 24 hours · also listed in PMB' },
   { key: 'pmb', label: 'PMB', hint: 'Vehicles at Perth Motor Bodies with work still active' },
   { key: 'yardhold', label: 'YARD HOLD', hint: 'Navision Yard Hold vehicles — release to PMB from here' },
@@ -676,11 +680,81 @@ function pmbEnteredDateValue(vehicle = {}) {
   return parsed.toISOString().slice(0, 10);
 }
 
+// r830 (F391, Craig 30 Oct): WPC means the car has left the PMB key tags (into QC) and its number is free for reuse.
+// Its age runs from the moment it became WPC until Autocare collects it; the PMB days before that are kept.
+function vehicleKeyIsWpc(vehicle = {}) {
+  return String(vehicle.keyNumber || vehicle.keyNo || vehicle.key_number || vehicle.keyTag || vehicle.pdcKeyNumber || '')
+    .replace(/\s+/g, '').toUpperCase() === 'WPC';
+}
+
+function wpcTimerRow(vehicle = {}) {
+  const map = typeof app === 'undefined' ? null : app.wpcTimers;
+  if (!map || typeof map.get !== 'function') return null;
+  for (const id of [vehicle.id, vehicle.__emailVehicleId, vehicle.sharedVehicleId, vehicle.permanent_vehicle_id]) {
+    const row = id ? map.get(String(id)) : null;
+    if (row) return row;
+  }
+  return null;
+}
+
+function ensureWpcTimers() {
+  const client = typeof window === 'object' ? window.PDC_SUPABASE : null;
+  if (!client || typeof client.rpc !== 'function' || !window.PDC_AUTH_CONTEXT) return;
+  if (app.wpcTimersLoading) return;
+  const revision = app.emailVehicleLocationRevision;
+  const revisionChanged = String(revision ?? '') !== String(app.wpcTimersRevision ?? '');
+  if (!revisionChanged && app.wpcTimersLoadedAt && Date.now() - app.wpcTimersLoadedAt < 15000) return;
+  app.wpcTimersLoading = true;
+  const started = Date.now();
+  client.rpc('list_wpc_timers_830').then(result => {
+    app.wpcTimersLoading = false;
+    app.wpcTimersLoadedAt = started;
+    app.wpcTimersRevision = revision;
+    if (result?.error) return;
+    const next = new Map();
+    (Array.isArray(result?.data) ? result.data : []).forEach(row => {
+      if (row?.vehicle_id) next.set(String(row.vehicle_id), row);
+    });
+    const signature = [...next.entries()].map(([id, row]) => `${id}|${row.wpc_at || ''}|${row.collected_at || ''}`).sort().join('\n');
+    const changed = signature !== app.wpcTimersSignature;
+    app.wpcTimers = next;
+    app.wpcTimersSignature = signature;
+    if (changed && app.currentView === 'dashboard' && typeof renderIncomingDashboardBoard === 'function') renderIncomingDashboardBoard();
+    if (changed && app.currentView === 'qc' && typeof renderQualityControlPage === 'function') renderQualityControlPage();
+  }).catch(() => {
+    app.wpcTimersLoading = false;
+    app.wpcTimersLoadedAt = started;
+  });
+}
+
+function wholeDaysBetween(from, to) {
+  const a = parseIsoTimestamp(from)?.getTime();
+  const b = to ? parseIsoTimestamp(to)?.getTime() : Date.now();
+  if (!Number.isFinite(a) || !Number.isFinite(b)) return null;
+  const perth = ms => Math.floor((ms + 8 * 3600000) / 86400000);
+  return Math.max(0, perth(b) - perth(a));
+}
+
+function wpcAgeInfo(vehicle = {}) {
+  if (!vehicleKeyIsWpc(vehicle)) return null;
+  ensureWpcTimers();
+  const row = wpcTimerRow(vehicle);
+  const days = row ? wholeDaysBetween(row.wpc_at, row.collected_at) : null;
+  const pmbDays = row && row.pmb_key_at ? wholeDaysBetween(row.pmb_key_at, row.wpc_at) : null;
+  const dayText = n => `${n} day${n === 1 ? '' : 's'}`;
+  const label = days === null ? 'WPC' : `WPC ${dayText(days)}`;
+  const parts = [days === null ? 'WPC start not recorded yet' : `${dayText(days)} since WPC${row.collected_at ? ' until Autocare collected it' : ', waiting for Autocare'}`];
+  if (row && row.freed_key) parts.push(`key ${row.freed_key} freed`);
+  if (pmbDays !== null) parts.push(`${dayText(pmbDays)} at PMB before WPC`);
+  return { days, pmbDays, label, title: parts.join('. ') + '.' };
+}
+
 // r562 (F176) recorded the key instant. r563 (F177) starts the PMB age at the
 // earlier of that instant and the first Tune import. When neither exists, the
 // board arrival is kept and flagged.
 function pmbVehicleHasKey(vehicle = {}) {
   const direct = String(vehicle.keyNumber || vehicle.keyNo || vehicle.key_number || vehicle.keyTag || vehicle.pdcKeyNumber || '').trim();
+  if (direct && vehicleKeyIsWpc(vehicle)) return false;
   if (direct) return true;
   const row = pmbKeyAssignedRow(vehicle);
   return row ? row.has_key === true : false;
@@ -715,6 +789,7 @@ function newToPmbWindowLabel() {
 }
 
 function pmbKeyIsNew(vehicle = {}) {
+  if (vehicleKeyIsWpc(vehicle)) return false;
   const raw = pmbKeyAssignedTimestamp(vehicle);
   if (!raw) return false;
   const when = new Date(raw).getTime();
@@ -782,6 +857,8 @@ function pmbAgeDays(vehicle = {}) {
 }
 
 function pmbAgeLabel(vehicle = {}) {
+  const wpc = wpcAgeInfo(vehicle);
+  if (wpc) return wpc.label;
   if (typeof ensurePmbKeyAssigned === 'function') ensurePmbKeyAssigned();
   if (typeof ensurePmbArrivalAge === 'function') ensurePmbArrivalAge();
   const days = pmbAgeDays(vehicle);
@@ -822,6 +899,8 @@ function partsEtaCounterClass(vehicle = {}) {
 }
 
 function pmbAgeDetailText(vehicle = {}) {
+  const wpc = wpcAgeInfo(vehicle);
+  if (wpc) return wpc.title;
   const basis = pmbArrivalAgeBasis(vehicle);
   const days = pmbAgeDays(vehicle);
   if (basis === 'tune') {
@@ -1477,7 +1556,8 @@ function vehicleWorkshopActivityLabel(vehicle = {}, options = {}) {
 function incomingGridStatusLabel(vehicle = {}, bucketKey = '', options = {}) {
   if (bucketKey === 'pmb') return vehicleWorkshopActivityLabel(vehicle, options);
   if (bucketKey === 'rft') return rftHomeStatusLabel(rftHomeStatus(vehicle));
-  if (bucketKey === 'qc') return vehicle.pdcQcComplete === true ? 'QC signed off · awaiting RFT sync' : 'Awaiting QC sign-off';
+  if (bucketKey === 'qc') return vehicle.pdcQcComplete === true ? 'Final check signed off · awaiting sync' : 'Awaiting final check';
+  if (bucketKey === 'wpc') return 'Work completed · waiting on Sales for the destination';
   if (bucketKey === 'pit') return 'Department of Transport inspection';
   if (bucketKey === 'yardhold') return 'Yard Hold';
   if (bucketKey === 'nonnavision') return 'Location unconfirmed';
@@ -3368,7 +3448,8 @@ function boardKeyToken(value = '') {
 
 function boardVehicleWithSameKey(keyNumber = '', currentKey = '') {
   const token = boardKeyToken(keyNumber);
-  if (!token || /^0+$/.test(token)) return null;
+  // r830 (F391): any number of cars can be WPC.
+  if (!token || /^0+$/.test(token) || token === 'WPC') return null;
   return (app.data || []).find(vehicle => {
     const key = vehicleKey(vehicle);
     return key !== String(currentKey || '').trim() && boardKeyToken(vehicleKeyNumber(vehicle)) === token;
@@ -5207,7 +5288,8 @@ function showView(view, options) {
   const departmentDef = departmentStage ? PRODUCTION_FLOW_DEFS.find(def => def.key === departmentStage) : null;
   const titleMap = {
     dashboard: 'Vehicle Locations',
-    qc: 'QC Sign-off',
+    qc: 'Final check',
+    'pit-bookings': 'Pit bookings', // r753 (F358)
     fitters: 'Fitters bay',
     workflow: 'Control Board',
     workshop: 'Workshop Planner',
@@ -6972,7 +7054,7 @@ function renderQualityControlPage() {
   if (selected) void qcPageLoadStoredPhoto(qcPageVehicleKey(selected));
   if (selected) void qcPageLoadSignoffOutstanding(selected);
   host.innerHTML = `<div class="qc-page-layout ${mobile ? selected ? 'is-mobile-detail' : 'is-mobile-list' : ''}">${qcPageNotice ? `<div class="qc-finalization-notice" role="status" aria-live="polite">${escapeHtml(qcPageNotice)}</div>` : ''}
-    <section class="qc-queue" aria-labelledby="qc-queue-title"><div class="qc-queue-header"><div><h3 id="qc-queue-title">Vehicles requiring QC</h3><p>${vehicles.length} awaiting QC sign-off</p></div><span class="qc-queue-count">${vehicles.length}</span></div><div class="qc-vehicle-list">${vehicles.length ? vehicles.map(vehicle => qcPageVehicleCardHtml(vehicle, qcPageVehicleKey(vehicle) === qcSelectedVehicleKey)).join('') : '<div class="qc-empty-state"><strong>No vehicles require QC</strong><span>Vehicles appear here after all required workshop work is complete.</span></div>'}</div></section>
+    <section class="qc-queue" aria-labelledby="qc-queue-title"><div class="qc-queue-header"><div><h3 id="qc-queue-title">Vehicles requiring final check</h3><p>${vehicles.length} awaiting QC sign-off</p></div><span class="qc-queue-count">${vehicles.length}</span></div><div class="qc-vehicle-list">${vehicles.length ? vehicles.map(vehicle => qcPageVehicleCardHtml(vehicle, qcPageVehicleKey(vehicle) === qcSelectedVehicleKey)).join('') : '<div class="qc-empty-state"><strong>No vehicles require QC</strong><span>Vehicles appear here after all required workshop work is complete.</span></div>'}</div></section>
     <section class="qc-detail-host">${selected ? qcPageDetailHtml(selected) : '<div class="qc-empty-state qc-detail-empty"><strong>Select a vehicle</strong><span>Choose a QC vehicle to review its completed work and store the completion photo.</span></div>'}</section>
   </div>`;
   $$('[data-qc-open-vehicle]', host).forEach(button => button.addEventListener('click', () => {
@@ -7071,6 +7153,9 @@ function renderActiveView() {
       break;
     case 'stock-take': // r720 (F330)
       window.PdcStockTake?.open?.();
+      break;
+    case 'pit-bookings': // r753 (F358)
+      window.PDC_PIT_BOOKINGS?.open?.();
       break;
     case 'revolution-upload':
       window.PdcRevolutionUpload?.open();
@@ -8091,7 +8176,7 @@ function qualityControlVehicleHtml(vehicle = {}) {
     <span class="control-board-work-identity">${vehicleIdentityStackHtml(vehicle)}</span>
     <span class="control-board-work-main"><strong>${escapeHtml(displayVehicle(vehicle) || 'Vehicle not listed')}</strong></span>
     <span class="control-board-work-location"><b>Now</b><span>QC</span></span>
-    <span class="control-board-work-age"><b>PMB</b><span>${escapeHtml(pmbAgeLabel(vehicle))}</span></span>
+    <span class="control-board-work-age"><b>${vehicleKeyIsWpc(vehicle) ? 'Since' : 'PMB'}</b><span title="${escapeHtml(pmbAgeDetailText(vehicle))}">${escapeHtml(pmbAgeLabel(vehicle))}</span></span>
     <span class="badge warning">Awaiting receipt-backed sign-off</span>
     ${action}
   </article>`;
@@ -8561,6 +8646,10 @@ function pmbArrivalRecord(vehicle = {}) {
 
 function vehicleLocationsDisplayBucket(vehicle = {}) {
   const operational = incomingBucketForVehicle(vehicle);
+  // r753 (F358): PIT is a sublet step while the car is at PMB; it has no tile of its own (Pit bookings page instead).
+  if (operational === 'pit') return 'pmb';
+  // r753 (F358): after final check the car is at WPC (work completed) until the RFT'd tick.
+  if (operational === 'rft') return vehicleRftConfirmationActive(vehicle) ? 'rft' : 'wpc';
   if (operational !== 'pmb') return operational;
   // r582 (F195): a body-builder delivery stays off the PMB bucket until To PMB.
   if (pmbBodybuilderHoldOpen(vehicle)) return 'newpmb';
@@ -9971,6 +10060,9 @@ function incomingVehicleAge(vehicle = {}, bucketKey = '') {
   // r563 (F177): PMB, New to PMB and QC count from the earlier of the key
   // number and the first Tune import. When neither exists, the board arrival
   // is kept and flagged.
+  // r830 (F391): a WPC car counts from WPC until Autocare collects it.
+  const wpc = atPmb ? wpcAgeInfo(vehicle) : null;
+  if (wpc) return { label: wpc.label, colourClass: `pmb-age-${vehicleAgeColourBand(wpc.days)}`, title: wpc.title };
   if (atPmb && typeof ensurePmbKeyAssigned === 'function') ensurePmbKeyAssigned();
   if (atPmb && typeof ensurePmbArrivalAge === 'function') ensurePmbArrivalAge();
   const days = atPmb ? pmbAgeDays(vehicle) : daysSinceDateValue(incomingKewdaleAgeValue(vehicle));
@@ -10026,14 +10118,15 @@ function incomingVehicleDetailRow(vehicle = {}, bucketKey = '', options = {}) {
     : '';
   // r521 (F135): a job-card flag does not pick the Booking column text and does not block booking.
   const readOnlyBadge = identityReadOnly ? 'Identity conflict · Read only' : emailReadOnly ? 'Imported by email · Read only' : sharedReadOnly ? 'Navision source · Read only' : 'Shared sync pending · Read only';
-  const rftAction = bucketKey === 'rft'
+  const rftLike = bucketKey === 'rft' || bucketKey === 'wpc'; // r753 (F358): WPC rows carry the RFT'd tick, not station cells
+  const rftAction = rftLike
     ? `${rftTransportControlsHtml(vehicle)}${locationReadOnly ? `<span class="badge neutral rft-source-badge">${readOnlyBadge}</span>` : ''}<button class="small-button incoming-open-button" type="button" data-open-stock="${escapeHtml(key)}">Open</button>`
     : '';
   const bodybuilderWaiting = typeof pmbBodybuilderHoldOpen === 'function' && pmbBodybuilderHoldOpen(vehicle);
   const pmbBucketActions = `${typeof pmbArrivalActionHtml === 'function' ? pmbArrivalActionHtml(vehicle, key) : ''}${vehicleReadyForQualityControl(vehicle)
         ? `<button class="primary" type="button" data-ready-for-qc="${escapeHtml(key)}" title="Move this all-green vehicle to the QC Gate">Ready for QC</button>`
         : `<button class="primary" type="button" data-pit-transfer="${escapeHtml(key)}" ${vehicleCanEnterPit(vehicle) ? '' : 'disabled'} title="${escapeHtml(vehicleCanEnterPit(vehicle) ? 'Move PMB Unallocated vehicle to PIT' : 'PIT movement requires PMB Unallocated with no active station')}">To PIT</button>`}<button class="small-button incoming-open-button" type="button" data-open-stock="${escapeHtml(key)}">Open</button>`;
-  const primaryAction = bucketKey === 'rft'
+  const primaryAction = rftLike
     ? (rftAction || (locationReadOnly ? `<span class="badge neutral">${readOnlyBadge}</span>` : `<button class="small-button incoming-open-button" type="button" data-open-stock="${escapeHtml(key)}">Open</button>`))
     : locationReadOnly && !protectedLifecycleAllowed
     ? `<span class="badge neutral">${readOnlyBadge}</span>`
@@ -10047,7 +10140,7 @@ function incomingVehicleDetailRow(vehicle = {}, bucketKey = '', options = {}) {
         ? `<button class="primary" type="button" data-open-qc-vehicle="${escapeHtml(key)}">Open QC finalization</button><button class="small-button incoming-open-button" type="button" data-open-stock="${escapeHtml(key)}">Open</button>`
         : bucketKey === 'pit'
           ? `<button class="primary" type="button" data-pit-return-pmb="${escapeHtml(key)}">Return to PMB</button><button class="small-button incoming-open-button" type="button" data-open-stock="${escapeHtml(key)}">Open</button>`
-          : bucketKey === 'rft'
+          : rftLike
             ? rftAction
             : `<button class="small-button incoming-open-button" type="button" data-open-stock="${escapeHtml(key)}">Open</button>`;
   const pmbAckBar = bucketKey === 'newpmb' && bodybuilderWaiting && typeof pmbArrivalActionHtml === 'function'
@@ -10067,7 +10160,7 @@ function incomingVehicleDetailRow(vehicle = {}, bucketKey = '', options = {}) {
   const dragAttrs = draggable ? ` draggable="true" data-pmb-drag-key="${escapeHtml(key)}"` : '';
   const dragClass = draggable ? ' workflow-draggable-row' : '';
   const risk = partsEtaRisk(vehicle);
-  const isRftRow = bucketKey === 'rft';
+  const isRftRow = rftLike;
   const rftControls = isRftRow ? rftTransportControlsHtml(vehicle) : '';
   return `
     <details class="incoming-vehicle-card pdc-production-grid-card incoming-${escapeHtml(bucketKey)}-row${dragClass} ${app.selectedRows.has(key) ? 'is-selected' : ''}${risk ? ' has-parts-risk' : ''}${locationReadOnly ? ' shared-navision-read-only' : ''}" data-incoming-row="${escapeHtml(key)}"${dragAttrs}>
@@ -10332,7 +10425,7 @@ function renderIncomingDashboardBoardContent() {
     const holdCount = def.key === 'newpmb' ? vehicles.filter(vehicle => pmbBodybuilderHoldOpen(vehicle)).length : 0;
     const shown = vehicles.map(vehicle => incomingVehicleDetailRow(vehicle, def.key, { workshopPlans, workshopProjectionAvailable, subletNavigation: true })).join('') || `<div class="pmb-empty-drop">${locationsStillLoading ? 'Loading vehicles…' : 'No vehicles match the current filters'}</div>`;
     const identityHeader = vehicles.length
-      ? def.key === 'rft'
+      ? def.key === 'rft' || def.key === 'wpc'
         ? vehicleLocationsRftHeaderHtml(sort)
         : productionGridHeaderHtml('incoming-production-grid-header', { actionLabel: 'Booking', incomingSort: sort })
       : '';
@@ -20800,7 +20893,7 @@ const OPERATIONAL_REFRESH_ROUTES = Object.freeze([
 
 function operationalRefreshRouteLabel(route = '') {
   return ({
-    dashboard: 'Vehicle Locations', qc: 'QC', workflow: 'Control Board', workshop: 'Workshop Planner',
+    dashboard: 'Vehicle Locations', qc: 'Final check', workflow: 'Control Board', workshop: 'Workshop Planner',
     visibility: 'Operations', tv: 'PDC TV', schedule: 'Production', department: 'Department',
     parts: 'Parts', sublet: 'Sublet', 'bus-pit': 'Bus Pit inspections', rft: 'RFT', completed: 'Completed Vehicles',
     collected: 'Collected Vehicles', deleted: 'Deleted Vehicles', backend: 'Back End Data',

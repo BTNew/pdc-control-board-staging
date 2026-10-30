@@ -106,7 +106,7 @@ test('phone mode still preserves authentication fragments', () => {
 });
 
 test('QC and fitters retain separate sidebar entries and hosts without cross-workflow header buttons', () => {
-  assert.match(index, /data-view="qc"[^>]*>QC Sign-off<\/button>/);
+  assert.match(index, /data-view="qc"[^>]*>Final check<\/button>/);
   assert.match(index, /data-view="fitters"[^>]*>Fitters bay<\/button>/);
   assert.match(index, /<section id="fitters" class="view"><div id="fitters-host">/);
   assert.match(index, /<section id="qc" class="view">/);

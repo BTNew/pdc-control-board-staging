@@ -58,7 +58,7 @@ test('wiring: writes go to set_pdc_pit_booking_630; drop and Done open the box; 
   assert.match(src, /openDialog\(vid, \{ date: day\.dataset\.pitDay \}\)/);
   assert.match(src, /openDialog\(c\.dataset\.pitBack, \{ date: board\.today, back: true/);
   assert.match(src, /addEventListener\('wheel'/);
-  assert.match(fs.readFileSync('canonical-entry.js', 'utf8'), /pdc-pit-bookings\.js\?[^']*&r630=2026\.10\.28\.r630(?:&r632=2026\.10\.28\.r632)?'/);
+  assert.match(fs.readFileSync('canonical-entry.js', 'utf8'), /pdc-pit-bookings\.js\?[^']*&r630=2026\.10\.28\.r630(?:&r632=2026\.10\.28\.r632)?(?:&r753=2026\.10\.30\.r753)?'/);
   const sql = fs.readFileSync('supabase/migrations/20261028220000_r630_pit_time.sql', 'utf8');
   assert.match(sql, /r630: staging only/);
   assert.match(sql, /expected_function_md5\) <> 241/);
