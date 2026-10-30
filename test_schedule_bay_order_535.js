@@ -67,6 +67,9 @@ test('bay order is key, stock, customer and model, and a running job is not an i
     vehicleCustomerName: vehicle => vehicle.client || '',
     cleanNavisionText: value => String(value || '').trim(),
     escapeHtml: value => String(value),
+    // r746: the placement clamps to now; this fixture sits in 2026-10-27 so the target start wins.
+    workshopNormalizeStartDate: () => new Date('2026-10-27T05:00:00.000Z'),
+    Date,
   };
   vm.createContext(context);
   vm.runInContext(['workshopBayQueueRows', 'workshopBayQueueMovable', 'workshopBayQueueLabel', 'workshopBayQueueHtml', 'workshopBayQueuePlacement'].map(extract).join('\n'), context);
