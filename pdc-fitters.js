@@ -734,7 +734,11 @@
     saving=true; message=''; render();
     try {
       let result;
-      try { result=retry?await service.retry():await service.command(body); }
+      try {
+        const run=retry?service.retry():service.command(body);
+        // 30 Oct (Craig): Start shows a loading screen while the server starts the job and pushes later jobs back.
+        result=action==='start'&&!retry&&root.PDC_BUSY?.track?await root.PDC_BUSY.track(run,`Starting ${detail?.key_number?`Key ${detail.key_number}`:'job'}… moving later jobs back`):await run;
+      }
       catch(first) {
         // r610 (F224): Done on an item that was never started starts it and ticks it in one tap,
         // instead of refusing with "Press Start on this item first".

@@ -102,9 +102,12 @@
     clearTimeout(asideTimer); asideTimer = null;
     if (el) el.classList.remove('is-on', 'is-aside');
   }
+  const GENERIC = new Set(['Loading…', 'Saving…', 'Uploading…']);
   function begin(text) {
     pending += 1;
-    if (text === 'Saving…' || text === 'Uploading…' || pending === 1) label = text || 'Loading…';
+    // 30 Oct (Craig): a specific label from PDC_BUSY.track ("Starting Key 201…") stays up while its saves run;
+    // only a generic label gives way to the fetch wrapper's Saving… / Uploading….
+    if (pending === 1 || (GENERIC.has(label) && (text === 'Saving…' || text === 'Uploading…'))) label = text || 'Loading…';
     clearTimeout(hideTimer); hideTimer = null;
     if (el && el.classList.contains('is-on')) paint();
     else if (!showTimer) showTimer = setTimeout(show, SHOW_DELAY_MS);
