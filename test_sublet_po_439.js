@@ -125,7 +125,7 @@ test('browser wrapper: no request without a session; board RPC, decorated strip,
   assert.equal(typeof b.capture.change, 'function');
 });
 test('loader, cache bust and Pages build include the sublet PO script', () => {
-  assert.match(fs.readFileSync('canonical-entry.js', 'utf8'), /pdc-sublet-po\.js\?sublet-po=2026\.10\.21\.r444(&r490=2026\.10\.23\.r490)?(&r494=2026\.10\.23\.r494[bc]?)?(&r616=2026\.10\.28\.r616)?'/); // r490 (F103) appends its own tag
+  assert.match(fs.readFileSync('canonical-entry.js', 'utf8'), /pdc-sublet-po\.js\?sublet-po=2026\.10\.21\.r444(&r490=2026\.10\.23\.r490)?(&r494=2026\.10\.23\.r494[bc]?)?(&r616=2026\.10\.28\.r616)?(&r747=2026\.10\.30\.r747)?'/); // r490 (F103) appends its own tag
   assert.match(fs.readFileSync('index.html', 'utf8'), /canonical-entry\.js\?[^"]*sublet-po=2026\.10\.21\.r444(&amp;[^"]*)?"/);
   assert.match(fs.readFileSync('scripts/build_pages_runtime.js', 'utf8'), /'pdc-parts-eta\.js', 'pdc-sublet-po\.js'/);
   assert.equal(po.VERSION, '2026.10.21.r444');
