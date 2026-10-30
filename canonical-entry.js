@@ -125,7 +125,7 @@
     const loadPartsStoppage = () => {
       if (document.querySelector('script[data-pdc-parts-stoppage]')) return;
       const stoppage = document.createElement('script');
-      stoppage.src = 'pdc-parts-stoppage.js?r567=2026.10.27.r567&r573=2026.10.27.r573&r595=2026.10.28.r595&r616=2026.10.28.r616&r739=2026.10.30.r739&r747=2026.10.30.r747';
+      stoppage.src = 'pdc-parts-stoppage.js?r567=2026.10.27.r567&r573=2026.10.27.r573&r595=2026.10.28.r595&r616=2026.10.28.r616&r739=2026.10.30.r739&r747=2026.10.30.r747&r863=2026.10.30.r863';
       stoppage.dataset.pdcPartsStoppage = '1';
       stoppage.onload = loadVehicleLocationsTable;
       stoppage.onerror = loadVehicleLocationsTable;

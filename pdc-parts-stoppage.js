@@ -797,7 +797,12 @@
   });
 
   window.workshopPartsEtaStoppageSectionHtml = () => plannerSectionHtml([...placedById.values()]);
-  window.PDC_PARTS_STOPPAGE = Object.freeze({ VERSION, reload: load, shownEta, plannerSectionHtml });
+  // r863 (F414): the planner's Unallocated tiles read one compact parts state per car.
+  function partsStatusFor(vehicle) {
+    const state = withEmail(vehicle || {});
+    return { placed: state.placed === true, partsDone: state.partsDone === true, eta: shownEta(state.manual, state.emailEta), today: state.today };
+  }
+  window.PDC_PARTS_STOPPAGE = Object.freeze({ VERSION, reload: load, shownEta, plannerSectionHtml, partsStatusFor });
   load();
   setInterval(load, 5 * 60 * 1000);
   document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') load(); });
