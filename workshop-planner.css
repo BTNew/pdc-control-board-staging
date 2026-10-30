@@ -1758,3 +1758,4 @@ button.workshop-search-result:hover, button.workshop-search-result:focus-visible
 .workshop-queue-card small.workshop-unallocated-location.is-pmb { color: #166534; }
 .workshop-queue-card small.workshop-unallocated-location.is-it { color: #92400e; }
 .workshop-queue-card small.workshop-unallocated-location.is-yh { color: #1d4ed8; }
+.workshop-queue-card small.workshop-unallocated-location.is-nokey { color: #b91c1c; }

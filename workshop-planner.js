@@ -6046,12 +6046,15 @@ function workshopUnallocatedHeadingCounts(outstanding = [], returnedPlans = [], 
 // In transit / Yard hold: IT cars by Kewdale ETA (soonest first), then Yard hold.
 // Cars with no key in Other or Completed are not listed. Display and order only:
 // scheduling, eligibility and bookings are unchanged.
+// r861 (F411, Craig 12:14): At PMB means a key number, nothing else. A no-key car
+// whose location says PMB/QC goes in the second box as "No key number", and a
+// returned (queued, no bay) booking is placed by its own car, not always in At PMB.
 function workshopUnallocatedGroup(vehicle = {}) {
   const key = String(vehicle.keyNumber || vehicle.key_number || vehicle.keyNo || vehicle.pdcKeyNumber || '').trim();
-  if (key) return 'PMB';
+  if (key && !['—', '-'].includes(key)) return 'PMB';
   const location = workshopVehiclePlanningLocation(vehicle);
   if (location === 'IT' || location === 'YH') return location;
-  if (location === 'PMB' || location === 'QC') return 'PMB';
+  if (location === 'PMB' || location === 'QC') return 'NOKEY';
   return '';
 }
 
@@ -6088,6 +6091,7 @@ function workshopUnallocatedLocationLabel(vehicle = {}, group = workshopUnalloca
     return days === 0 ? 'At PMB · today' : `At PMB · ${plural(days)}`;
   }
   if (group === 'YH') return 'Yard hold';
+  if (group === 'NOKEY') return 'No key number';
   if (group === 'IT') {
     const days = workshopDaysUntilDateKey(workshopKewdaleEtaDateKey(vehicle), now);
     if (days === null) return 'In transit · no Kewdale ETA';
@@ -6102,9 +6106,9 @@ function workshopUnallocatedGroups(queue = [], highlightVehicleKey = '', now = n
   const incoming = [];
   (Array.isArray(queue) ? queue : []).forEach(vehicle => {
     let group = workshopUnallocatedGroup(vehicle);
-    if (!group && highlightVehicleKey && vehicleKey(vehicle) === highlightVehicleKey) group = 'YH';
+    if (!group && highlightVehicleKey && vehicleKey(vehicle) === highlightVehicleKey) group = 'NOKEY';
     if (group === 'PMB') pmb.push(vehicle);
-    else if (group === 'IT' || group === 'YH') incoming.push({ vehicle, group });
+    else if (group === 'IT' || group === 'YH' || group === 'NOKEY') incoming.push({ vehicle, group });
   });
   const keyNumber = vehicle => Number.parseInt(String(vehicle.keyNumber || vehicle.key_number || ''), 10);
   const pmbRows = pmb.map(vehicle => ({ vehicle, since: workshopPmbSinceMs(vehicle), key: keyNumber(vehicle) }));
@@ -6117,7 +6121,7 @@ function workshopUnallocatedGroups(queue = [], highlightVehicleKey = '', now = n
   });
   const incomingRows = incoming.map(row => ({ ...row, days: row.group === 'IT' ? workshopDaysUntilDateKey(workshopKewdaleEtaDateKey(row.vehicle), now) : null }));
   incomingRows.sort((a, b) => {
-    const rank = row => row.group === 'IT' ? (row.days === null ? 1 : 0) : 2;
+    const rank = row => row.group === 'IT' ? (row.days === null ? 1 : 0) : row.group === 'YH' ? 2 : 3;
     if (rank(a) !== rank(b)) return rank(a) - rank(b);
     if (rank(a) === 0 && a.days !== b.days) return a.days - b.days;
     return 0;
@@ -6133,24 +6137,40 @@ function workshopQueueCardWithLocationHtml(vehicle = {}, stage, dateKey, plans) 
   const html = workshopQueueCardHtml(vehicle, stage, dateKey, plans);
   const label = workshopUnallocatedLocationLabel(vehicle);
   if (!html || !label) return html;
-  const group = workshopUnallocatedGroup(vehicle) || 'YH';
+  const group = workshopUnallocatedGroup(vehicle) || 'NOKEY';
   const line = `<small class="workshop-unallocated-location is-${escapeHtml(group.toLowerCase())}">${escapeHtml(label)}</small>`;
   return html.includes('<div class="workshop-queue-actions">')
     ? html.replace('<div class="workshop-queue-actions">', `${line}<div class="workshop-queue-actions">`)
     : html;
 }
 
+function workshopReturnedCardWithLocationHtml(entry = {}, vehicle = null) {
+  const html = workshopReturnedQueueCardHtml(entry);
+  if (!html || !vehicle) return html;
+  const group = workshopUnallocatedGroup(vehicle) || 'NOKEY';
+  const label = workshopUnallocatedLocationLabel(vehicle, group);
+  if (!label || !html.includes('<div class="workshop-queue-actions">')) return html;
+  const line = `<small class="workshop-unallocated-location is-${escapeHtml(group.toLowerCase())}">${escapeHtml(label)}</small>`;
+  return html.replace('<div class="workshop-queue-actions">', `${line}<div class="workshop-queue-actions">`);
+}
+
 function workshopUnallocatedBoxesHtml({ returnedPlans = [], queue = [], stage, dateKey, plans, highlightVehicleKey = '', limit } = {}) {
   const groups = workshopUnallocatedGroups(queue, highlightVehicleKey);
+  const returned = (Array.isArray(returnedPlans) ? returnedPlans : []).map(entry => {
+    const vehicle = typeof workshopVehicle === 'function' ? workshopVehicle(entry.vehicleKey, entry.stage) : null;
+    return { entry, vehicle, atPmb: Boolean(vehicle) && workshopUnallocatedGroup(vehicle) === 'PMB' };
+  });
+  const returnedPmb = returned.filter(row => row.atPmb);
+  const returnedIncoming = returned.filter(row => !row.atPmb);
   const ordered = [...groups.pmb, ...groups.incoming];
   const batch = workshopIncrementalRenderRows(ordered, limit, highlightVehicleKey);
   const pmbIds = new Set(groups.pmb.map(vehicle => vehicleKey(vehicle)));
   const visiblePmb = batch.visible.filter(vehicle => pmbIds.has(vehicleKey(vehicle)));
   const visibleIncoming = batch.visible.filter(vehicle => !pmbIds.has(vehicleKey(vehicle)));
-  const pmbCount = returnedPlans.length + groups.pmb.length;
-  const incomingCount = groups.incoming.length;
-  const pmbCards = returnedPlans.map(workshopReturnedQueueCardHtml).join('') + visiblePmb.map(vehicle => workshopQueueCardWithLocationHtml(vehicle, stage, dateKey, plans)).join('');
-  const incomingCards = visibleIncoming.map(vehicle => workshopQueueCardWithLocationHtml(vehicle, stage, dateKey, plans)).join('');
+  const pmbCount = returnedPmb.length + groups.pmb.length;
+  const incomingCount = returnedIncoming.length + groups.incoming.length;
+  const pmbCards = returnedPmb.map(row => workshopReturnedCardWithLocationHtml(row.entry, row.vehicle)).join('') + visiblePmb.map(vehicle => workshopQueueCardWithLocationHtml(vehicle, stage, dateKey, plans)).join('');
+  const incomingCards = returnedIncoming.map(row => workshopReturnedCardWithLocationHtml(row.entry, row.vehicle)).join('') + visibleIncoming.map(vehicle => workshopQueueCardWithLocationHtml(vehicle, stage, dateKey, plans)).join('');
   const pmbMore = groups.pmb.length > visiblePmb.length ? `<div class="workshop-empty">${groups.pmb.length - visiblePmb.length} more at PMB · use Show next below</div>` : '';
   return `<section class="workshop-unallocated-box is-pmb" data-workshop-unallocated-box="pmb">
       <div class="workshop-unallocated-box-heading"><strong>At PMB</strong><span>${pmbCount}</span></div>
