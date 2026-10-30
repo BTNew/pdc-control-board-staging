@@ -1,4 +1,4 @@
--- r880 (F420) / sort 540. Staging cdsmnqxtyyoeoznmbidd only. PREPARED - apply only after Craig's go-live.
+-- r880 (F420) / sort 540. Staging cdsmnqxtyyoeoznmbidd only. Applied 30 Oct 2026 about 13:41 AWST after Craig approved.
 -- Craig 30 Oct 2026 12:28: "give me the option to delete lines from the fitting statistics, example a bullbar is in there for 1min and
 --   stuffing up the averages because someone forgot to click it."
 -- Adds a Times list per job card line on Admin > Fitting statistics, with Remove / Restore per job. Removing only takes that job's time
