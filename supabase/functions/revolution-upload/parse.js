@@ -805,6 +805,7 @@ export function dryRun(parsed, options = {}) {
   const known = new Set((options.knownShas || []).map((value) => String(value).toLowerCase()));
   const duplicate = known.has(parsed.sha256);
   const errors = [];
+  let keyClashesIgnored = 0;
   if (duplicate) errors.push({ code: 'duplicate_file', message: 'This file sha256 is already in the import ledger.' });
   const vehicles = board.vehicles || [];
   const jobs = board.jobs || [];
@@ -852,16 +853,18 @@ export function dryRun(parsed, options = {}) {
       if (byStock.has(key)) updated += 1;
       else fresh += 1;
     }
+    // r760 (F366, Craig 30 Oct 20:24): the key on the board is the key. The Key Tag Number column is not imported and
+    // a clash inside the file, or with a board key, is not an error any more; it is reported as a count only.
     const seenKeys = new Map();
+    let keyClashes = 0;
     for (const row of passing) {
       const tag = statusText(row.raw?.['Key Tag Number']);
       if (!tag || tag === '0') continue;
       const owner = vehicleKey(row);
-      if (seenKeys.has(tag) && seenKeys.get(tag) !== owner) errors.push({ code: 'key_not_unique', message: 'Two stocks in this file use the same key.' });
+      if (seenKeys.has(tag) && seenKeys.get(tag) !== owner) keyClashes += 1;
       seenKeys.set(tag, owner);
-      const other = vehicles.find((vehicle) => statusText(vehicle.key) === tag && stockKey(vehicle.stock) && stockKey(vehicle.stock) !== owner);
-      if (other) errors.push({ code: 'key_not_unique', message: 'A key in this file is already on another active vehicle.' });
     }
+    keyClashesIgnored = keyClashes;
     for (const vehicle of vehicles) {
       const key = stockKey(vehicle.stock);
       const card = norm(vehicle.jc);
@@ -946,6 +949,7 @@ export function dryRun(parsed, options = {}) {
     karratha_to_broome: false,
     duplicate_file: duplicate,
     needs_admin_confirm: sanity,
+    file_key_clashes_ignored: keyClashesIgnored,
     quiet_hours: quietWindow(options.now),
     apply_enabled: false,
     would_call: callPlan(parsed.kind),
