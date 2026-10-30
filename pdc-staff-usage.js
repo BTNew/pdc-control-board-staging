@@ -1,7 +1,7 @@
 (function (root) {
   'use strict';
   const PAGE_LABELS = Object.freeze({
-    dashboard:'Vehicle Locations', qc:'QC Sign-off', fitters:'Fitters Bay', workflow:'Control Board',
+    dashboard:'Vehicle Locations', qc:'Final check', fitters:'Fitters Bay', workflow:'Control Board',
     'planner-bus-4x4':'Bus 4×4', 'planner-tint':'Tint', 'planner-hoist':'Hoist',
     'planner-fitting':'Fitting', 'planner-fab':'Fabrication', 'planner-elec':'Electrical', 'planner-tyre':'Tyres',
     workshop:'Workshop Planner', visibility:'Workshop Visibility', tv:'TV Board', schedule:'Schedule',
@@ -33,6 +33,7 @@
     'mmt-sublet':'sublet',
     'psc-sublet':'sublet', // r711 (F321)
     'stock-take':'workflow', // r720 (F330): Stock take counts under Control Board
+    'pit-bookings':'dashboard', // r753 (F358): the Pit bookings page counts under Vehicle Locations (it was the PIT tile)
   });
   const PAGES = new Set(Object.keys(PAGE_LABELS));
   const cleanPage = page => {
