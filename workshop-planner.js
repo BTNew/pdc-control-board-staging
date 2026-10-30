@@ -6137,12 +6137,58 @@ function workshopUnallocatedGroups(queue = [], highlightVehicleKey = '', now = n
   };
 }
 
+// r863 (F414, Craig 12:41): one compact parts chip beside the location on each Unallocated tile:
+// Stoppage, Parts here, Parts ETA dd/mm · Nd, or Parts outstanding. Nothing is shown when nothing is known.
+function workshopFullVehicleRow(vehicle = {}) {
+  const rows = typeof app !== 'undefined' && Array.isArray(app.emailVehicleLocationRows) ? app.emailVehicleLocationRows : null;
+  if (!rows) return null;
+  const stockId = value => (value ? `stock:${String(value).trim().toUpperCase()}` : '');
+  if (workshopFullVehicleRow.rows !== rows) {
+    const index = new Map();
+    rows.forEach(row => [row?.__emailVehicleId, row?.id, row?.permanentVehicleId, stockId(row?.stock)].forEach(key => {
+      const k = String(key || '').toLowerCase();
+      if (k && !index.has(k)) index.set(k, row);
+    }));
+    workshopFullVehicleRow.rows = rows;
+    workshopFullVehicleRow.index = index;
+  }
+  for (const key of [vehicle.id, vehicle.sharedVehicleId, vehicle.permanentVehicleId, stockId(vehicle.stock || vehicle.stockNumber)]) {
+    const hit = key ? workshopFullVehicleRow.index.get(String(key).toLowerCase()) : null;
+    if (hit) return hit;
+  }
+  return null;
+}
+
+function workshopUnallocatedPartsStatus(vehicle = {}) {
+  const full = workshopFullVehicleRow(vehicle);
+  const id = vehicle.id || vehicle.sharedVehicleId || full?.id || '';
+  const merged = { ...(full || {}), ...vehicle, id, __emailVehicleId: id, pdcPartsFlags: full?.pdcPartsFlags ?? vehicle.pdcPartsFlags ?? null };
+  let info = null;
+  try { info = typeof window !== 'undefined' ? window.PDC_PARTS_STOPPAGE?.partsStatusFor?.(merged) || null : null; } catch (_) { info = null; }
+  let emailEta = '';
+  try { emailEta = typeof window !== 'undefined' ? String(window.PDC_PARTS_ETA?.entryFor?.(merged)?.latest_eta || '').slice(0, 10) : ''; } catch (_) { emailEta = ''; }
+  const eta = workshopValidDateKey(String(info?.eta || '').slice(0, 10)) ? String(info.eta).slice(0, 10) : (workshopValidDateKey(emailEta) ? emailEta : '');
+  const days = eta ? workshopDaysUntilDateKey(eta) : null;
+  const when = eta ? `${eta.slice(8, 10)}/${eta.slice(5, 7)}${days === null ? '' : days < 0 ? ` · ${-days}d late` : days === 0 ? ' · today' : ` · ${days}d`}` : '';
+  const flags = merged.pdcPartsFlags || merged.parts_flags || null;
+  if (info?.placed) return { kind: 'stoppage', label: `Stoppage${when ? ` · ${when}` : ''}` };
+  if (info?.partsDone || flags?.colour === 'green') return { kind: 'here', label: 'Parts here' };
+  if (eta) return { kind: days !== null && days < 0 ? 'late' : 'eta', label: `Parts ETA ${when}` };
+  if (flags?.colour === 'orange' || flags?.colour === 'red') return { kind: 'out', label: 'Parts outstanding' };
+  return null;
+}
+
+function workshopUnallocatedMetaHtml(vehicle = {}, group = workshopUnallocatedGroup(vehicle) || 'NOKEY') {
+  const label = workshopUnallocatedLocationLabel(vehicle, group);
+  const parts = workshopUnallocatedPartsStatus(vehicle);
+  if (!label && !parts) return '';
+  return `<div class="workshop-unallocated-meta">${label ? `<small class="workshop-unallocated-location is-${escapeHtml(String(group).toLowerCase())}">${escapeHtml(label)}</small>` : ''}${parts ? `<small class="workshop-unallocated-parts is-${escapeHtml(parts.kind)}">${escapeHtml(parts.label)}</small>` : ''}</div>`;
+}
+
 function workshopQueueCardWithLocationHtml(vehicle = {}, stage, dateKey, plans) {
   const html = workshopQueueCardHtml(vehicle, stage, dateKey, plans);
-  const label = workshopUnallocatedLocationLabel(vehicle);
-  if (!html || !label) return html;
-  const group = workshopUnallocatedGroup(vehicle) || 'NOKEY';
-  const line = `<small class="workshop-unallocated-location is-${escapeHtml(group.toLowerCase())}">${escapeHtml(label)}</small>`;
+  const line = workshopUnallocatedMetaHtml(vehicle);
+  if (!html || !line) return html;
   return html.includes('<div class="workshop-queue-actions">')
     ? html.replace('<div class="workshop-queue-actions">', `${line}<div class="workshop-queue-actions">`)
     : html;
@@ -6151,10 +6197,8 @@ function workshopQueueCardWithLocationHtml(vehicle = {}, stage, dateKey, plans) 
 function workshopReturnedCardWithLocationHtml(entry = {}, vehicle = null) {
   const html = workshopReturnedQueueCardHtml(entry);
   if (!html || !vehicle) return html;
-  const group = workshopUnallocatedGroup(vehicle) || 'NOKEY';
-  const label = workshopUnallocatedLocationLabel(vehicle, group);
-  if (!label || !html.includes('<div class="workshop-queue-actions">')) return html;
-  const line = `<small class="workshop-unallocated-location is-${escapeHtml(group.toLowerCase())}">${escapeHtml(label)}</small>`;
+  const line = workshopUnallocatedMetaHtml(vehicle);
+  if (!line || !html.includes('<div class="workshop-queue-actions">')) return html;
   return html.replace('<div class="workshop-queue-actions">', `${line}<div class="workshop-queue-actions">`);
 }
 
