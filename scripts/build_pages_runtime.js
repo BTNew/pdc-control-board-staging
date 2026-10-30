@@ -134,7 +134,7 @@ const RUNTIME_FILES = Object.freeze([
   'karratha/workshop-realtime.js',
   'karratha/workshop-reference-data-service.js',
   'karratha/workshop-shared-actions.js',
-  'navision-backend-service.js', 'navision-vin.js', 'no-vehicles.html',
+  'navision-backend-service.js', 'navision-profile-parser.js', 'navision-vin.js', 'no-vehicles.html',
   'pdc-ai-auditor-stage-a.js', 'pdc-ai-intake-review.css', 'pdc-ai-intake-review.js',
   'pdc-ai-intake-service.js', 'pdc-auth-registration.js', 'pdc-auth.js',
   'pdc-book-all-stations.js', 'pdc-bus-workflow.css', 'pdc-bus-workflow.js',
@@ -163,7 +163,7 @@ const RUNTIME_FILES = Object.freeze([
   'sales/crm-workspace.js', 'sales/customer-emails.js', 'sales/dashboard-tools.js',
   'sales/email-actions.js', 'sales/finance-pipeline.css', 'sales/finance-pipeline.js',
   'sales/index.html', 'sales/karratha-sales-import.js', 'sales/navision-orders.js', 'sales/pmb-stations.css', 'sales/pmb-stations.js', 'sales/sales-accessories.css', 'sales/sales-accessories.js', 'sales/sales-branch.js', 'sales/sales.css',
-  'sales/sales.js', 'sales/vehicle-notes.js', 'sales/completed-vehicles.js', 'sales/zebra-labels.js',
+  'sales/sales.js', 'sales/vehicle-notes.js', 'sales/completed-vehicles.js', 'sales/zebra-labels.js', 'sales/navision-upload.css', 'sales/navision-upload.js',
   // The read-only browser helper stays allowlisted so it can be restored.
   // index.html no longer loads it on startup. No other scripts/ files ship.
   'scripts/stage2b_c4_browser_export.js',

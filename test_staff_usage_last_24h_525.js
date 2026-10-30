@@ -285,7 +285,7 @@ test('the Period control loads Last 30 days, then Last 24 hours reloads those co
 
 test('PDC and Sales cache-bust the tracker; Karratha keeps its own copy', () => {
   assert.match(read('index.html'), /pdc-staff-usage\.js\?v=2026\.10\.16\.01&amp;all-pages=2026\.10\.16\.01&amp;r489=2026\.10\.23\.r489&amp;r525=2026\.10\.24\.r525(&amp;r642=2026\.10\.28\.r642)?(&amp;r711=2026\.10\.29\.r711)?(&amp;r720=2026\.10\.29\.r720)?(&amp;r722=2026\.10\.29\.r722)?"/);
-  assert.match(read('sales/index.html'), /\.\.\/pdc-staff-usage\.js\?v=2026\.10\.16\.01&amp;all-pages=2026\.10\.16\.01&amp;r525=2026\.10\.24\.r525(&amp;r642=2026\.10\.28\.r642)?(&amp;r711=2026\.10\.29\.r711)?(&amp;r720=2026\.10\.29\.r720)?(&amp;r722=2026\.10\.29\.r722)?"/);
+  assert.match(read('sales/index.html'), /\.\.\/pdc-staff-usage\.js\?v=2026\.10\.16\.01&amp;all-pages=2026\.10\.16\.01&amp;r525=2026\.10\.24\.r525(&amp;r642=2026\.10\.28\.r642)?(&amp;r711=2026\.10\.29\.r711)?(&amp;r720=2026\.10\.29\.r720)?(&amp;r722=2026\.10\.29\.r722)?(&amp;r768=2026\.10\.31\.r768)?"/);
   assert.doesNotMatch(read('karratha/index.html'), /r525=2026\.10\.24\.r525/);
   assert.doesNotMatch(read('karratha/pdc-staff-usage.js'), /Last 24 hours/);
   const log = read('docs/FAULT_LOG.md');

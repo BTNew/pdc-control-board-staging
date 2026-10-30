@@ -844,7 +844,8 @@
       "Alerts",
       "Finance",
       "Labels",
-      "Completed vehicles"
+      "Completed vehicles",
+      "Navision Uploads"
     ],
     "finance": "Manually added finance applications with inline editing, existing-vehicle autocomplete or standalone customer details, and filtered pipeline/monthly statistics; vehicles are not automatically enrolled.",
     "operational_writes": false,
@@ -967,7 +968,8 @@
       "Alerts",
       "Finance",
       "Labels",
-      "Completed vehicles"
+      "Completed vehicles",
+      "Navision Uploads"
     ],
     "operational_writes": false,
     "existing_pdc_permissions_changed": false,

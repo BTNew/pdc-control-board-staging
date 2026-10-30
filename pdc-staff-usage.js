@@ -34,6 +34,7 @@
     'psc-sublet':'sublet', // r711 (F321)
     'stock-take':'workflow', // r720 (F330): Stock take counts under Control Board
     'pit-bookings':'dashboard', // r753 (F358): the Pit bookings page counts under Vehicle Locations (it was the PIT tile)
+    'sales-navision':'import', // r768 (F430): Sales Navision Uploads counts under Navision Uploads (database page list unchanged)
   });
   const PAGES = new Set(Object.keys(PAGE_LABELS));
   const cleanPage = page => {
