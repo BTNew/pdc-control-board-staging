@@ -85,6 +85,7 @@ if (typeof window !== 'undefined') (function () {
       ['archived', 'Leaving the board', 'Not on the Revolution list any more. Completed, or tagged "not on Revolution list" if the car is still on Navision.', true],
       ['new', 'Coming onto the board', 'Not on the board yet.', true],
       ['updated', 'Changed', 'Already imported; at least one line changed since the last import.', true],
+      ['held_before', 'Held last time, retrying', 'Not applied by the last import (staff-locked hours, review or identity holds). Tried again; usually held again.', false],
       ['awaiting_approval', 'Imported, waiting on New Vehicles', 'Already imported and unchanged; approve them on the New Vehicles page.', false],
       ['unchanged', 'Unchanged', 'Line-for-line what the last import applied. The server skips these.', false],
       ['sales_left_alone', 'Sales boards left alone', '', false],

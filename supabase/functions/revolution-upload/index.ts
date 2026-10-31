@@ -220,24 +220,32 @@ async function previewDelta773(projectUrl, auth, bytes, filename, parsed, result
     }
     const compared = await rpcAs(projectUrl, auth, 'revolution_upload_delta_compare_773', { p_hashes: hashes });
     if (compared.ok !== true) { result.delta = { ok: false, error: compared.error || 'delta_unavailable' }; return; }
-    const unchanged = new Set((compared.unchanged || []).map((s) => String(s).toUpperCase()));
-    const changed = new Set((compared.changed || []).map((s) => String(s).toUpperCase()));
-    const seenBefore = (stock) => unchanged.has(String(stock || '').toUpperCase()) || changed.has(String(stock || '').toUpperCase());
+    const up = (stock) => String(stock || '').toUpperCase();
+    const unchanged = new Set((compared.unchanged || []).map(up));
+    const changed = new Set((compared.changed || []).map(up));
+    const heldBefore = new Set((compared.held_before || []).map(up));
+    const seenBefore = (stock) => unchanged.has(up(stock)) || changed.has(up(stock));
     const changes = result.changes || {};
-    const keepUpdated = []; const nowUnchanged = []; const awaiting = []; const stillNew = [];
-    for (const entry of changes.updated || []) (unchanged.has(String(entry.stock || '').toUpperCase()) ? nowUnchanged : keepUpdated).push(entry);
+    const keepUpdated = []; const nowUnchanged = []; const retrying = []; const awaiting = []; const stillNew = [];
+    for (const entry of changes.updated || []) {
+      if (unchanged.has(up(entry.stock))) nowUnchanged.push(entry);
+      else if (heldBefore.has(up(entry.stock))) retrying.push(entry);
+      else keepUpdated.push(entry);
+    }
     for (const entry of changes.new || []) (seenBefore(entry.stock) ? awaiting : stillNew).push(entry);
     changes.updated = keepUpdated;
     changes.unchanged = [...(changes.unchanged || []), ...nowUnchanged];
+    changes.held_before = retrying;
     changes.awaiting_approval = awaiting;
     changes.new = stillNew;
     result.changes = changes;
     result.counts.updated = keepUpdated.length;
     result.counts.unchanged = changes.unchanged.length;
     result.counts.new = stillNew.length;
+    result.counts.held_before = retrying.length;
     result.counts.awaiting_approval = awaiting.length;
-    result.delta = { ok: true, since: 'last OK apply', unchanged: unchanged.size, changed: changed.size, first_time: (compared.first_time || []).length, held_in_file: prepared.holds.length };
-    result.summary = `${stillNew.length} new, ${keepUpdated.length} changed, ${changes.unchanged.length} unchanged, ${awaiting.length} awaiting approval, ${result.counts.archived || 0} leaving`;
+    result.delta = { ok: true, since: 'last OK apply', unchanged: unchanged.size, changed: changed.size, held_before: heldBefore.size, first_time: (compared.first_time || []).length, held_in_file: prepared.holds.length };
+    result.summary = `${stillNew.length} new, ${keepUpdated.length} changed, ${retrying.length} held last time (retrying), ${changes.unchanged.length} unchanged, ${awaiting.length} awaiting approval, ${result.counts.archived || 0} leaving`;
   } catch (error) {
     result.delta = { ok: false, error: error instanceof Error ? error.message : 'delta_unavailable' };
   }

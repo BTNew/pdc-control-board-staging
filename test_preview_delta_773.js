@@ -5,11 +5,14 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 test('r773: dry run calls the delta RPCs, regroups the lists, page shows Changed / awaiting approval / Unchanged', () => {
   const ts = fs.readFileSync('supabase/functions/revolution-upload/index.ts', 'utf8');
+  const js2 = fs.readFileSync('pdc-revolution-upload.js', 'utf8');
   assert.match(ts, /async function previewDelta773\(/);
   assert.match(ts, /if \(parsed\.kind === 'service_whole'\) await previewDelta773\(/);
   assert.match(ts, /'revolution_upload_delta_773'/);
   assert.match(ts, /'revolution_upload_delta_compare_773'/);
   assert.match(ts, /changes\.awaiting_approval = awaiting;/);
+  assert.match(ts, /changes\.held_before = retrying;/);
+  assert.match(js2, /\['held_before', 'Held last time, retrying'/);
   assert.match(ts, /result\.counts\.unchanged = changes\.unchanged\.length;/);
   const js = fs.readFileSync('pdc-revolution-upload.js', 'utf8');
   assert.match(js, /\['updated', 'Changed'/);

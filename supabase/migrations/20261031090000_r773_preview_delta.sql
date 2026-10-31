@@ -4,7 +4,7 @@
 -- every car imported but still waiting on the New Vehicles page counted as new. The server already knows the real delta
 -- (r771 content hashes against the last OK apply). Two read-only RPCs let the dry run use it:
 --   revolution_upload_delta_773(rows)      -> {stock: [content hashes]} for the prepared rows (chunked by the edge function)
---   revolution_upload_delta_compare_773(h) -> {unchanged: [...], changed: [...], first_time: [...]} per stock
+--   revolution_upload_delta_compare_773(h) -> {unchanged, changed, held_before (in an earlier apply, never applied OK), first_time} per stock
 -- Administrator only. Nothing is written.
 SET LOCAL lock_timeout = '6s';
 SET LOCAL statement_timeout = '120s';
@@ -53,12 +53,18 @@ BEGIN
     FROM prior p JOIN pdc_import_620.job_rows r ON r.job_id = p.job_id AND r.part = p.part AND upper(btrim(r.stock_number)) = p.stock AND r.held_reason IS NULL
     GROUP BY p.stock
   )
+  , seen AS (
+    -- r773b: stocks that were in an earlier apply but never applied OK (held every time)
+    SELECT DISTINCT upper(btrim(r.stock_number)) stock FROM pdc_import_620.job_rows r JOIN pdc_import_620.jobs j ON j.job_id = r.job_id
+    WHERE j.mode = 'apply' AND j.report = 'service_whole' AND upper(btrim(r.stock_number)) IN (SELECT stock FROM cur)
+  )
   SELECT jsonb_build_object(
     'unchanged', coalesce(jsonb_agg(c.stock ORDER BY c.stock) FILTER (WHERE pv.hashes = c.hashes), '[]'::jsonb),
     'changed', coalesce(jsonb_agg(c.stock ORDER BY c.stock) FILTER (WHERE pv.hashes IS NOT NULL AND pv.hashes <> c.hashes), '[]'::jsonb),
-    'first_time', coalesce(jsonb_agg(c.stock ORDER BY c.stock) FILTER (WHERE pv.hashes IS NULL), '[]'::jsonb))
+    'held_before', coalesce(jsonb_agg(c.stock ORDER BY c.stock) FILTER (WHERE pv.hashes IS NULL AND sn.stock IS NOT NULL), '[]'::jsonb),
+    'first_time', coalesce(jsonb_agg(c.stock ORDER BY c.stock) FILTER (WHERE pv.hashes IS NULL AND sn.stock IS NULL), '[]'::jsonb))
     INTO v_out
-  FROM cur c LEFT JOIN prev pv ON pv.stock = c.stock;
+  FROM cur c LEFT JOIN prev pv ON pv.stock = c.stock LEFT JOIN seen sn ON sn.stock = c.stock;
   RETURN jsonb_build_object('ok', true) || coalesce(v_out, '{}'::jsonb);
 END $function$;
 
