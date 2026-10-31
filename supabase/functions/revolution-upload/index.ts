@@ -76,21 +76,59 @@ Deno.serve(async (req) => {
     result.counts.errors = result.errors.length;
     if (result.summary) result.summary = result.summary.replace(/errors \d+$/, `errors ${result.errors.length}`);
   }
+  if (action === 'apply' && OTHER_781.has(parsed.kind)) return await applyOther781(projectUrl, auth, bytes, filename, parsed, result, uploader);
   if (action === 'apply') return await applyService(projectUrl, auth, bytes, filename, parsed, result, board.board, uploader);
   if (parsed.kind === 'service_whole') await previewDelta773(projectUrl, auth, bytes, filename, parsed, result, board.board, uploader);
   const body = {
     ...result,
-    apply_enabled: parsed.kind === 'service_whole',
+    apply_enabled: parsed.kind === 'service_whole' || OTHER_781.has(parsed.kind),
     go_live: false,
     logged: false,
     ledger: gate.ledger,
     uploader,
     preview_only: true,
     action: action === 'apply' ? 'apply' : 'dry-run',
-    message: parsed.kind === 'service_whole' ? 'Dry run only. Nothing was written. Apply sends this file to the import queue.' : 'Dry run only. Apply is on for Service as a Whole first; this report still waits.',
+    message: parsed.kind === 'service_whole' ? 'Dry run only. Nothing was written. Apply sends this file to the import queue.'
+      : OTHER_781.has(parsed.kind) ? 'Dry run only. Nothing was written. Apply sends this file to its importer (runs within a minute).'
+      : 'Dry run only. Apply is not on for this report.',
   };
   return json(body, 200);
 });
+
+// r781 (F386): Craig 31 Oct 2026 11:42 AWST "turn on the applys for the other uploads so i can do them".
+// CW parts and BT / KTA deal items: the parsed rows (the rows Kajel sent, r591) are queued; a cron worker on the
+// management connection runs them through the existing importer (parts: pdc_import_job_parts_csv_20260912;
+// deal items: import_sales_accessories_20261020 / import_karratha_sales_accessories_20261025 manifest, preview, apply).
+const OTHER_781 = new Set(['cw_parts', 'bt_deal_items', 'kta_deal_items']);
+
+async function applyOther781(projectUrl, auth, bytes, filename, parsed, result, uploader) {
+  const refuse = (error, extra = {}) => json({ ok: false, action: 'apply', error, ...extra }, 409);
+  if (result.duplicate_file) return refuse('This file has already been imported.');
+  // A parts row with bad flags is still sent: the importer records it as invalid, like Kajel's runs.
+  const blocking = (result.errors || []).filter((error) => !['quiet_hours', 'parts_row'].includes(error.code));
+  if (blocking.length) return refuse('The dry run found errors. Fix the file and try again.', { errors: blocking });
+  const meta = {
+    extract_text: String(parsed.parameters || ''),
+    sheet: String(parsed.sheet || ''),
+    title: String(parsed.title || ''),
+    container: bytes.length >= 2 && bytes[0] === 0x50 && bytes[1] === 0x4b ? 'ooxml' : 'other',
+  };
+  const queued = await rpcAs(projectUrl, auth, 'revolution_upload_other_781', {
+    p_kind: parsed.kind, p_sha: parsed.sha256, p_filename: filename || parsed.filename || 'upload.xls', p_meta: meta, p_rows: parsed.rows,
+  });
+  if (queued.ok !== true) return refuse(queued.message || queued.error || 'The upload could not be queued.');
+  return json({
+    ok: true,
+    action: 'apply',
+    kind: parsed.kind,
+    other_upload_id: queued.upload_id,
+    status: 'queued',
+    rows_sent: parsed.rows.length,
+    summary: result.summary || '',
+    uploader,
+    message: 'Sent to the importer. It runs within a minute; this page shows the result.',
+  }, 200);
+}
 
 function json(body, status = 200) {
   return new Response(JSON.stringify(body), {

@@ -197,9 +197,9 @@ if (typeof window !== 'undefined') (function () {
     renderChanges762(host, payload);
     const plan = document.createElement('p');
     plan.className = 'ru-note';
-    plan.textContent = payload.apply_enabled
-      ? 'Apply sends this file to the import queue. Every part is previewed on the server, then applied.'
-      : 'Apply is on for Service as a Whole first. This report still waits.';
+    plan.textContent = !payload.apply_enabled ? 'Apply is not on for this report.'
+      : payload.kind === 'service_whole' ? 'Apply sends this file to the import queue. Every part is previewed on the server, then applied.'
+      : 'Apply sends this file to its importer, which previews it on the server, then applies it (within a minute).';
     host.append(plan);
     const holdCounts = payload.hold_counts || {};
     const holdNames = Object.keys(holdCounts);
@@ -275,6 +275,39 @@ if (typeof window !== 'undefined') (function () {
     };
     void tick();
   }
+  // r781 (F386): result of a CW parts / BT / KTA deal items apply, run by the server worker within a minute.
+  async function otherStatus781(uploadId) {
+    const config = window.PDC_SUPABASE_CONFIG || {};
+    const token = typeof getPdcSupabaseAccessToken === 'function' ? getPdcSupabaseAccessToken() : '';
+    const response = await fetch(`${config.url}/rest/v1/rpc/revolution_upload_other_status_781`, {
+      method: 'POST',
+      headers: { apikey: config.publishableKey, Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ p_upload: uploadId }),
+    });
+    return response.json();
+  }
+  function otherSummary781(result = {}) {
+    const r = result.result && typeof result.result === 'object' ? result.result : result;
+    if (r.matched != null || r.unmatched != null) {
+      return `matched ${r.matched || 0}, updated ${r.updated || 0}, unchanged ${r.unchanged || 0}, unmatched ${r.unmatched || 0}, invalid ${r.invalid || 0}, stale ${r.stale || 0}`;
+    }
+    if (r.lines_inserted != null) return `lines added ${r.lines_inserted || 0}, lines removed ${r.lines_superseded || 0}`;
+    return r.replay ? 'already imported' : 'done';
+  }
+  function followOther781(uploadId) {
+    clearTimeout(pollTimer);
+    const tick = async () => {
+      try {
+        const s = await otherStatus781(uploadId);
+        if (s?.ok !== true) { setStatus('Sent. The result could not be read; check again in a minute.'); return; }
+        if (s.status === 'done') { setStatus(`Imported: ${otherSummary781(s.result || {})}.`); return; }
+        if (s.status === 'failed') { setStatus(`The importer refused this file: ${s.error || 'unknown error'}. Nothing was written.`); return; }
+        setStatus(`${s.status === 'queued' ? 'Waiting for the importer' : 'Importing'}… You can leave this page.`);
+      } catch (_) { /* try again */ }
+      pollTimer = setTimeout(tick, 5000);
+    };
+    void tick();
+  }
   function renderNeedsHours(list) {
     const host = document.getElementById('revolution-upload-result');
     if (!host || !list?.length) return;
@@ -309,8 +342,9 @@ if (typeof window !== 'undefined') (function () {
       setStatus('Preparing the rows and sending them to the import queue…');
       try {
         const payload = await postFile(file, 'apply');
-        remember(file, { ...payload, kind: 'apply', summary: payload.ok ? `sent ${payload.rows_sent || 0}, held ${payload.rows_held || 0}, needs hours ${(payload.needs_hours || []).length}` : payload.error });
+        remember(file, { ...payload, kind: 'apply', summary: !payload.ok ? payload.error : payload.other_upload_id ? `${payload.kind}: sent ${payload.rows_sent || 0} rows to the importer` : `sent ${payload.rows_sent || 0}, held ${payload.rows_held || 0}, needs hours ${(payload.needs_hours || []).length}` });
         if (payload.ok !== true) { setStatus(payload.error || 'Apply was refused.'); return; }
+        if (payload.other_upload_id) { setStatus(payload.message); followOther781(payload.other_upload_id); return; }
         renderNeedsHours(payload.needs_hours);
         setStatus(payload.message);
         if (payload.status !== 'held') follow(payload.upload_id);
