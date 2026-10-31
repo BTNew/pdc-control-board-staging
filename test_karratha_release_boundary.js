@@ -234,7 +234,7 @@ const approvedRootImportPatch = Object.freeze({
   // r738: canonical-entry.js adds r738=2026.10.30.r738 to the slide-out loader (line Complete only from its own tick; F343).
   // r745: canonical-entry.js adds r745=2026.10.30.r745 to the table loader (Vehicle Locations opens on PMB; F350).
   // r747: canonical-entry.js adds r747=2026.10.30.r747 to the Parts stoppage and parts confirmation loaders (Parts complete tick; F353). Department 135 is not tagged.
-  "canonical-entry.js": "fb12f2f8e2b8d07a12ebec26da9aea3cff37b467ec14d8a584fa5a5e93229c9f", // r792: station headings red/green/off cache tag; r863 (F414): Unallocated parts chip; r747 (F353) cache tags
+  "canonical-entry.js": "2d217a626cf615435a07a391d5e32acdb8ca7e8342552ecda2e2deefce8f3964", // r795 cache tag; r792: station headings red/green/off cache tag; r863 (F414): Unallocated parts chip; r747 (F353) cache tags
   "pdc-workshop-vehicle-search.js": "d0be4a60c5ca2213ba71d4cd31cb7019736db3d7e0470d22b3fa88243e56eb4c",
   // r747: the side-panel Parts complete tick counts as a parts confirmation on the PMG board (F353). Department 135 keeps its frozen copy.
   "pdc-parts-confirmation.js": "1e7486ae60922154ec2d0ec05cb0ce007f47daf5f03bc508e6e6e4b38d6f8bf9",

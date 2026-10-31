@@ -20,10 +20,18 @@ test('r792: click cycle is red, green, off', () => {
   assert.equal(table.nextStationMode('done'), '');
 });
 
-test('r792: green = required and complete; grey (not required) is not green', () => {
+test('r792/r795: green = shows a green tick; grey (not required, not done) is not green', () => {
   assert.equal(table.stationDone({ req: ['fab'], done: ['fab'] }, 'fab', deps), true);
   assert.equal(table.stationDone({ req: ['fab'] }, 'fab', deps), false);
   assert.equal(table.stationDone({ req: [] }, 'fab', deps), false);
+});
+
+test('r795: every line ticked counts as complete for red and green, like the tick', () => {
+  const d = { ...deps, pdcStationLinesMakeComplete: (v, def) => (v.lines || []).includes(def.key) };
+  const car = { req: ['electrical'], lines: ['electrical'] };
+  assert.equal(table.stationNeeds(car, 'electrical', d), false);
+  assert.equal(table.stationDone(car, 'electrical', d), true);
+  assert.equal(table.stationNeeds({ req: ['electrical'] }, 'electrical', d), true);
 });
 
 test('r792: headings combine: done everywhere except Fab', () => {
@@ -42,7 +50,7 @@ test('r792: wired into headings, note, clear and cache-bust', () => {
   assert.match(src, /stationFilterMatch\(vehicle, state\.stations\)/);
   assert.match(src, /classList\.toggle\('vlt-station-done', mode === 'done'\)/);
   assert.match(src, /state\.stations = \{\}; renderTable\(\)/);
-  assert.match(src, /r792=2026\.11\.01\.r792`/);
-  assert.match(fs.readFileSync('canonical-entry.js', 'utf8'), /r792=2026\.11\.01\.r792'/);
+  assert.match(src, /r792=2026\.11\.01\.r792(&r795=2026\.11\.01\.r795)?`/);
+  assert.match(fs.readFileSync('canonical-entry.js', 'utf8'), /r792=2026\.11\.01\.r792(&r795=2026\.11\.01\.r795)?'/);
   assert.match(fs.readFileSync('pdc-vehicle-locations-table.css', 'utf8'), /vlt-station-done/);
 });
