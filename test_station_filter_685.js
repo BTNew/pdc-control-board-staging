@@ -24,7 +24,7 @@ test('r685: needs = required and not complete', () => {
 
 test('r685: wired into tiles, headings, clear button and cache-bust', () => {
   const src = fs.readFileSync('pdc-vehicle-locations-table.js', 'utf8');
-  assert.match(src, /const stationRows = state\.station \? filteredRows\.filter/);
+  assert.match(src, /const stationRows = stationOn \? filteredRows\.filter/); // r792: red/green/off per heading
   assert.match(src, /const entries = stationRows\.flatMap/);
   assert.match(src, /data-vlt-station-clear/);
   assert.match(src, /heading\.dataset\.vltStation = key/);
