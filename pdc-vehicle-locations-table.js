@@ -320,7 +320,14 @@
     if (!stationKey) return true;
     const def = (typeof deps.pdcJobDefsPartsFirst === 'function' ? deps.pdcJobDefsPartsFirst() : []).find(item => item.key === stationKey);
     if (!def || typeof deps.pdcJobRequired !== 'function' || typeof deps.pdcJobComplete !== 'function') return true;
-    try { return Boolean(deps.pdcJobRequired(vehicle, def)) && !deps.pdcJobComplete(vehicle, def); } catch (_) { return true; }
+    try { return Boolean(deps.pdcJobRequired(vehicle, def)) && !stationTicked(vehicle, def, deps); } catch (_) { return true; }
+  }
+  // r795 (F404): the same rule as the green tick in the station strip (incomingWorkChecklistHtml): signed off, or every line
+  // ticked / controller override (pdcStationLinesMakeComplete, r578). Before this, a car whose lines were all ticked showed
+  // green but still passed the red "needs" filter.
+  function stationTicked(vehicle, def, deps = root) {
+    if (deps.pdcJobComplete(vehicle, def)) return true;
+    return typeof deps.pdcStationLinesMakeComplete === 'function' && Boolean(deps.pdcStationLinesMakeComplete(vehicle, def));
   }
   function stationLabel(stationKey, deps = root) {
     const def = (typeof deps.pdcJobDefsPartsFirst === 'function' ? deps.pdcJobDefsPartsFirst() : []).find(item => item.key === stationKey);
@@ -332,7 +339,7 @@
   function stationDone(vehicle, stationKey, deps = root) {
     const def = (typeof deps.pdcJobDefsPartsFirst === 'function' ? deps.pdcJobDefsPartsFirst() : []).find(item => item.key === stationKey);
     if (!def || typeof deps.pdcJobRequired !== 'function' || typeof deps.pdcJobComplete !== 'function') return true;
-    try { return Boolean(deps.pdcJobRequired(vehicle, def)) && Boolean(deps.pdcJobComplete(vehicle, def)); } catch (_) { return true; }
+    try { return stationTicked(vehicle, def, deps); } catch (_) { return true; } // r795: green = shows a green tick
   }
   function nextStationMode(mode) { return mode === 'need' ? 'done' : mode === 'done' ? '' : 'need'; }
   function stationFilterMatch(vehicle, filters = {}, deps = root) {
@@ -408,7 +415,7 @@
     return { alert: parts.length > 0, count: missing.length + zero.length + dups.reduce((n, d) => n + d.stocks.length, 0), missing, zero, dups, text: parts.join(' · ') };
   }
 
-  const api = { VERSION, VIEWS, pmbKeyAlert, stationNeeds, stationDone, nextStationMode, stationFilterMatch, DROPDOWN_VIEW_ENABLED, JOURNEY, TILE, STORAGE_PREFIX, topLevelElements, splitCard, tableRowHtml, journeyOrder, storageKey, readView, writeView,
+  const api = { VERSION, VIEWS, pmbKeyAlert, stationNeeds, stationTicked, stationDone, nextStationMode, stationFilterMatch, DROPDOWN_VIEW_ENABLED, JOURNEY, TILE, STORAGE_PREFIX, topLevelElements, splitCard, tableRowHtml, journeyOrder, storageKey, readView, writeView,
     STOPPAGES, searchScope, departmentElsewhere, locationSearchSummaryLabel, COLUMNS, COLUMN_MAX, COLUMN_STORAGE_PREFIX, SEL_WIDTH, extractPartsLocation, extractPartsEta, comparePartsLocation, columnStorageKey, sanitizeWidths, readWidths, writeWidths, resetWidths, widthStyle, layoutWidths };
   if (typeof module === 'object' && module.exports) module.exports = api;
   if (!root || !root.document || typeof root.renderIncomingDashboardBoard !== 'function' || root.PDC_VEHICLE_LOCATIONS_TABLE) {
@@ -432,7 +439,7 @@
     if (doc.querySelector('link[data-pdc-vehicle-locations-table]')) return;
     const link = doc.createElement('link');
     link.rel = 'stylesheet';
-    link.href = `pdc-vehicle-locations-table.css?vehicle-locations-table=${VERSION}&r622=2026.10.28.r622&r672=2026.10.28.r672&r685=2026.10.29.r685&r693=2026.10.29.r693&r694=2026.10.29.r694&r792=2026.11.01.r792`; // r672 (F281) red PMB key alert; r622 (F237): new Parts ETA and Pit cell styles
+    link.href = `pdc-vehicle-locations-table.css?vehicle-locations-table=${VERSION}&r622=2026.10.28.r622&r672=2026.10.28.r672&r685=2026.10.29.r685&r693=2026.10.29.r693&r694=2026.10.29.r694&r792=2026.11.01.r792&r795=2026.11.01.r795`; // r672 (F281) red PMB key alert; r622 (F237): new Parts ETA and Pit cell styles
     link.dataset.pdcVehicleLocationsTable = '1';
     doc.head.appendChild(link);
   }
