@@ -1,0 +1,14 @@
+/* r768: Navision Uploads on the Sales sites. */
+.nvu-panel .panel-actions{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0}
+.nvu-inputs{display:grid;gap:10px}
+.nvu-file{display:inline-flex;align-items:center;width:max-content;max-width:100%;cursor:pointer}
+.nvu-paste{display:grid;gap:4px;font-size:.85rem}
+.nvu-paste textarea{width:100%;box-sizing:border-box;font:12px/1.4 ui-monospace,Consolas,monospace;padding:8px;border:1px solid #c9d2dc;border-radius:8px;background:#fff;color:inherit;resize:vertical}
+.nvu-note{margin:8px 0;padding:8px 10px;border-radius:8px;border:1px solid #c9d2dc;background:#f7f9fb;font-size:.9rem}
+.nvu-note.error{border-color:#e7a4a4;background:#fdecec;color:#8a1c1c}
+.nvu-note.success{border-color:#9ed3ae;background:#ecf8ef;color:#1d6b35}
+.nvu-stats{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:8px}
+.nvu-stats div{border:1px solid #d6dde5;border-radius:8px;padding:8px;background:#fff;display:grid;gap:2px}
+.nvu-stats span{font-size:.75rem;color:#5b6b7c}
+.nvu-stats strong{font-size:1.2rem}
+@media (max-width:640px){.nvu-stats{grid-template-columns:repeat(2,minmax(0,1fr))}}

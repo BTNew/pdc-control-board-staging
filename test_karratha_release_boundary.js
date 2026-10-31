@@ -503,7 +503,8 @@ const approvedRootImportPatch = Object.freeze({
   // r525: Period option Last 24 hours (p_days 1) on Website activity (F139). The Karratha copy stays frozen.
   // r570: bay-manager counts under the Update History bucket (F184). The Karratha copy stays frozen.
   // r591: revolution-upload counts under the Update History bucket (F205). The Karratha copy stays frozen.
-  "pdc-staff-usage.js": "ee5be1fc863d9be6f0799c0761552a025749334f54382a6f0412fa7cd283e237",
+  // r768 (F430): Sales Navision Uploads counts under the Navision Uploads (import) bucket.
+  "pdc-staff-usage.js": "b5f4267529ae56c52c1e4e1ab40ebb43f007c3072924f1c0ff2e642c0f242f2c",
   "site-switcher.css": "84882066f9ff13057de368d8af1418788e82b2723ec68683166e2f8ded6c8348",
   // r403: the own-role monitor reconnects instead of locking on a realtime blip
   // (F11); index.html and app.js/canonical-entry.js add r403=2026.10.21.01 for

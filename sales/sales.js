@@ -180,8 +180,8 @@
   ];
   const orderingKeys = new Set(['tint','build_po','tray_ordered']);
   function html(id,content){if(state.html.get(id)!==content){$(id).innerHTML=content;state.html.set(id,content);}}
-  const viewNames=['myday','dashboard','pipeline','alerts','finance','labels','history','customeremails'];
-  const viewTitles={myday:'My Day',dashboard:'Dashboard',pipeline:'Pipeline',alerts:'Alerts',finance:'Finance',labels:'Labels',history:'Completed vehicles',customeremails:'Customer emails'};
+  const viewNames=['myday','dashboard','pipeline','alerts','finance','labels','history','customeremails','navision'];
+  const viewTitles={myday:'My Day',dashboard:'Dashboard',pipeline:'Pipeline',alerts:'Alerts',finance:'Finance',labels:'Labels',history:'Completed vehicles',customeremails:'Customer emails',navision:'Navision Uploads'};
   function currentContext(){return state.workspace?.context||state.context;}
   function canViewAllSalespeople(){return state.context?.role==='administrator'||state.context?.can_view_all_salespeople===true;}
   function canEditRow(row){return state.context?.role==='administrator'||(state.context?.role==='salesperson'&&(state.context.can_view_all_salespeople!==true||row?.salesperson_code===state.context.salesperson_code));}
@@ -235,7 +235,7 @@
     $('sales-visibility-status').textContent='';$('sales-hidden-toggle').disabled=false;
     state.generation++;state.workspaceRequest++;state.workspace=null;state.workspaceBusy=false;state.html.clear();root.BROOME_SALES_PMB_STATIONS?.clear?.();
     if(state.searchTimer!==null)root.clearTimeout?.(state.searchTimer);state.searchTimer=null;
-    root.BROOME_COMPLETED_VEHICLES?.clear();root.BROOME_VEHICLE_NOTES?.clear();root.BROOME_SALES_CRM?.clear();root.BROOME_SALES_BUILDS?.clear();root.BROOME_SALES_ACCESSORIES?.clear();root.BROOME_SALES_EMAIL?.clear();root.BROOME_CUSTOMER_EMAILS?.clear();root.BROOME_SALES_FINANCE?.clear();state.financeProjection=[];columnWidths?.clear();
+    root.BROOME_COMPLETED_VEHICLES?.clear();root.SALES_NAVISION_UPLOAD?.clear();root.BROOME_VEHICLE_NOTES?.clear();root.BROOME_SALES_CRM?.clear();root.BROOME_SALES_BUILDS?.clear();root.BROOME_SALES_ACCESSORIES?.clear();root.BROOME_SALES_EMAIL?.clear();root.BROOME_CUSTOMER_EMAILS?.clear();root.BROOME_SALES_FINANCE?.clear();state.financeProjection=[];columnWidths?.clear();
     $('sales-mobile-vehicles').innerHTML='';$('sales-workspace-status').textContent='';
     state.busy=false; state.printBusy=false;state.printerBusy=false;state.printers=[];state.printerName='';$('sales-label-printer').innerHTML='<option value="">Connect to load printers</option>';$('sales-label-printer').disabled=true;$('sales-connect-printer').disabled=false;$('sales-label-status').textContent=''; state.items=[]; state.context=null; state.accounts=null;
     state.selected.clear();
@@ -308,6 +308,7 @@
     if(state.detailId&&!currentIds.has(state.detailId)){state.detailId=null;$('sales-detail').close();$('sales-detail-content').innerHTML='';}
     if(state.view!=='dashboard'){
       if(state.view==='history'&&root.BROOME_COMPLETED_VEHICLES)root.BROOME_COMPLETED_VEHICLES.render();
+      else if(state.view==='navision')root.SALES_NAVISION_UPLOAD?.render(); // r768
       else if(state.view==='finance'&&root.BROOME_SALES_FINANCE)root.BROOME_SALES_FINANCE.render();
       else if(['myday','alerts','finance','history'].includes(state.view))root.BROOME_SALES_CRM?.render(state.view);
       renderSecondaryViews();return;
@@ -764,6 +765,7 @@
     if(t.dataset.select&&scopeRows(state.items,state.filters.salesperson).some(r=>r.tracking_id===t.dataset.select)){if(t.checked)state.selected.add(t.dataset.select);else state.selected.delete(t.dataset.select);render();}
   });
   root.BROOME_COMPLETED_VEHICLES?.init(moduleOptions());
+  root.SALES_NAVISION_UPLOAD?.init(moduleOptions());
   root.BROOME_SALES_CRM?.init(moduleOptions());
   root.BROOME_SALES_ACCESSORIES?.init({...moduleOptions(),getRows:()=>scopeRows(state.items,''),getSalesperson:()=>'',getToken:()=>JSON.stringify([root.PDC_AUTH_CONTEXT?.userId,state.generation]),onUpdate:()=>render()});
   root.BROOME_SALES_BUILDS?.init({...moduleOptions(),getToken:()=>JSON.stringify([root.PDC_AUTH_CONTEXT?.userId,state.generation])});
