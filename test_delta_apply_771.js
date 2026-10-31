@@ -39,3 +39,11 @@ test('r774: planned bay bookings of a leaving car are returned to the queue unde
   assert.match(up, /'archive_returns_planned_to_queue_774', 'F376'/);
   assert.match(fs.readFileSync('supabase/rollbacks/20261031092000_r774_archive_returns_planned_to_queue.down.sql', 'utf8'), /@r772/);
 });
+
+test('r776: on Navision means any current linked or stock-matching record, any dealer code', () => {
+  const up = fs.readFileSync('supabase/migrations/20261031102500_r776_on_navision_any_dealer.sql', 'utf8');
+  assert.match(up, /13eb9a0c31a00ff20dcb34898101ab79/, 'pins the r774 archive body');
+  assert.match(up, /n\.canonical_vehicle_id=v_row\.vehicle_id/);
+  assert.match(up, /'on_navision_any_dealer_776', 'F379'/);
+  assert.match(fs.readFileSync('supabase/rollbacks/20261031102500_r776_on_navision_any_dealer.down.sql', 'utf8'), /@r774/);
+});
