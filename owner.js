@@ -1,5 +1,5 @@
 'use strict';
-// r891 (F441): owner snapshot page. One read-only call (get_pdc_owner_snapshot_891), refreshed every 2 minutes.
+// r891 (F441): owner snapshot page. r892 (F442): vehicles not operation lines; days of work per station. One read-only call (get_pdc_owner_snapshot_891), refreshed every 2 minutes.
 // The database decides who may see it (pdc_owner_private.viewers: Craig and Dave).
 (function () {
   const PROJECT = 'cdsmnqxtyyoeoznmbidd';
@@ -36,11 +36,13 @@
       const tile = el('div', 'tile stn');
       tile.style.setProperty('--c', `var(${STATION_COLOURS[s.station] || '--sky'})`);
       const top = el('div', 'stn-top');
-      top.append(el('span', 'stn-name', s.station), el('span', 'num', fmt(s.booked)));
-      const sub = el('span', 'sub', `${fmt(s.running)} running · ${fmt(s.bays_with_work)} of ${fmt(s.bays)} bays with work`);
+      const days = el('span', null);
+      days.append(el('span', 'num', fmt(s.days_of_work)), el('span', 'stn-days', 'days of work'));
+      top.append(el('span', 'stn-name', s.station), days);
+      const sub = el('span', 'sub', `${fmt(s.vehicles)} vehicles booked · ${fmt(s.hours_not_started)} h not started · ${fmt(s.running)} running · ${fmt(s.bays)} bays`);
       const list = el('div', 'bays');
       const rows = (bays || []).filter((b) => b.station === s.station);
-      const max = Math.max(1, ...rows.map((b) => b.booked));
+      const max = Math.max(1, ...rows.map((b) => b.vehicles));
       rows.forEach((b) => {
         const row = el('div', 'bay');
         const name = el('span', 'bay-name');
@@ -48,9 +50,10 @@
         name.title = b.bay;
         const track = el('div', 'track');
         const fill = el('div', 'fill');
-        fill.style.width = `${(b.booked / max) * 100}%`;
+        fill.style.width = `${(b.vehicles / max) * 100}%`;
         track.append(fill);
-        row.append(name, track, el('span', 'cnt', fmt(b.booked)));
+        row.title = `${b.vehicles} vehicles, ${b.hours_not_started} h not started`;
+        row.append(name, track, el('span', 'cnt', fmt(b.vehicles)));
         list.append(row);
       });
       tile.append(top, sub, list);
@@ -105,6 +108,7 @@
     $('own-gate').hidden = true;
     $('own-main').hidden = false;
     renderHeadline(data?.headline);
+    $('own-dayhours').textContent = fmt(data?.day_hours);
     renderStations(data?.stations, data?.bays);
     renderAge(data?.age);
     renderOldest(data?.oldest);
