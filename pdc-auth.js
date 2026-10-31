@@ -463,6 +463,7 @@
 
   async function unlockApplication(session, roleRow, expectedAuthGeneration, expectedRoleLookupGeneration) {
     if (expectedAuthGeneration !== state.authGeneration || expectedRoleLookupGeneration !== state.roleLookupGeneration) return false;
+    if (routeTvLogin(session?.user?.email)) return false;
     const salesLinked = await loadControllerSalesLink(roleRow.role);
     if (expectedAuthGeneration !== state.authGeneration || expectedRoleLookupGeneration !== state.roleLookupGeneration) return false;
     if (routeApprovedSite(roleRow.role, salesLinked)) return false;
@@ -876,6 +877,26 @@
     return PSC_LOGINS.has(String(window.PDC_AUTH_CONTEXT?.email || '').trim().toLowerCase());
   }
   window.pdcIsPscSession = isPscSession;
+  // r890 (F440): the workshop TV login shows the TV board and presses Tyre / Tint Start / Stop only. The database
+  // hook (pdc_tv_private.displays) refuses everything else; a board sign-in with it is sent to the TV page.
+  const TV_LOGINS = Object.freeze(new Set(['workshopdisplay@pmgwa.com.au']));
+  const TV_RPC_ALLOWLIST = Object.freeze(new Set([
+    'get_pdc_workshop_tv_605', 'start_workshop_work', 'complete_workshop_work', 'record_pdc_login', 'record_pdc_usage_20260914',
+  ]));
+  function isTvLogin(email) {
+    return TV_LOGINS.has(String(email || '').trim().toLowerCase());
+  }
+  function isTvSession() {
+    return isTvLogin(window.PDC_AUTH_CONTEXT?.email);
+  }
+  window.pdcIsTvSession = isTvSession;
+  function routeTvLogin(email) {
+    if (!isTvLogin(email)) return false;
+    lockOwnRoleAuthority('site_changed');
+    const siteRoot = new URL(document.body.dataset.pdcSite === 'broome' ? '../' : './', window.location.href);
+    window.location.replace(new URL('workshop-tv.html', siteRoot).href);
+    return true;
+  }
 
   function isFitterSession() {
     return String(window.PDC_AUTH_CONTEXT?.role || '').trim().toLowerCase() === 'fitter';
@@ -908,6 +929,7 @@
       if (isFitterSession() && !FITTER_RPC_ALLOWLIST.has(String(name || ''))) return locallyRefusedRpc(name);
       if (isMmtSession() && !MMT_RPC_ALLOWLIST.has(String(name || ''))) return locallyRefusedRpc(name);
       if (isPscSession() && !PSC_RPC_ALLOWLIST.has(String(name || ''))) return locallyRefusedRpc(name);
+      if (isTvSession() && !TV_RPC_ALLOWLIST.has(String(name || ''))) return locallyRefusedRpc(name);
       return rpc(name, ...rest);
     };
     Object.defineProperty(client, '__pdcFitterRpcGuard', { value: true });
