@@ -23,8 +23,13 @@ IMMUTABLE
 SET search_path TO 'pg_catalog'
 AS $function$
   SELECT md5(((p_row - 'workbook_sha256')
-    || jsonb_build_object('raw_row', (p_row->'raw_row') - 'upload' - 'source_filename' - 'snapshot_sha256' - 'parent_attachment_sha256'
-         - 'source_snapshot_at' - 'source_row_number' - 'source_row_numbers' - 'source_report_parameters'))::text)
+    || jsonb_build_object('raw_row', ((p_row->'raw_row') - 'upload' - 'source_filename' - 'snapshot_sha256' - 'parent_attachment_sha256'
+         - 'source_snapshot_at' - 'source_row_number' - 'source_row_numbers' - 'source_report_parameters')
+         -- r771b: sublet_columns[] carries source_row_number too; a shifted sheet row is not a change.
+         || CASE WHEN jsonb_typeof(p_row->'raw_row'->'sublet_columns') = 'array'
+                 THEN jsonb_build_object('sublet_columns', (SELECT coalesce(jsonb_agg(CASE WHEN jsonb_typeof(e) = 'object' THEN e - 'source_row_number' ELSE e END), '[]'::jsonb)
+                                                            FROM jsonb_array_elements(p_row->'raw_row'->'sublet_columns') e))
+                 ELSE '{}'::jsonb END))::text)
 $function$;
 
 -- NULL when the part must be previewed and applied; otherwise the skip record for the part.

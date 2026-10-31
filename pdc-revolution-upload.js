@@ -84,8 +84,9 @@ if (typeof window !== 'undefined') (function () {
     const sections = [
       ['archived', 'Leaving the board', 'Not on the Revolution list any more. Completed, or tagged "not on Revolution list" if the car is still on Navision.', true],
       ['new', 'Coming onto the board', 'Not on the board yet.', true],
-      ['updated', 'Updated', 'Already on the board; lines change.', false],
-      ['unchanged', 'Unchanged', '', false],
+      ['updated', 'Changed', 'Already imported; at least one line changed since the last import.', true],
+      ['awaiting_approval', 'Imported, waiting on New Vehicles', 'Already imported and unchanged; approve them on the New Vehicles page.', false],
+      ['unchanged', 'Unchanged', 'Line-for-line what the last import applied. The server skips these.', false],
       ['sales_left_alone', 'Sales boards left alone', '', false],
     ];
     const wrap = document.createElement('div');
@@ -148,7 +149,7 @@ if (typeof window !== 'undefined') (function () {
     grid.className = 'ru-counts';
     const cards = [
       ['New', counts.new || 0],
-      ['Updated', counts.updated || 0],
+      [payload.delta && payload.delta.ok ? 'Changed' : 'Updated', counts.updated || 0],
     ];
     if (Number.isInteger(counts.unchanged)) cards.push(['Unchanged', counts.unchanged]);
     cards.push(
@@ -173,6 +174,7 @@ if (typeof window !== 'undefined') (function () {
       payload.held_open_job_card ? `${payload.held_open_job_card} kept because a job card is open` : '',
       payload.sales_boards_left_alone ? `${payload.sales_boards_left_alone} sales-board vehicles left alone` : '',
       payload.closed_vehicles ? `${payload.closed_vehicles} vehicles have every line at status 80` : '',
+      payload.delta && payload.delta.ok === false ? 'Could not compare with the last import; counts are against the board only.' : '',
       payload.needs_admin_confirm ? 'More than 15 cars would leave the board. Apply would stop for an administrator confirm.' : '',
       payload.duplicate_file ? 'This file is already in the ledger.' : '',
       payload.quiet_hours ? 'Quiet hours. Apply is refused around 07:00, 12:30 and 18:00 AWST.' : '',

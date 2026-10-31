@@ -77,6 +77,7 @@ Deno.serve(async (req) => {
     if (result.summary) result.summary = result.summary.replace(/errors \d+$/, `errors ${result.errors.length}`);
   }
   if (action === 'apply') return await applyService(projectUrl, auth, bytes, filename, parsed, result, board.board, uploader);
+  if (parsed.kind === 'service_whole') await previewDelta773(projectUrl, auth, bytes, filename, parsed, result, board.board, uploader);
   const body = {
     ...result,
     apply_enabled: parsed.kind === 'service_whole',
@@ -198,6 +199,48 @@ async function priorDecisions(projectUrl: string) {
   });
   if (!response.ok) return {};
   return await response.json();
+}
+
+// r773 (F375): the dry run asks the server which stocks are line-for-line what the last OK apply had (same hash as the
+// r771 skip), so the preview shows real changes only. Read-only; a failure leaves the board compare as it was.
+async function previewDelta773(projectUrl, auth, bytes, filename, parsed, result, board, uploader) {
+  try {
+    const prepared = buildServiceRows({
+      grid: await readSheet(bytes),
+      parsed,
+      board,
+      upload: { uploader_email: uploader, upload_id: '00000000-0000-0000-0000-000000000000', uploaded_at: new Date().toISOString(), filename: filename || parsed.filename, sha256: parsed.sha256 },
+      priorDecisions: await priorDecisions(projectUrl),
+    });
+    const hashes = {};
+    for (let i = 0; i < prepared.rows.length; i += 1500) {
+      const part = await rpcAs(projectUrl, auth, 'revolution_upload_delta_773', { p_rows: prepared.rows.slice(i, i + 1500) });
+      if (part.ok !== true || !part.hashes) { result.delta = { ok: false, error: part.error || 'delta_unavailable' }; return; }
+      for (const [stock, list] of Object.entries(part.hashes)) hashes[stock] = [...(hashes[stock] || []), ...(Array.isArray(list) ? list : [])];
+    }
+    const compared = await rpcAs(projectUrl, auth, 'revolution_upload_delta_compare_773', { p_hashes: hashes });
+    if (compared.ok !== true) { result.delta = { ok: false, error: compared.error || 'delta_unavailable' }; return; }
+    const unchanged = new Set((compared.unchanged || []).map((s) => String(s).toUpperCase()));
+    const changed = new Set((compared.changed || []).map((s) => String(s).toUpperCase()));
+    const seenBefore = (stock) => unchanged.has(String(stock || '').toUpperCase()) || changed.has(String(stock || '').toUpperCase());
+    const changes = result.changes || {};
+    const keepUpdated = []; const nowUnchanged = []; const awaiting = []; const stillNew = [];
+    for (const entry of changes.updated || []) (unchanged.has(String(entry.stock || '').toUpperCase()) ? nowUnchanged : keepUpdated).push(entry);
+    for (const entry of changes.new || []) (seenBefore(entry.stock) ? awaiting : stillNew).push(entry);
+    changes.updated = keepUpdated;
+    changes.unchanged = [...(changes.unchanged || []), ...nowUnchanged];
+    changes.awaiting_approval = awaiting;
+    changes.new = stillNew;
+    result.changes = changes;
+    result.counts.updated = keepUpdated.length;
+    result.counts.unchanged = changes.unchanged.length;
+    result.counts.new = stillNew.length;
+    result.counts.awaiting_approval = awaiting.length;
+    result.delta = { ok: true, since: 'last OK apply', unchanged: unchanged.size, changed: changed.size, first_time: (compared.first_time || []).length, held_in_file: prepared.holds.length };
+    result.summary = `${stillNew.length} new, ${keepUpdated.length} changed, ${changes.unchanged.length} unchanged, ${awaiting.length} awaiting approval, ${result.counts.archived || 0} leaving`;
+  } catch (error) {
+    result.delta = { ok: false, error: error instanceof Error ? error.message : 'delta_unavailable' };
+  }
 }
 
 async function applyService(projectUrl, auth, bytes, filename, parsed, result, board, uploader) {
