@@ -76,20 +76,59 @@ Deno.serve(async (req) => {
     result.counts.errors = result.errors.length;
     if (result.summary) result.summary = result.summary.replace(/errors \d+$/, `errors ${result.errors.length}`);
   }
+  if (action === 'apply' && OTHER_781.has(parsed.kind)) return await applyOther781(projectUrl, auth, bytes, filename, parsed, result, uploader);
   if (action === 'apply') return await applyService(projectUrl, auth, bytes, filename, parsed, result, board.board, uploader);
+  if (parsed.kind === 'service_whole') await previewDelta773(projectUrl, auth, bytes, filename, parsed, result, board.board, uploader);
   const body = {
     ...result,
-    apply_enabled: parsed.kind === 'service_whole',
+    apply_enabled: parsed.kind === 'service_whole' || OTHER_781.has(parsed.kind),
     go_live: false,
     logged: false,
     ledger: gate.ledger,
     uploader,
     preview_only: true,
     action: action === 'apply' ? 'apply' : 'dry-run',
-    message: parsed.kind === 'service_whole' ? 'Dry run only. Nothing was written. Apply sends this file to the import queue.' : 'Dry run only. Apply is on for Service as a Whole first; this report still waits.',
+    message: parsed.kind === 'service_whole' ? 'Dry run only. Nothing was written. Apply sends this file to the import queue.'
+      : OTHER_781.has(parsed.kind) ? 'Dry run only. Nothing was written. Apply sends this file to its importer (runs within a minute).'
+      : 'Dry run only. Apply is not on for this report.',
   };
   return json(body, 200);
 });
+
+// r781 (F386): Craig 31 Oct 2026 11:42 AWST "turn on the applys for the other uploads so i can do them".
+// CW parts and BT / KTA deal items: the parsed rows (the rows Kajel sent, r591) are queued; a cron worker on the
+// management connection runs them through the existing importer (parts: pdc_import_job_parts_csv_20260912;
+// deal items: import_sales_accessories_20261020 / import_karratha_sales_accessories_20261025 manifest, preview, apply).
+const OTHER_781 = new Set(['cw_parts', 'bt_deal_items', 'kta_deal_items']);
+
+async function applyOther781(projectUrl, auth, bytes, filename, parsed, result, uploader) {
+  const refuse = (error, extra = {}) => json({ ok: false, action: 'apply', error, ...extra }, 409);
+  if (result.duplicate_file) return refuse('This file has already been imported.');
+  // A parts row with bad flags is still sent: the importer records it as invalid, like Kajel's runs.
+  const blocking = (result.errors || []).filter((error) => !['quiet_hours', 'parts_row'].includes(error.code));
+  if (blocking.length) return refuse('The dry run found errors. Fix the file and try again.', { errors: blocking });
+  const meta = {
+    extract_text: String(parsed.parameters || ''),
+    sheet: String(parsed.sheet || ''),
+    title: String(parsed.title || ''),
+    container: bytes.length >= 2 && bytes[0] === 0x50 && bytes[1] === 0x4b ? 'ooxml' : 'other',
+  };
+  const queued = await rpcAs(projectUrl, auth, 'revolution_upload_other_781', {
+    p_kind: parsed.kind, p_sha: parsed.sha256, p_filename: filename || parsed.filename || 'upload.xls', p_meta: meta, p_rows: parsed.rows,
+  });
+  if (queued.ok !== true) return refuse(queued.message || queued.error || 'The upload could not be queued.');
+  return json({
+    ok: true,
+    action: 'apply',
+    kind: parsed.kind,
+    other_upload_id: queued.upload_id,
+    status: 'queued',
+    rows_sent: parsed.rows.length,
+    summary: result.summary || '',
+    uploader,
+    message: 'Sent to the importer. It runs within a minute; this page shows the result.',
+  }, 200);
+}
 
 function json(body, status = 200) {
   return new Response(JSON.stringify(body), {
@@ -117,7 +156,8 @@ async function staffEmail(projectUrl: string, auth: string) {
 }
 
 function filenameFromHeader(value: string) {
-  if (!value || /[^\u0000-\u00FF]/.test(value)) return '';
+  // F388: no escape sequences here (the MCP deploy decodes them): any character above code 255 is refused.
+  if (!value || [...value].some((ch) => ch.charCodeAt(0) > 255)) return '';
   try { return decodeURIComponent(value); } catch { return ''; }
 }
 
@@ -200,6 +240,90 @@ async function priorDecisions(projectUrl: string) {
   return await response.json();
 }
 
+// r773 (F375): the dry run asks the server which stocks are line-for-line what the last OK apply had (same hash as the
+// r771 skip), so the preview shows real changes only. Read-only; a failure leaves the board compare as it was.
+async function previewDelta773(projectUrl, auth, bytes, filename, parsed, result, board, uploader) {
+  try {
+    const prepared = buildServiceRows({
+      grid: await readSheet(bytes),
+      parsed,
+      board,
+      upload: { uploader_email: uploader, upload_id: '00000000-0000-0000-0000-000000000000', uploaded_at: new Date().toISOString(), filename: filename || parsed.filename, sha256: parsed.sha256 },
+      priorDecisions: await priorDecisions(projectUrl),
+    });
+    const hashes = {};
+    for (let i = 0; i < prepared.rows.length; i += 1500) {
+      const part = await rpcAs(projectUrl, auth, 'revolution_upload_delta_773', { p_rows: prepared.rows.slice(i, i + 1500) });
+      if (part.ok !== true || !part.hashes) { result.delta = { ok: false, error: part.error || 'delta_unavailable' }; return; }
+      for (const [stock, list] of Object.entries(part.hashes)) hashes[stock] = [...(hashes[stock] || []), ...(Array.isArray(list) ? list : [])];
+    }
+    const compared = await rpcAs(projectUrl, auth, 'revolution_upload_delta_compare_773', { p_hashes: hashes });
+    if (compared.ok !== true) { result.delta = { ok: false, error: compared.error || 'delta_unavailable' }; return; }
+    const up = (stock) => String(stock || '').toUpperCase();
+    const unchanged = new Set((compared.unchanged || []).map(up));
+    const changed = new Set((compared.changed || []).map(up));
+    const heldBefore = new Set((compared.held_before || []).map(up));
+    const seenBefore = (stock) => unchanged.has(up(stock)) || changed.has(up(stock));
+    const changes = result.changes || {};
+    const keepUpdated = []; const nowUnchanged = []; const retrying = []; const awaiting = []; const stillNew = [];
+    for (const entry of changes.updated || []) {
+      if (unchanged.has(up(entry.stock))) nowUnchanged.push(entry);
+      else if (heldBefore.has(up(entry.stock))) retrying.push(entry);
+      else keepUpdated.push(entry);
+    }
+    for (const entry of changes.new || []) (seenBefore(entry.stock) ? awaiting : stillNew).push(entry);
+    changes.updated = keepUpdated;
+    changes.unchanged = [...(changes.unchanged || []), ...nowUnchanged];
+    changes.held_before = retrying;
+    changes.awaiting_approval = awaiting;
+    changes.new = stillNew;
+    result.changes = changes;
+    result.counts.updated = keepUpdated.length;
+    result.counts.unchanged = changes.unchanged.length;
+    result.counts.new = stillNew.length;
+    result.counts.held_before = retrying.length;
+    result.counts.awaiting_approval = awaiting.length;
+    // r777 (F381): split "leaving the board" by what the server will do.
+    const leaving = Array.isArray(changes.archived) ? changes.archived : [];
+    if (leaving.length) {
+      const nav = await rpcAs(projectUrl, auth, 'revolution_upload_navision_777', { p_stocks: leaving.map((entry) => entry.stock) });
+      if (nav.ok === true && Array.isArray(nav.on_navision)) {
+        const dealers = new Map(nav.on_navision.map((row) => [up(row.stock), row.dealer]));
+        changes.leaving_tagged = leaving.filter((entry) => dealers.has(up(entry.stock))).map((entry) => ({ ...entry, dealer: dealers.get(up(entry.stock)) }));
+        changes.archived = leaving.filter((entry) => !dealers.has(up(entry.stock)));
+        result.counts.archived = changes.archived.length;
+        result.counts.leaving_tagged = changes.leaving_tagged.length;
+      }
+    }
+    result.delta = { ok: true, since: 'last OK apply', unchanged: unchanged.size, changed: changed.size, held_before: heldBefore.size, first_time: (compared.first_time || []).length, held_in_file: prepared.holds.length };
+    result.summary = `${stillNew.length} new, ${keepUpdated.length} changed, ${retrying.length} held last time (retrying), ${changes.unchanged.length} unchanged, ${awaiting.length} awaiting approval, ${result.counts.archived || 0} completing, ${result.counts.leaving_tagged || 0} staying tagged`;
+  } catch (error) {
+    result.delta = { ok: false, error: error instanceof Error ? error.message : 'delta_unavailable' };
+  }
+}
+
+async function changedRows782(projectUrl, auth, rows) {
+  try {
+    const hashes = {};
+    for (let i = 0; i < rows.length; i += 1500) {
+      const part = await rpcAs(projectUrl, auth, 'revolution_upload_delta_773', { p_rows: rows.slice(i, i + 1500) });
+      if (part.ok !== true || !part.hashes) return rows;
+      for (const [stock, list] of Object.entries(part.hashes)) hashes[stock] = [...(hashes[stock] || []), ...(Array.isArray(list) ? list : [])];
+    }
+    const compared = await rpcAs(projectUrl, auth, 'revolution_upload_delta_compare_773', { p_hashes: hashes });
+    if (compared.ok !== true || !Array.isArray(compared.unchanged)) return rows;
+    const unchanged = new Set(compared.unchanged.map((stock) => String(stock || '').trim().toUpperCase()));
+    const stockOf = (row) => String(row?.stock_number || '').trim().toUpperCase();
+    const changed = rows.filter((row) => !unchanged.has(stockOf(row)));
+    if (changed.length) return changed;
+    // Nothing changed: still send one stock so the last part runs the archive step for cars that left the file.
+    const first = stockOf(rows[0]);
+    return rows.filter((row) => stockOf(row) === first);
+  } catch (_) {
+    return rows;
+  }
+}
+
 async function applyService(projectUrl, auth, bytes, filename, parsed, result, board, uploader) {
   const refuse = (error, extra = {}) => json({ ok: false, action: 'apply', error, ...extra }, 409);
   if (parsed.kind !== 'service_whole') return refuse('Apply is on for Service as a Whole first. This report still waits.');
@@ -208,6 +332,11 @@ async function applyService(projectUrl, auth, bytes, filename, parsed, result, b
   if (blocking.length) return refuse('The dry run found errors. Fix the file and try again.', { errors: blocking });
   const begin = await rpcAs(projectUrl, auth, 'revolution_upload_begin_728', { p_sha: parsed.sha256, p_filename: filename || parsed.filename || 'upload.xls', p_mode: 'apply' });
   if (begin.ok !== true) return refuse(begin.message || begin.error || 'The import could not start.');
+  // r777b (F382): a refusal after begin must not leave a loading job that blocks the next upload for 30 minutes.
+  const abandon = async (error, extra = {}) => {
+    await rpcAs(projectUrl, auth, 'revolution_upload_abandon_777', { p_upload: begin.upload_id, p_reason: error }).catch(() => ({}));
+    return refuse(error, { upload_id: begin.upload_id, ...extra });
+  };
   let prepared;
   try {
     prepared = buildServiceRows({
@@ -218,12 +347,26 @@ async function applyService(projectUrl, auth, bytes, filename, parsed, result, b
       priorDecisions: await priorDecisions(projectUrl),
     });
   } catch (error) {
-    return refuse(error instanceof Error ? error.message : 'The rows could not be prepared.', { upload_id: begin.upload_id });
+    return await abandon(error instanceof Error ? error.message : 'The rows could not be prepared.');
   }
-  if (!prepared.rows.length) return refuse('No lines to send.', { upload_id: begin.upload_id, needs_hours: prepared.needsHours.length });
-  for (let i = 0; i < prepared.rows.length; i += 400) {
-    const added = await rpcAs(projectUrl, auth, 'revolution_upload_rows_728', { p_upload: begin.upload_id, p_rows: prepared.rows.slice(i, i + 400) });
-    if (added.ok !== true) return refuse(added.error || 'The rows could not be sent.', { upload_id: begin.upload_id });
+  if (!prepared.rows.length) return await abandon('No lines to send.', { needs_hours: prepared.needsHours.length });
+  // r763 (F369): record the whole-file snapshot first; without it the archive step refuses every part (snapshot_not_recorded).
+  const snapshot = prepared.snapshot || {};
+  const snapshotLines = Array.isArray(snapshot.lines) ? snapshot.lines : [];
+  if (!snapshotLines.length) return await abandon('The snapshot could not be prepared.');
+  let recorded = null;
+  for (let i = 0; i < snapshotLines.length; i += 2500) {
+    recorded = await rpcAs(projectUrl, auth, 'revolution_upload_snapshot_763', { p_upload: begin.upload_id, p_header: snapshot.header, p_lines: snapshotLines.slice(i, i + 2500) });
+    if (recorded.ok !== true) return await abandon(recorded.error || 'The snapshot could not be recorded.', { snapshot: recorded });
+  }
+  if (recorded && recorded.lines_recorded !== snapshotLines.length) return await abandon('The snapshot is incomplete.', { snapshot: recorded });
+  // r782 (F387): send only stocks that changed since their last OK apply (plus new and held-before ones). The snapshot
+  // above already holds every line, so the last-part archive still sees the whole file. If the delta cannot be read,
+  // every row is sent as before.
+  const sendRows = await changedRows782(projectUrl, auth, prepared.rows);
+  for (let i = 0; i < sendRows.length; i += 400) {
+    const added = await rpcAs(projectUrl, auth, 'revolution_upload_rows_728', { p_upload: begin.upload_id, p_rows: sendRows.slice(i, i + 400) });
+    if (added.ok !== true) return await abandon(added.error || 'The rows could not be sent.');
   }
   const finish = await rpcAs(projectUrl, auth, 'revolution_upload_finish_728', { p_upload: begin.upload_id });
   if (finish.ok !== true) return refuse(finish.error || 'The import could not be queued.', { upload_id: begin.upload_id });
@@ -236,6 +379,7 @@ async function applyService(projectUrl, auth, bytes, filename, parsed, result, b
     note: finish.note || '',
     rows_sent: finish.rows_sent,
     rows_held: finish.rows_held,
+    snapshot_lines: recorded ? recorded.lines_recorded : 0,
     new_board_vehicles: finish.new_board_vehicles,
     needs_hours: prepared.needsHours,
     holds: prepared.holds.length,

@@ -452,7 +452,7 @@ export async function readSheet(buffer) {
     throw new ContractError('This file is an old Excel BIFF workbook. Revolution sends an HTML table or an Office Open XML workbook saved with an .xls name.');
   }
   if (bytes.length >= 2 && bytes[0] === 0x50 && bytes[1] === 0x4b) return readOoxml(bytes);
-  const text = new TextDecoder().decode(bytes).replace(/^\uFEFF/, '');
+  const text = new TextDecoder().decode(bytes).replace(new RegExp('^' + String.fromCharCode(0xfeff)), ''); // F388: BOM without a \u escape
   if (/<Workbook[\s>]/.test(text) && /<Worksheet[\s>]/.test(text)) return readSpreadsheetMl(text);
   if (/<table[\s>]/i.test(text) || /<html[\s>]/i.test(text)) return readHtml(text);
   throw new ContractError('This file is not a Revolution HTML table or an Office Open XML workbook.');
@@ -807,7 +807,7 @@ export function dryRun(parsed, options = {}) {
   const errors = [];
   let keyClashesIgnored = 0;
   // r762 (F368, Craig 31 Oct 05:27): "give me a preview when i load it". The dry run lists the stock numbers behind every count.
-  const changes = { new: [], updated: [], unchanged: [], archived: [], kept_open_job_card: [], sales_left_alone: [] };
+  const changes = { new: [], updated: [], unchanged: [], archived: [], sales_left_alone: [] };
   if (duplicate) errors.push({ code: 'duplicate_file', message: 'This file sha256 is already in the import ledger.' });
   const vehicles = board.vehicles || [];
   const jobs = board.jobs || [];
@@ -872,12 +872,14 @@ export function dryRun(parsed, options = {}) {
     for (const vehicle of vehicles) {
       const key = stockKey(vehicle.stock);
       const card = norm(vehicle.jc);
-      const live = vehicle.visible === true && vehicle.deleted !== true && ['active', 'rft'].includes(norm(vehicle.ls));
+      // r775 (F378): match service_whole_archive_569: an active car (visible or hidden) leaves; RFT cars are Navision's (r758), never the archive's.
+      const live = vehicle.deleted !== true && norm(vehicle.ls) === 'active';
       if (!live || !key || onSheet.has(key) || !/^J13[89]/.test(card)) continue;
       const dealer = norm(vehicle.dealer_code);
       const entry = { stock: key, ro: card || null, key_number: statusText(vehicle.key) || null };
       if (SALES_DEALERS.has(dealer)) { salesLeft += 1; changes.sales_left_alone.push(entry); continue; }
-      if (openJobs.has(String(vehicle.id))) { heldOpen += 1; changes.kept_open_job_card.push(entry); continue; }
+      // r772 (F374): the server (service_whole_archive_569) has no open-job-card exemption, so the preview must not show one.
+      // A car that left the Revolution open-RO list leaves the board: completed off Navision, tagged on Navision (r759).
       archived += 1;
       changes.archived.push(entry);
     }

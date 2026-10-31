@@ -74,6 +74,7 @@ if (typeof window !== 'undefined') (function () {
     if (entry.rego && entry.rego !== entry.stock) bits.push(`rego ${entry.rego}`);
     if (entry.ro) bits.push(entry.ro);
     if (entry.key_number) bits.push(`key ${entry.key_number}`);
+    if (entry.dealer) bits.push(`Navision ${entry.dealer}`);
     if (Number.isInteger(entry.lines)) bits.push(`${entry.lines} line${entry.lines === 1 ? '' : 's'}`);
     return bits.join(' · ');
   }
@@ -82,11 +83,13 @@ if (typeof window !== 'undefined') (function () {
     const changes = payload.changes;
     if (!changes || typeof changes !== 'object') return;
     const sections = [
-      ['archived', 'Leaving the board', 'Not on the Revolution list any more. Completed, or tagged "not on Revolution list" if the car is still on Navision.', true],
+      ['archived', 'Completing (off the board)', 'Not on the Revolution open-RO list and no Navision record. Completed; planned bookings go back to the queue.', true],
+      ['leaving_tagged', 'Staying, tagged "not on Revolution list"', 'Not on the Revolution open-RO list but still on Navision. Stays until Navision shows Delivered to Dealer or drops the car.', true],
       ['new', 'Coming onto the board', 'Not on the board yet.', true],
-      ['kept_open_job_card', 'Kept, job card still open', 'Not on the list but a job card is open, so the car stays.', true],
-      ['updated', 'Updated', 'Already on the board; lines change.', false],
-      ['unchanged', 'Unchanged', '', false],
+      ['updated', 'Changed', 'Already imported; at least one line changed since the last import.', true],
+      ['held_before', 'Held last time, retrying', 'Not applied by the last import (staff-locked hours, review or identity holds). Tried again; usually held again.', false],
+      ['awaiting_approval', 'Imported, waiting on New Vehicles', 'Already imported and unchanged; approve them on the New Vehicles page.', false],
+      ['unchanged', 'Unchanged', 'Line-for-line what the last import applied. The server skips these.', false],
       ['sales_left_alone', 'Sales boards left alone', '', false],
     ];
     const wrap = document.createElement('div');
@@ -149,7 +152,7 @@ if (typeof window !== 'undefined') (function () {
     grid.className = 'ru-counts';
     const cards = [
       ['New', counts.new || 0],
-      ['Updated', counts.updated || 0],
+      [payload.delta && payload.delta.ok ? 'Changed' : 'Updated', counts.updated || 0],
     ];
     if (Number.isInteger(counts.unchanged)) cards.push(['Unchanged', counts.unchanged]);
     cards.push(
@@ -174,6 +177,7 @@ if (typeof window !== 'undefined') (function () {
       payload.held_open_job_card ? `${payload.held_open_job_card} kept because a job card is open` : '',
       payload.sales_boards_left_alone ? `${payload.sales_boards_left_alone} sales-board vehicles left alone` : '',
       payload.closed_vehicles ? `${payload.closed_vehicles} vehicles have every line at status 80` : '',
+      payload.delta && payload.delta.ok === false ? 'Could not compare with the last import; counts are against the board only.' : '',
       payload.needs_admin_confirm ? 'More than 15 cars would leave the board. Apply would stop for an administrator confirm.' : '',
       payload.duplicate_file ? 'This file is already in the ledger.' : '',
       payload.quiet_hours ? 'Quiet hours. Apply is refused around 07:00, 12:30 and 18:00 AWST.' : '',
@@ -193,9 +197,9 @@ if (typeof window !== 'undefined') (function () {
     renderChanges762(host, payload);
     const plan = document.createElement('p');
     plan.className = 'ru-note';
-    plan.textContent = payload.apply_enabled
-      ? 'Apply sends this file to the import queue. Every part is previewed on the server, then applied.'
-      : 'Apply is on for Service as a Whole first. This report still waits.';
+    plan.textContent = !payload.apply_enabled ? 'Apply is not on for this report.'
+      : payload.kind === 'service_whole' ? 'Apply sends this file to the import queue. Every part is previewed on the server, then applied.'
+      : 'Apply sends this file to its importer, which previews it on the server, then applies it (within a minute).';
     host.append(plan);
     const holdCounts = payload.hold_counts || {};
     const holdNames = Object.keys(holdCounts);
@@ -271,6 +275,39 @@ if (typeof window !== 'undefined') (function () {
     };
     void tick();
   }
+  // r781 (F386): result of a CW parts / BT / KTA deal items apply, run by the server worker within a minute.
+  async function otherStatus781(uploadId) {
+    const config = window.PDC_SUPABASE_CONFIG || {};
+    const token = typeof getPdcSupabaseAccessToken === 'function' ? getPdcSupabaseAccessToken() : '';
+    const response = await fetch(`${config.url}/rest/v1/rpc/revolution_upload_other_status_781`, {
+      method: 'POST',
+      headers: { apikey: config.publishableKey, Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ p_upload: uploadId }),
+    });
+    return response.json();
+  }
+  function otherSummary781(result = {}) {
+    const r = result.result && typeof result.result === 'object' ? result.result : result;
+    if (r.matched != null || r.unmatched != null) {
+      return `matched ${r.matched || 0}, updated ${r.updated || 0}, unchanged ${r.unchanged || 0}, unmatched ${r.unmatched || 0}, invalid ${r.invalid || 0}, stale ${r.stale || 0}`;
+    }
+    if (r.lines_inserted != null) return `lines added ${r.lines_inserted || 0}, lines removed ${r.lines_superseded || 0}`;
+    return r.replay ? 'already imported' : 'done';
+  }
+  function followOther781(uploadId) {
+    clearTimeout(pollTimer);
+    const tick = async () => {
+      try {
+        const s = await otherStatus781(uploadId);
+        if (s?.ok !== true) { setStatus('Sent. The result could not be read; check again in a minute.'); return; }
+        if (s.status === 'done') { setStatus(`Imported: ${otherSummary781(s.result || {})}.`); return; }
+        if (s.status === 'failed') { setStatus(`The importer refused this file: ${s.error || 'unknown error'}. Nothing was written.`); return; }
+        setStatus(`${s.status === 'queued' ? 'Waiting for the importer' : 'Importing'}… You can leave this page.`);
+      } catch (_) { /* try again */ }
+      pollTimer = setTimeout(tick, 5000);
+    };
+    void tick();
+  }
   function renderNeedsHours(list) {
     const host = document.getElementById('revolution-upload-result');
     if (!host || !list?.length) return;
@@ -305,8 +342,9 @@ if (typeof window !== 'undefined') (function () {
       setStatus('Preparing the rows and sending them to the import queue…');
       try {
         const payload = await postFile(file, 'apply');
-        remember(file, { ...payload, kind: 'apply', summary: payload.ok ? `sent ${payload.rows_sent || 0}, held ${payload.rows_held || 0}, needs hours ${(payload.needs_hours || []).length}` : payload.error });
+        remember(file, { ...payload, kind: 'apply', summary: !payload.ok ? payload.error : payload.other_upload_id ? `${payload.kind}: sent ${payload.rows_sent || 0} rows to the importer` : `sent ${payload.rows_sent || 0}, held ${payload.rows_held || 0}, needs hours ${(payload.needs_hours || []).length}` });
         if (payload.ok !== true) { setStatus(payload.error || 'Apply was refused.'); return; }
+        if (payload.other_upload_id) { setStatus(payload.message); followOther781(payload.other_upload_id); return; }
         renderNeedsHours(payload.needs_hours);
         setStatus(payload.message);
         if (payload.status !== 'held') follow(payload.upload_id);

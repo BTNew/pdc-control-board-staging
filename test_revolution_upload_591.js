@@ -71,9 +71,12 @@ test('service dry run keeps 138 and 139, skips status 99, and holds the gates', 
   assert.equal(result.counts.skipped, 1);
   assert.equal(result.hold_counts['status 99'], 1);
   assert.equal(result.holds.some((hold) => hold.stock === 'STK99' && hold.reason === 'status 99'), true);
-  assert.equal(result.held_open_job_card, 1);
-  assert.equal(result.sales_boards_left_alone, 2);
-  assert.equal(result.counts.archived, 0);
+  // r772 (F374): no open-job-card exemption in the preview; the server has none. v-open leaves the board.
+  assert.equal(result.held_open_job_card, 0);
+  // r775 (F378): RFT cars (v-broome) are not the archive's business at all; only active cars are counted.
+  assert.equal(result.sales_boards_left_alone, 1);
+  assert.equal(result.counts.archived, 1);
+  assert.deepEqual(result.changes.archived.map((entry) => entry.stock), ['GONE']);
   assert.equal(result.broome_sales_written, false);
   assert.equal(result.karratha_to_broome, false);
   assert.equal(previewAllowsApply(), false);
