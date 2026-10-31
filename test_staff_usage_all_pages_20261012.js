@@ -72,7 +72,8 @@ test('Every published PDC view/navigation and Sales view has a named activity pa
     assert.ok(PAGE_LABELS[cleanPage(view)], view);
   }
   const sales = fs.readFileSync(path.join(__dirname, 'sales/index.html'), 'utf8');
-  for (const m of sales.matchAll(/<section id="sales-(.+?)-view" class="sales-view"/g)) assert.ok(PAGE_LABELS['sales-' + m[1]], m[1]);
+  // r768: a Sales view may share an existing bucket through an alias (Navision Uploads -> import), like the PDC views above.
+  for (const m of sales.matchAll(/<section id="sales-(.+?)-view" class="sales-view"/g)) { assert.notEqual(cleanPage('sales-' + m[1]), 'other', m[1]); assert.ok(PAGE_LABELS[cleanPage('sales-' + m[1])], m[1]); }
   for (const file of ['index.html', 'sales/index.html']) {
     const html = fs.readFileSync(path.join(__dirname, file), 'utf8');
     assert.equal([...html.matchAll(/src="(?:\.\.\/)?pdc-staff-usage\.js\?/g)].length, 1, file);
@@ -160,7 +161,7 @@ test('A navigation click belongs to its source page, then the destination record
 
 test('Sales hidden-attribute routing is observed without observing planner tile subtrees', () => {
   const b = browser({sales:true});
-  assert.equal(b.watched.length, 8);
+  assert.equal(b.watched.length, 9); // r768: + Navision Uploads
   for (const {options} of b.watched) {
     assert.ok(options.attributeFilter.includes('hidden'));
     assert.equal(options.subtree, undefined);

@@ -115,6 +115,6 @@ test('cache busts carry r432 (site-switcher.js is shared byte for byte with the 
  assert.doesNotMatch(fs.readFileSync('index.html','utf8'),/site-switcher\.js\?[^"]*r432/);
  const index=fs.readFileSync('index.html','utf8'),sales=fs.readFileSync('sales/index.html','utf8');
  assert.match(index,/app\.js\?[^"]*&amp;r432=2026\.10\.21\.01(?:&amp;[^"]*)?"/);
- assert.match(index,/pdc-auth\.js\?[^"]*&amp;r432=2026\.10\.21\.01(?:&amp;r616=2026\.10\.28\.r616)?"/);
- assert.match(sales,/\.\.\/pdc-auth\.js\?[^"]*&amp;r432=2026\.10\.21\.01(?:&amp;r616=2026\.10\.28\.r616)?"/);
+ assert.match(index,/pdc-auth\.js\?[^"]*&amp;r432=2026\.10\.21\.01(?:&amp;r616=2026\.10\.28\.r616)?(?:&amp;r890=2026\.10\.31\.r890)?"/);
+ assert.match(sales,/\.\.\/pdc-auth\.js\?[^"]*&amp;r432=2026\.10\.21\.01(?:&amp;r616=2026\.10\.28\.r616)?(?:&amp;r890=2026\.10\.31\.r890)?"/);
 });
