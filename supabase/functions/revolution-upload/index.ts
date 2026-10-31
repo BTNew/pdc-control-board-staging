@@ -156,7 +156,8 @@ async function staffEmail(projectUrl: string, auth: string) {
 }
 
 function filenameFromHeader(value: string) {
-  if (!value || /[^\u0000-\u00FF]/.test(value)) return '';
+  // F388: no escape sequences here (the MCP deploy decodes them): any character above code 255 is refused.
+  if (!value || [...value].some((ch) => ch.charCodeAt(0) > 255)) return '';
   try { return decodeURIComponent(value); } catch { return ''; }
 }
 
@@ -301,6 +302,28 @@ async function previewDelta773(projectUrl, auth, bytes, filename, parsed, result
   }
 }
 
+async function changedRows782(projectUrl, auth, rows) {
+  try {
+    const hashes = {};
+    for (let i = 0; i < rows.length; i += 1500) {
+      const part = await rpcAs(projectUrl, auth, 'revolution_upload_delta_773', { p_rows: rows.slice(i, i + 1500) });
+      if (part.ok !== true || !part.hashes) return rows;
+      for (const [stock, list] of Object.entries(part.hashes)) hashes[stock] = [...(hashes[stock] || []), ...(Array.isArray(list) ? list : [])];
+    }
+    const compared = await rpcAs(projectUrl, auth, 'revolution_upload_delta_compare_773', { p_hashes: hashes });
+    if (compared.ok !== true || !Array.isArray(compared.unchanged)) return rows;
+    const unchanged = new Set(compared.unchanged.map((stock) => String(stock || '').trim().toUpperCase()));
+    const stockOf = (row) => String(row?.stock_number || '').trim().toUpperCase();
+    const changed = rows.filter((row) => !unchanged.has(stockOf(row)));
+    if (changed.length) return changed;
+    // Nothing changed: still send one stock so the last part runs the archive step for cars that left the file.
+    const first = stockOf(rows[0]);
+    return rows.filter((row) => stockOf(row) === first);
+  } catch (_) {
+    return rows;
+  }
+}
+
 async function applyService(projectUrl, auth, bytes, filename, parsed, result, board, uploader) {
   const refuse = (error, extra = {}) => json({ ok: false, action: 'apply', error, ...extra }, 409);
   if (parsed.kind !== 'service_whole') return refuse('Apply is on for Service as a Whole first. This report still waits.');
@@ -337,8 +360,12 @@ async function applyService(projectUrl, auth, bytes, filename, parsed, result, b
     if (recorded.ok !== true) return await abandon(recorded.error || 'The snapshot could not be recorded.', { snapshot: recorded });
   }
   if (recorded && recorded.lines_recorded !== snapshotLines.length) return await abandon('The snapshot is incomplete.', { snapshot: recorded });
-  for (let i = 0; i < prepared.rows.length; i += 400) {
-    const added = await rpcAs(projectUrl, auth, 'revolution_upload_rows_728', { p_upload: begin.upload_id, p_rows: prepared.rows.slice(i, i + 400) });
+  // r782 (F387): send only stocks that changed since their last OK apply (plus new and held-before ones). The snapshot
+  // above already holds every line, so the last-part archive still sees the whole file. If the delta cannot be read,
+  // every row is sent as before.
+  const sendRows = await changedRows782(projectUrl, auth, prepared.rows);
+  for (let i = 0; i < sendRows.length; i += 400) {
+    const added = await rpcAs(projectUrl, auth, 'revolution_upload_rows_728', { p_upload: begin.upload_id, p_rows: sendRows.slice(i, i + 400) });
     if (added.ok !== true) return await abandon(added.error || 'The rows could not be sent.');
   }
   const finish = await rpcAs(projectUrl, auth, 'revolution_upload_finish_728', { p_upload: begin.upload_id });

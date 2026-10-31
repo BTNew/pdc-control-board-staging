@@ -452,7 +452,7 @@ export async function readSheet(buffer) {
     throw new ContractError('This file is an old Excel BIFF workbook. Revolution sends an HTML table or an Office Open XML workbook saved with an .xls name.');
   }
   if (bytes.length >= 2 && bytes[0] === 0x50 && bytes[1] === 0x4b) return readOoxml(bytes);
-  const text = new TextDecoder().decode(bytes).replace(/^\uFEFF/, '');
+  const text = new TextDecoder().decode(bytes).replace(new RegExp('^' + String.fromCharCode(0xfeff)), ''); // F388: BOM without a \u escape
   if (/<Workbook[\s>]/.test(text) && /<Worksheet[\s>]/.test(text)) return readSpreadsheetMl(text);
   if (/<table[\s>]/i.test(text) || /<html[\s>]/i.test(text)) return readHtml(text);
   throw new ContractError('This file is not a Revolution HTML table or an Office Open XML workbook.');
