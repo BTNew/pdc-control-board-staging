@@ -84,7 +84,6 @@ if (typeof window !== 'undefined') (function () {
     const sections = [
       ['archived', 'Leaving the board', 'Not on the Revolution list any more. Completed, or tagged "not on Revolution list" if the car is still on Navision.', true],
       ['new', 'Coming onto the board', 'Not on the board yet.', true],
-      ['kept_open_job_card', 'Kept, job card still open', 'Not on the list but a job card is open, so the car stays.', true],
       ['updated', 'Updated', 'Already on the board; lines change.', false],
       ['unchanged', 'Unchanged', '', false],
       ['sales_left_alone', 'Sales boards left alone', '', false],
