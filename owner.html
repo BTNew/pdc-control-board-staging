@@ -50,6 +50,9 @@
     .track { height: 9px; border-radius: 5px; background: color-mix(in srgb, var(--c) 14%, transparent); overflow: hidden; }
     .fill { height: 100%; border-radius: 5px; background: var(--c); }
     .cnt { text-align: right; font-weight: 800; font-variant-numeric: tabular-nums; }
+    .note-line { margin: -4px 0 8px; font-size: 13px; color: var(--muted); }
+    .note-line b { color: var(--ink); }
+    .stn-days { font-size: 13px; font-weight: 700; color: var(--muted); margin-left: 4px; }
     .legend { display: flex; gap: 14px; font-size: 12px; color: var(--muted); margin: -4px 0 10px; }
     .legend span { display: inline-flex; align-items: center; gap: 5px; }
     .two { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(min(100%, 380px), 1fr)); }
@@ -114,14 +117,17 @@
         <div class="tile" style="--c: var(--orange)"><span class="lbl">Final check</span><span class="num" data-h="final_check">-</span></div>
         <div class="tile" style="--c: var(--teal)"><span class="lbl">WPC</span><span class="num" data-h="wpc">-</span></div>
         <div class="tile" style="--c: var(--violet)"><span class="lbl">RFT</span><span class="num" data-h="rft">-</span></div>
-        <div class="tile" style="--c: var(--blue)"><span class="lbl">Jobs in bays</span><span class="num" data-h="booked_jobs">-</span></div>
+        <div class="tile" style="--c: var(--blue)"><span class="lbl">Vehicles booked in bays</span><span class="num" data-h="vehicles_booked">-</span></div>
+        <div class="tile" style="--c: var(--amber)"><span class="lbl">Vehicles not booked</span><span class="num" data-h="vehicles_not_booked">-</span>
+          <span class="sub">At PMB, no bay booking</span></div>
         <div class="tile" style="--c: var(--green)"><span class="lbl">Jobs done today</span><span class="num" data-h="done_today">-</span></div>
         <div class="tile" style="--c: var(--green)"><span class="lbl">Jobs done 7 days</span><span class="num" data-h="done_7d">-</span></div>
       </div>
     </section>
 
     <section>
-      <h2>Booked into each bay</h2>
+      <h2>Work waiting in each station</h2>
+      <p class="note-line"><b data-h="hours_not_started">-</b> hours booked and not started. Days = hours / (bays x <b id="own-dayhours">-</b> h workshop day).</p>
       <p class="legend"><span><i class="dot run"></i>Job running</span><span><i class="dot stop"></i>Job stopped</span></p>
       <div class="stations" id="own-stations"></div>
     </section>
@@ -155,6 +161,6 @@
 
   <script src="vendor/supabase/supabase-2.110.5.js"></script>
   <script src="pdc-supabase-config.staging.js?v=2026.09.04.0110-pdc14-location-replay"></script>
-  <script src="owner.js?r891=2026.10.31.r891"></script>
+  <script src="owner.js?r891=2026.10.31.r891&amp;r892=2026.10.31.r892"></script>
 </body>
 </html>
