@@ -1,0 +1,160 @@
+<!doctype html>
+<html lang="en-AU">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex">
+  <title>Owner snapshot · PMG PDC</title>
+  <link rel="icon" href="favicon.svg">
+  <style>
+    /* r891 (F441): owner snapshot. Quick tiles on how the PD centre is going. Craig and Dave only. */
+    :root { --bg: #f1f5f9; --card: #ffffff; --line: #e2e8f0; --ink: #0f172a; --muted: #64748b;
+      --blue: #2563eb; --violet: #7c3aed; --teal: #0d9488; --amber: #d97706; --red: #dc2626; --green: #16a34a;
+      --pink: #db2777; --sky: #0284c7; --orange: #ea580c; --slate: #475569; color-scheme: light; }
+    * { box-sizing: border-box; }
+    [hidden] { display: none !important; }
+    html, body { margin: 0; background: var(--bg); color: var(--ink);
+      font: 14px/1.35 system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif; }
+    #own-head { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; padding: 12px 18px; background: #0f172a; color: #fff; }
+    #own-head h1 { margin: 0; font-size: 20px; font-weight: 800; letter-spacing: .02em; }
+    #own-asof { font-size: 12px; color: #cbd5e1; }
+    #own-asof.is-stale { color: #fca5a5; font-weight: 700; }
+    .own-actions { margin-left: auto; display: flex; gap: 8px; }
+    .own-actions button, .own-actions a { border: 1px solid #475569; background: transparent; color: #e2e8f0; border-radius: 6px;
+      padding: 5px 12px; font-size: 13px; cursor: pointer; text-decoration: none; }
+    .own-actions button:hover, .own-actions a:hover { background: #1e293b; }
+    main { padding: 16px 18px 32px; max-width: 1400px; margin: 0 auto; display: grid; gap: 22px; }
+    #own-summary { margin: 0; font-size: 15px; color: var(--muted); }
+    #own-summary b { color: var(--ink); }
+    h2 { margin: 0 0 10px; font-size: 15px; font-weight: 800; text-transform: uppercase; letter-spacing: .05em; color: var(--slate); }
+    .grid { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(min(100%, 190px), 1fr)); }
+    .grid.small { grid-template-columns: repeat(auto-fit, minmax(min(100%, 140px), 1fr)); }
+    .tile { --c: var(--blue); background: color-mix(in srgb, var(--c) 8%, #fff); border: 1px solid color-mix(in srgb, var(--c) 28%, var(--line));
+      border-top: 5px solid var(--c); border-radius: 10px; padding: 12px 14px; display: flex; flex-direction: column; gap: 4px; min-height: 122px; }
+    .grid.small .tile { min-height: 88px; padding: 10px 12px; }
+    .tile .lbl { font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); }
+    .tile .num { font-size: 44px; font-weight: 800; line-height: 1; color: var(--c); font-variant-numeric: tabular-nums; }
+    .grid.small .tile .num { font-size: 32px; }
+    .tile .sub { font-size: 12px; color: var(--muted); margin-top: auto; }
+    .tile .sub b { color: var(--ink); font-variant-numeric: tabular-nums; }
+    .stations { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr)); align-items: start; }
+    .stn { min-height: 0; }
+    .stn-top { display: flex; align-items: baseline; justify-content: space-between; }
+    .stn-name { font-size: 17px; font-weight: 800; }
+    .bays { display: grid; gap: 5px; margin-top: 8px; }
+    .bay { display: grid; grid-template-columns: minmax(0, 9rem) 1fr 2.4rem; align-items: center; gap: 8px; font-size: 12px; }
+    .bay-name { display: flex; align-items: center; gap: 5px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+    .bay-name span { overflow: hidden; text-overflow: ellipsis; }
+    .dot { width: 8px; height: 8px; border-radius: 50%; flex: none; background: transparent; }
+    .dot.run { background: var(--green); } .dot.stop { background: var(--red); }
+    .track { height: 9px; border-radius: 5px; background: color-mix(in srgb, var(--c) 14%, transparent); overflow: hidden; }
+    .fill { height: 100%; border-radius: 5px; background: var(--c); }
+    .cnt { text-align: right; font-weight: 800; font-variant-numeric: tabular-nums; }
+    .legend { display: flex; gap: 14px; font-size: 12px; color: var(--muted); margin: -4px 0 10px; }
+    .legend span { display: inline-flex; align-items: center; gap: 5px; }
+    .two { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(min(100%, 380px), 1fr)); }
+    .card { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; }
+    .card .note { margin: -6px 0 12px; font-size: 12px; color: var(--muted); }
+    .age-row { display: grid; grid-template-columns: 7rem 1fr 2.6rem; align-items: center; gap: 8px; font-size: 13px; margin-bottom: 7px; }
+    .age-bar { height: 22px; border-radius: 5px; min-width: 2px; }
+    table { width: 100%; border-collapse: collapse; font-size: 13px; font-variant-numeric: tabular-nums; }
+    th { text-align: left; color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: .04em; padding: 6px 8px; border-bottom: 1px solid var(--line); }
+    td { padding: 6px 8px; border-bottom: 1px solid #f1f5f9; }
+    td.key, td.days { font-weight: 800; }
+    td.model { max-width: 16rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .hot { color: var(--red); } .warm { color: var(--amber); } .good { color: var(--green); }
+    #own-gate { position: fixed; inset: 0; background: var(--bg); display: grid; place-items: center; z-index: 20; }
+    #own-gate > div { max-width: 420px; width: 100%; padding: 24px; text-align: center; }
+    #own-gate h2 { font-size: 24px; text-transform: none; letter-spacing: 0; color: var(--ink); }
+    #own-gate form { display: grid; gap: 8px; text-align: left; margin-top: 12px; }
+    #own-gate input { padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 15px; }
+    #own-gate button { padding: 10px; border: 0; border-radius: 6px; background: #0f172a; color: #fff; font-size: 15px; font-weight: 700; cursor: pointer; }
+    #own-signin-error { color: var(--red); min-height: 1.2em; margin: 0; }
+    .gate-note { font-size: 12px; color: var(--muted); }
+  </style>
+</head>
+<body>
+  <header id="own-head">
+    <h1>PD Centre · Owner snapshot</h1>
+    <span id="own-asof">Loading…</span>
+    <div class="own-actions">
+      <button type="button" id="own-refresh">Refresh</button>
+      <a href="./">Open the board</a>
+      <button type="button" id="own-signout">Sign out</button>
+    </div>
+  </header>
+
+  <main id="own-main" hidden>
+    <p id="own-summary"><b data-h="pmb_total">-</b> cars at PMB, averaging <b data-h="avg_days">-</b> days.
+      <b data-h="not_scheduled">-</b> are not booked into a bay and <b data-h="parts_at_pmb">-</b> are waiting on parts.</p>
+
+    <section>
+      <h2>At PMB</h2>
+      <div class="grid">
+        <div class="tile" style="--c: var(--blue)"><span class="lbl">Cars at PMB</span><span class="num" data-h="pmb_total">-</span>
+          <span class="sub">New in last 24h: <b data-h="new_24h">-</b></span></div>
+        <div class="tile" style="--c: var(--violet)"><span class="lbl">Average days at PMB</span><span class="num" data-h="avg_days">-</span>
+          <span class="sub">Median <b data-h="median_days">-</b> days, from key date</span></div>
+        <div class="tile" style="--c: var(--amber)"><span class="lbl">Not scheduled</span><span class="num" data-h="not_scheduled">-</span>
+          <span class="sub"><b data-h="not_scheduled_30">-</b> of them over 30 days</span></div>
+        <div class="tile" style="--c: var(--red)"><span class="lbl">Waiting on parts</span><span class="num" data-h="parts_at_pmb">-</span>
+          <span class="sub"><b data-h="parts_booked">-</b> booked, <b data-h="parts_not_booked">-</b> not. <b data-h="parts_all">-</b> incl. IT/YH</span></div>
+        <div class="tile" style="--c: var(--pink)"><span class="lbl">Over 30 days</span><span class="num" data-h="over_30">-</span>
+          <span class="sub">Cars at PMB keyed 30+ days ago</span></div>
+        <div class="tile" style="--c: var(--green)"><span class="lbl">Jobs running now</span><span class="num" data-h="running">-</span>
+          <span class="sub"><b data-h="stopped">-</b> stopped</span></div>
+      </div>
+    </section>
+
+    <section>
+      <h2>Pipeline and output</h2>
+      <div class="grid small">
+        <div class="tile" style="--c: var(--sky)"><span class="lbl">In transit</span><span class="num" data-h="in_transit">-</span></div>
+        <div class="tile" style="--c: var(--slate)"><span class="lbl">Yard hold</span><span class="num" data-h="yard_hold">-</span></div>
+        <div class="tile" style="--c: var(--orange)"><span class="lbl">Final check</span><span class="num" data-h="final_check">-</span></div>
+        <div class="tile" style="--c: var(--teal)"><span class="lbl">WPC</span><span class="num" data-h="wpc">-</span></div>
+        <div class="tile" style="--c: var(--violet)"><span class="lbl">RFT</span><span class="num" data-h="rft">-</span></div>
+        <div class="tile" style="--c: var(--blue)"><span class="lbl">Jobs in bays</span><span class="num" data-h="booked_jobs">-</span></div>
+        <div class="tile" style="--c: var(--green)"><span class="lbl">Jobs done today</span><span class="num" data-h="done_today">-</span></div>
+        <div class="tile" style="--c: var(--green)"><span class="lbl">Jobs done 7 days</span><span class="num" data-h="done_7d">-</span></div>
+      </div>
+    </section>
+
+    <section>
+      <h2>Booked into each bay</h2>
+      <p class="legend"><span><i class="dot run"></i>Job running</span><span><i class="dot stop"></i>Job stopped</span></p>
+      <div class="stations" id="own-stations"></div>
+    </section>
+
+    <section class="two">
+      <div class="card">
+        <h2>How long cars have been at PMB</h2>
+        <p class="note">Cars at PMB by days since key number given.</p>
+        <div id="own-age"></div>
+      </div>
+      <div class="card">
+        <h2>Longest at PMB</h2>
+        <p class="note">The 10 oldest keys, and whether they are in a bay or waiting on parts.</p>
+        <table><thead><tr><th>Key</th><th>Model</th><th>Days</th><th>In a bay</th><th>Parts</th></tr></thead>
+          <tbody id="own-oldest"></tbody></table>
+      </div>
+    </section>
+  </main>
+
+  <div id="own-gate" hidden><div>
+    <h2>Owner snapshot</h2>
+    <p id="own-gate-msg"></p>
+    <form id="own-signin" autocomplete="on">
+      <label for="own-email">Email</label><input id="own-email" type="email" autocomplete="username" required>
+      <label for="own-password">Password</label><input id="own-password" type="password" autocomplete="current-password" required>
+      <button type="submit">Sign in</button>
+      <p id="own-signin-error" role="alert"></p>
+    </form>
+    <p class="gate-note">Use your board login. Owner logins only.</p>
+  </div></div>
+
+  <script src="vendor/supabase/supabase-2.110.5.js"></script>
+  <script src="pdc-supabase-config.staging.js?v=2026.09.04.0110-pdc14-location-replay"></script>
+  <script src="owner.js?r891=2026.10.31.r891"></script>
+</body>
+</html>
