@@ -872,7 +872,8 @@ export function dryRun(parsed, options = {}) {
     for (const vehicle of vehicles) {
       const key = stockKey(vehicle.stock);
       const card = norm(vehicle.jc);
-      const live = vehicle.visible === true && vehicle.deleted !== true && ['active', 'rft'].includes(norm(vehicle.ls));
+      // r775 (F378): match service_whole_archive_569: an active car (visible or hidden) leaves; RFT cars are Navision's (r758), never the archive's.
+      const live = vehicle.deleted !== true && norm(vehicle.ls) === 'active';
       if (!live || !key || onSheet.has(key) || !/^J13[89]/.test(card)) continue;
       const dealer = norm(vehicle.dealer_code);
       const entry = { stock: key, ro: card || null, key_number: statusText(vehicle.key) || null };
