@@ -15,7 +15,8 @@ const ENTRY_POINTS = Object.freeze([
   'workshop-tv.html', // r605 (F219): view-only workshop screen
   'mmt/index.html', // r642 (F257): pmgpdc.au/mmt opens Sublet · MMT
   'psc/index.html', // r711 (F321): pmgpdc.au/psc opens Sublet · PSC
-  'stocktake/index.html' // r720 (F330): pmgpdc.au/stocktake opens the Stock take
+  'stocktake/index.html', // r720 (F330): pmgpdc.au/stocktake opens the Stock take
+  'owner.html', 'owner/index.html' // r891 (F441): owner snapshot, Craig and Dave only
 ]);
 const RUNTIME_FILES = Object.freeze([
   '.nojekyll',
@@ -26,7 +27,7 @@ const RUNTIME_FILES = Object.freeze([
   'docs/assets/bus4x4-guide/forecasts.png', 'docs/assets/bus4x4-guide/qa-pit.png',
   'docs/assets/bus4x4-guide/stage-parts.png', 'docs/assets/bus4x4-guide/supplier-check.png',
   'docs/assets/bus4x4-guide/team.png', 'docs/bus4x4-user-guide.html',
-  'email-board-data.js', 'favicon.svg', 'index.html', 'workshop-tv.html', 'workshop-tv.js', 'mmt/index.html', 'psc/index.html', 'stocktake/index.html',
+  'email-board-data.js', 'favicon.svg', 'index.html', 'workshop-tv.html', 'workshop-tv.js', 'owner.html', 'owner.js', 'owner/index.html', 'mmt/index.html', 'psc/index.html', 'stocktake/index.html',
   // Department 135: frozen native PMB runtime plus reviewed isolated boundary assets.
   'karratha/ai-auditor.css',
   'karratha/ai-board-advisor.js',
