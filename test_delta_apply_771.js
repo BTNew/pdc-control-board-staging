@@ -29,3 +29,13 @@ test('r772: archive releases bay bookings before completing the car; duplicate o
   assert.doesNotMatch(parse, /kept_open_job_card/);
   assert.doesNotMatch(fs.readFileSync('pdc-revolution-upload.js', 'utf8'), /Kept, job card still open/);
 });
+
+test('r774: planned bay bookings of a leaving car are returned to the queue under an authorisation, before the car completes', () => {
+  const up = fs.readFileSync('supabase/migrations/20261031092000_r774_archive_returns_planned_to_queue.sql', 'utf8');
+  assert.match(up, /34f558bfb7c2f5f0b5de36f3df412a0b/, 'pins the r772 archive body');
+  assert.match(up, /workshop_transition_authorizations\(txid, booking_id, transition, authorized_by\)/);
+  assert.match(up, /''return_to_queue''/);
+  assert.match(up, /SET status=''queued'', bay_id=NULL, returned_to_queue_at=clock_timestamp\(\)/);
+  assert.match(up, /'archive_returns_planned_to_queue_774', 'F376'/);
+  assert.match(fs.readFileSync('supabase/rollbacks/20261031092000_r774_archive_returns_planned_to_queue.down.sql', 'utf8'), /@r772/);
+});
