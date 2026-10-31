@@ -74,6 +74,7 @@ if (typeof window !== 'undefined') (function () {
     if (entry.rego && entry.rego !== entry.stock) bits.push(`rego ${entry.rego}`);
     if (entry.ro) bits.push(entry.ro);
     if (entry.key_number) bits.push(`key ${entry.key_number}`);
+    if (entry.dealer) bits.push(`Navision ${entry.dealer}`);
     if (Number.isInteger(entry.lines)) bits.push(`${entry.lines} line${entry.lines === 1 ? '' : 's'}`);
     return bits.join(' · ');
   }
@@ -82,11 +83,13 @@ if (typeof window !== 'undefined') (function () {
     const changes = payload.changes;
     if (!changes || typeof changes !== 'object') return;
     const sections = [
-      ['archived', 'Leaving the board', 'Not on the Revolution list any more. Completed, or tagged "not on Revolution list" if the car is still on Navision.', true],
+      ['archived', 'Completing (off the board)', 'Not on the Revolution open-RO list and no Navision record. Completed; planned bookings go back to the queue.', true],
+      ['leaving_tagged', 'Staying, tagged "not on Revolution list"', 'Not on the Revolution open-RO list but still on Navision. Stays until Navision shows Delivered to Dealer or drops the car.', true],
       ['new', 'Coming onto the board', 'Not on the board yet.', true],
-      ['kept_open_job_card', 'Kept, job card still open', 'Not on the list but a job card is open, so the car stays.', true],
-      ['updated', 'Updated', 'Already on the board; lines change.', false],
-      ['unchanged', 'Unchanged', '', false],
+      ['updated', 'Changed', 'Already imported; at least one line changed since the last import.', true],
+      ['held_before', 'Held last time, retrying', 'Not applied by the last import (staff-locked hours, review or identity holds). Tried again; usually held again.', false],
+      ['awaiting_approval', 'Imported, waiting on New Vehicles', 'Already imported and unchanged; approve them on the New Vehicles page.', false],
+      ['unchanged', 'Unchanged', 'Line-for-line what the last import applied. The server skips these.', false],
       ['sales_left_alone', 'Sales boards left alone', '', false],
     ];
     const wrap = document.createElement('div');
@@ -149,7 +152,7 @@ if (typeof window !== 'undefined') (function () {
     grid.className = 'ru-counts';
     const cards = [
       ['New', counts.new || 0],
-      ['Updated', counts.updated || 0],
+      [payload.delta && payload.delta.ok ? 'Changed' : 'Updated', counts.updated || 0],
     ];
     if (Number.isInteger(counts.unchanged)) cards.push(['Unchanged', counts.unchanged]);
     cards.push(
@@ -174,6 +177,7 @@ if (typeof window !== 'undefined') (function () {
       payload.held_open_job_card ? `${payload.held_open_job_card} kept because a job card is open` : '',
       payload.sales_boards_left_alone ? `${payload.sales_boards_left_alone} sales-board vehicles left alone` : '',
       payload.closed_vehicles ? `${payload.closed_vehicles} vehicles have every line at status 80` : '',
+      payload.delta && payload.delta.ok === false ? 'Could not compare with the last import; counts are against the board only.' : '',
       payload.needs_admin_confirm ? 'More than 15 cars would leave the board. Apply would stop for an administrator confirm.' : '',
       payload.duplicate_file ? 'This file is already in the ledger.' : '',
       payload.quiet_hours ? 'Quiet hours. Apply is refused around 07:00, 12:30 and 18:00 AWST.' : '',

@@ -476,7 +476,7 @@ const approvedRootImportPatch = Object.freeze({
   // r604: index.html adds r604=2026.10.28.r604 on canonical-entry.js (pit bookings, F218). Department 135 is not tagged.
   // r616: pdc-auth.js, pdc-bay-manager.js and canonical-entry.js carry r616=2026.10.28.r616 (fitter sessions send only Fitters bay requests, F231). Department 135 is not tagged.
   // r642: Sublet · MMT nav and view, pdc-mmt-sublet.css/js, r642 on app.js and pdc-staff-usage.js (F257). Department 135 is not tagged.
-  "index.html": "7ca40729e017d4741af46f8f8cbd41474fc04236b085590494aab5bacb15ae3e", // r762 (F368) upload preview lists
+  "index.html": "9dc3892c4b149bc04d790a9d699b543e8e01f17173bc21a1eb58a412eb4131fa", // r773 (F375) preview delta tag
   "pdc-conversions.js": "0a99e7a5306f15e434b293a3ca9a318ffad4b78eb814c27144d75ff98821d810",
   // r401: Pit tick and read RPCs (set_pdc_pit_line_tick_401, get_pdc_pit_line_ticks_401).
   // r414: readQcPhotoReceipt (get_pdc_qc_photo_receipt_414) for the QC page (F30).
