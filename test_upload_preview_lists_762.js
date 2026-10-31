@@ -27,7 +27,8 @@ test('r762: the upload page renders the lists and the cache tags moved', () => {
   const js = fs.readFileSync('pdc-revolution-upload.js', 'utf8');
   assert.match(js, /function renderChanges762\(host, payload\)/);
   assert.match(js, /renderChanges762\(host, payload\);/);
-  assert.match(js, /Leaving the board/);
+  assert.match(js, /Completing \(off the board\)/);
+  assert.match(js, /Staying, tagged/);
   assert.match(js, /Coming onto the board/);
   assert.match(js, /Held lines/);
   const html = fs.readFileSync('index.html', 'utf8');

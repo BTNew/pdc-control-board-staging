@@ -21,7 +21,7 @@ test('r763: migration pins the three bodies, defers the archive to the last part
   assert.match(up, /CASE WHEN p_last THEN ''on'' ELSE ''off'' END/);
   assert.match(up, /p->''apply''->>''ok'' = ''true''/);
   assert.match(up, /record_snapshot_479\(p_header - 'gmail_message_id', p_lines\)/);
-  assert.match(up, /source_snapshot_at INTO v_at FROM pdc_service_snapshot_private\.snapshots_479/, 'retry keeps the first header');
+  assert.match(up, /source_snapshot_at, s\.expected_line_count INTO v_at, v_exp FROM pdc_service_snapshot_private\.snapshots_479/, 'retry reuses or completes the first snapshot');
   assert.match(up, /'website_snapshot_recorded_763', 'F369'/);
   assert.match(up, /'archive_only_on_last_part_763', 'F371'/);
   assert.match(up, /pdc_backup_r763_20261031\.function_sources/);

@@ -25,3 +25,18 @@ test('r773: dry run calls the delta RPCs, regroups the lists, page shows Changed
   assert.match(up, /'preview_delta_773', 'F375'/);
   assert.match(fs.readFileSync('index.html', 'utf8'), /pdc-revolution-upload\.js\?[^"]*&amp;r773=2026\.10\.31\.r773/);
 });
+
+test('r777: leaving list split by Navision; a refusal after begin abandons the loading job; snapshot reuse', () => {
+  const ts = fs.readFileSync('supabase/functions/revolution-upload/index.ts', 'utf8');
+  assert.match(ts, /'revolution_upload_navision_777'/);
+  assert.match(ts, /changes\.leaving_tagged = leaving\.filter/);
+  assert.match(ts, /'revolution_upload_abandon_777'/);
+  assert.ok((ts.match(/return await abandon\(/g) || []).length >= 5, 'every refusal after begin abandons the job');
+  const js = fs.readFileSync('pdc-revolution-upload.js', 'utf8');
+  assert.match(js, /\['leaving_tagged', 'Staying, tagged/);
+  assert.match(js, /Navision \$\{entry\.dealer\}/);
+  const up = fs.readFileSync('supabase/migrations/20261031103500_r777_preview_leaving_reasons.sql', 'utf8');
+  assert.match(up, /FUNCTION public\.revolution_upload_navision_777\(p_stocks jsonb\)/);
+  assert.match(up, /FUNCTION public\.revolution_upload_abandon_777\(p_upload uuid, p_reason text\)/);
+  assert.match(fs.readFileSync('supabase/migrations/20261031061500_r763_website_snapshot_and_last_part_archive.sql', 'utf8'), /'reused', true/);
+});

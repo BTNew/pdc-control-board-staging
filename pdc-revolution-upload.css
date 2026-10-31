@@ -104,3 +104,4 @@
 #revolution-upload .ru-change-list { margin: 6px 0 0; padding-left: 18px; columns: 2; column-gap: 24px; font-size: 0.88rem; font-variant-numeric: tabular-nums; }
 #revolution-upload .ru-change-list li { break-inside: avoid; }
 @media (max-width: 720px) { #revolution-upload .ru-change-list { columns: 1; } }
+#revolution-upload .ru-change-leaving_tagged summary { color: #b45309; }

@@ -82,7 +82,7 @@ SECURITY DEFINER
 SET search_path TO 'pg_catalog', 'public'
 SET statement_timeout TO '120s'
 AS $function$
-DECLARE v_role text := lower(btrim(coalesce(public.current_pdc_user_role()::text, ''))); u pdc_import_620.web_uploads_728; v_lines integer; v_at timestamptz;
+DECLARE v_role text := lower(btrim(coalesce(public.current_pdc_user_role()::text, ''))); u pdc_import_620.web_uploads_728; v_lines integer; v_at timestamptz; v_exp integer;
 BEGIN
   -- r763 (F369): the website Apply records the 'as a Whole' snapshot the archive step needs. Writes only pdc_service_snapshot_private.
   IF v_role <> 'administrator' THEN RETURN jsonb_build_object('ok', false, 'error', 'administrator_required'); END IF;
@@ -91,9 +91,17 @@ BEGIN
   IF NOT FOUND OR u.job_id IS NULL OR u.mode <> 'apply' THEN RETURN jsonb_build_object('ok', false, 'error', 'upload_not_found'); END IF;
   IF jsonb_typeof(p_header) <> 'object' OR p_header->>'snapshot_sha256' IS DISTINCT FROM u.workbook_sha256 THEN RETURN jsonb_build_object('ok', false, 'error', 'snapshot_sha_mismatch'); END IF;
   IF jsonb_typeof(p_lines) <> 'array' OR jsonb_array_length(p_lines) NOT BETWEEN 1 AND 30000 THEN RETURN jsonb_build_object('ok', false, 'error', 'bad_lines'); END IF;
-  -- A retry of the same file keeps the header the first attempt recorded (the recorder refuses a different header for one sha).
-  SELECT s.source_snapshot_at INTO v_at FROM pdc_service_snapshot_private.snapshots_479 s WHERE s.snapshot_sha256 = u.workbook_sha256;
-  IF FOUND THEN p_header := p_header || jsonb_build_object('source_snapshot_at', to_char(v_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"')); END IF;
+  -- r763c (F380): the same file sent again. The snapshot is the file's own evidence; a complete one is reused as recorded
+  -- (board-derived identity columns may have moved since, and the recorder refuses a different value for a recorded line).
+  SELECT s.source_snapshot_at, s.expected_line_count INTO v_at, v_exp FROM pdc_service_snapshot_private.snapshots_479 s WHERE s.snapshot_sha256 = u.workbook_sha256;
+  IF FOUND THEN
+    SELECT count(*) INTO v_lines FROM pdc_service_snapshot_private.snapshot_lines_479 l WHERE l.snapshot_sha256 = u.workbook_sha256;
+    IF v_lines = v_exp THEN
+      RETURN jsonb_build_object('ok', true, 'upload_id', p_upload, 'snapshot_sha256', u.workbook_sha256, 'lines_recorded', v_lines, 'expected', v_exp, 'reused', true);
+    END IF;
+    -- partial: keep the first header so the recorder accepts the rest of the lines
+    p_header := p_header || jsonb_build_object('source_snapshot_at', to_char(v_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'));
+  END IF;
   PERFORM pdc_service_snapshot_private.record_snapshot_479(p_header - 'gmail_message_id', p_lines);
   SELECT count(*) INTO v_lines FROM pdc_service_snapshot_private.snapshot_lines_479 l WHERE l.snapshot_sha256 = u.workbook_sha256;
   RETURN jsonb_build_object('ok', true, 'upload_id', p_upload, 'snapshot_sha256', u.workbook_sha256, 'lines_recorded', v_lines, 'expected', (p_header->>'line_count')::integer);

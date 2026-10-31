@@ -74,6 +74,7 @@ if (typeof window !== 'undefined') (function () {
     if (entry.rego && entry.rego !== entry.stock) bits.push(`rego ${entry.rego}`);
     if (entry.ro) bits.push(entry.ro);
     if (entry.key_number) bits.push(`key ${entry.key_number}`);
+    if (entry.dealer) bits.push(`Navision ${entry.dealer}`);
     if (Number.isInteger(entry.lines)) bits.push(`${entry.lines} line${entry.lines === 1 ? '' : 's'}`);
     return bits.join(' · ');
   }
@@ -82,7 +83,8 @@ if (typeof window !== 'undefined') (function () {
     const changes = payload.changes;
     if (!changes || typeof changes !== 'object') return;
     const sections = [
-      ['archived', 'Leaving the board', 'Not on the Revolution list any more. Completed, or tagged "not on Revolution list" if the car is still on Navision.', true],
+      ['archived', 'Completing (off the board)', 'Not on the Revolution open-RO list and no Navision record. Completed; planned bookings go back to the queue.', true],
+      ['leaving_tagged', 'Staying, tagged "not on Revolution list"', 'Not on the Revolution open-RO list but still on Navision. Stays until Navision shows Delivered to Dealer or drops the car.', true],
       ['new', 'Coming onto the board', 'Not on the board yet.', true],
       ['updated', 'Changed', 'Already imported; at least one line changed since the last import.', true],
       ['held_before', 'Held last time, retrying', 'Not applied by the last import (staff-locked hours, review or identity holds). Tried again; usually held again.', false],
