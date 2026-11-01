@@ -40,13 +40,15 @@
     const released = ready(v);
     const pickedUp = collected(v);
     const hasDraft = Boolean(v.rftTransportDraft?.draft_id);
-    const canEmail = allowed && authority && released && !inFlight && (!pickedUp || hasDraft);
+    // r807 (F423, Craig 1 Nov 19:47): Email salesperson first (WPC), then Mark RFT'd, then Mark collected on the RFT page only.
+    const canEmail = allowed && authority && checked && !inFlight && (!pickedUp || hasDraft);
+    const canRelease = allowed && authority && checked && hasDraft && !pickedUp && !inFlight;
     const canCollect = allowed && authority && released && !pickedUp && collectionEnabled && !inFlight;
     return `<span class="rft-transport-controls rft-actions-clean" role="group" aria-label="RFT handover">
       <span class="rft-action rft-qc-status ${checked ? 'is-ready' : 'is-pending'}" role="status" title="${checked ? 'QC signed off' : 'Awaiting authoritative QC sign-off'}">${icon(checked ? 'check' : 'clock')}<span>${checked ? 'QC’d' : 'Awaiting QC'}</span></span>
-      ${released ? `<span class="rft-action rft-ready-status is-ready" role="status" title="PMB confirmed ready for transport">${icon('check')}<span>RFT’d</span></span>` : `<button type="button" class="rft-action rft-release-action" data-pmb-rft-release-key="${esc(key)}" ${allowed && authority && checked && !pickedUp && !inFlight ? '' : 'disabled'} title="PMB: confirm this vehicle is ready for transport">Mark RFT’d</button>`}
-      <button type="button" class="rft-action rft-email-action" data-rft-transport-booked-key="${esc(key)}" ${canEmail ? '' : 'disabled'} title="${hasDraft ? 'Open the unsent salesperson email in Outlook' : 'Prepare the unsent salesperson email in Outlook'}">${icon('mail')}<span>${inFlight ? 'Please wait…' : 'Email salesperson'}</span></button>
-      ${pickedUp ? `<span class="rft-action rft-collected-status" role="status">${icon('check')}<span>Collected</span></span>` : `<button type="button" class="rft-action rft-collect-action" data-rft-collected-key="${esc(key)}" ${canCollect ? '' : 'disabled'} title="${canCollect ? 'Confirm the vehicle has physically left PMB' : 'Prepare the salesperson email with QC photo first'}">${icon('truck')}<span>Mark collected</span></button>`}
+      <button type="button" class="rft-action rft-email-action${hasDraft ? ' is-done' : ''}" data-rft-transport-booked-key="${esc(key)}" ${canEmail ? '' : 'disabled'} title="${hasDraft ? 'Salesperson emailed. Open the email again' : 'Step 1: email the salesperson that the vehicle is complete (QC photo attached)'}">${icon('mail')}<span>${inFlight ? 'Please wait…' : 'Email salesperson'}</span></button>
+      ${released ? `<span class="rft-action rft-ready-status is-ready" role="status" title="PMB confirmed ready for transport">${icon('check')}<span>RFT’d</span></span>` : `<button type="button" class="rft-action rft-release-action" data-pmb-rft-release-key="${esc(key)}" ${canRelease ? '' : 'disabled'} title="${hasDraft ? 'Step 2: salesperson gave the destination. Move to RFT' : 'Email the salesperson first'}">Mark RFT’d</button>`}
+      ${pickedUp ? `<span class="rft-action rft-collected-status" role="status">${icon('check')}<span>Collected</span></span>` : released ? `<button type="button" class="rft-action rft-collect-action" data-rft-collected-key="${esc(key)}" ${canCollect ? '' : 'disabled'} title="${canCollect ? 'Autocare collected: the vehicle has physically left PMB' : 'Not available yet'}">${icon('truck')}<span>Mark collected</span></button>` : ''}
     </span>`;
   }
   const bytes = base64 => Uint8Array.from(atob(String(base64 || '').replace(/\s/g,'')), c => c.charCodeAt(0));
@@ -186,7 +188,7 @@
 
   async function openEmail(key) {
     let v=selectedVehicle(key);
-    if (!v || !vehicleRftLifecycleRoleAllowed() || !authority(v) || !ready(v) || sessions.has(key)
+    if (!v || !vehicleRftLifecycleRoleAllowed() || !authority(v) || !qcSigned(v) || sessions.has(key)
         || app.rftTransportActionInFlight?.has(`rft:${key}`)) return false;
     const actor=window.PDC_AUTH_CONTEXT?.userId;
     const target=reviewWindow(displayStockNumber(v)||key);
@@ -216,10 +218,10 @@
   markRftConfirmation = async function(key='',confirmed=true) {
     const v=selectedVehicle(key);
     if (!confirmed || !v || !vehicleRftLifecycleRoleAllowed() || !authority(v)
-        || !qcSigned(v) || ready(v) || collected(v) || sessions.has(key)) return false;
+        || !qcSigned(v) || ready(v) || collected(v) || !v.rftTransportDraft?.draft_id || sessions.has(key)) return false;
     const action=beginRftTransportAction(key); if(!action) return false;
     try {
-      if (!window.confirm(`Confirm PMB has checked Stock ${displayStockNumber(v)||key} and it is ready for transport?\n\nThis records RFT’d and enables Email salesperson.`)) return false;
+      if (!window.confirm(`Confirm PMB has checked Stock ${displayStockNumber(v)||key} and the salesperson has given the destination?\n\nThis moves it to RFT, ready for transport.`)) return false;
       const result=await app.emailVehicleLocationService.setRftConfirmation736(v.__emailVehicleId,Number(v.__emailVehicleVersion),true,salespersonAssignmentIdempotencyKey());
       if (!rftTransportActionIsCurrent(action)) return false;
       if (!result?.ok) { window.alert(message(result?.code)); await refreshEmailVehicleLocations(); return false; }
@@ -241,7 +243,7 @@
   const priorRftHeader=vehicleLocationsRftHeaderHtml;
   vehicleLocationsRftHeaderHtml=()=>priorRftHeader().replace('<span>RFT’d</span>','<span>QC’d</span><span>RFT’d</span>');
   const rftBucket=VEHICLE_LOCATION_BUCKET_DEFS.find(bucket=>bucket.key==='rft');
-  if(rftBucket) rftBucket.hint='QC signed off · PMB must mark RFT’d before emailing sales';
+  if(rftBucket) rftBucket.hint='Salesperson emailed and RFT’d · Mark collected when Autocare picks it up';
   markRftVehicleCollected = async function(key='',confirmed=true) {
     const v=selectedVehicle(key); const service=app.emailVehicleLocationService;
     if (!confirmed || !v || collected(v) || !vehicleRftLifecycleRoleAllowed() || !authority(v)
