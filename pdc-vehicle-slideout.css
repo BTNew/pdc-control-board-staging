@@ -184,3 +184,12 @@
 #vso-shell .authenticated-email-operations .authenticated-operation-station li.vso-move-row2 > .vso-move { grid-column: 2 / -1; grid-row: 2; justify-self: end; }
 #vso-shell .authenticated-email-operations .authenticated-operation-station li.pdc-sublet-group { display: flex !important; flex-wrap: wrap; align-items: center; gap: .45rem; }
 #vso-shell .authenticated-email-operations .authenticated-operation-station li.pdc-sublet-group > span { flex: 1 1 8rem; }
+
+/* r798 (F408, Craig 1 Nov 2026 08:19 "still looks all fucked up"): the Review box was narrower than the others and its
+   "Choose Station" control sat on top of the line text (rows 1-2). The control now has its own row 3 and the box takes the
+   full width. A line that was ticked complete after showing Move to kept the row-2 class, which put its PO chip over the
+   "Complete (override by ...)" text; the class is now cleared on re-render. Clipped descriptions show in full on hover. */
+#vso-shell .authenticated-email-operations .authenticated-operation-station-grid.pdc-op-below > .authenticated-operation-station { flex: 1 1 100%; width: 100%; max-width: 100%; }
+#vso-shell .authenticated-email-operations .authenticated-operation-station li > div[data-review-control] { grid-column: 1 / -1 !important; grid-row: 3; margin-top: 2px; }
+#vso-shell .authenticated-email-operations .authenticated-operation-station li > div[data-review-control] > label { display: none; }
+#vso-shell .vso-move-all select, #vso-shell .vso-move select { width: 9.5rem !important; max-width: 9.5rem; }
