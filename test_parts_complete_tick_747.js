@@ -24,8 +24,11 @@ assert.ok(!/data-pdc-parts-complete="[^"]*" checked/.test(open), 'not ticked whe
 
 const ticked = api.detailHtml({ ...base, partsDone: true, partsBoard: true, partsWho: 'craig@x' });
 assert.ok(/data-pdc-parts-complete="[^"]*" checked\/>/.test(ticked) && ticked.includes('is-done'), 'ticked here: checked, can be unticked');
+// r803 (F418): a green import can be unticked (marks parts outstanding); only a confirmation email stays locked.
 const imported = api.detailHtml({ ...base, partsDone: true, partsBoard: false });
-assert.ok(/checked disabled/.test(imported), 'complete from the import or an email: shown ticked, locked');
+assert.ok(/checked\/>/.test(imported) && !/checked disabled/.test(imported), 'complete from the import: ticked, can be unticked');
+const emailed = api.detailHtml({ ...base, partsDone: true, partsBoard: false, partsEmail: true });
+assert.ok(/checked disabled/.test(emailed), 'complete from a confirmation email: ticked, locked');
 assert.ok(!api.detailHtml({ ...base, canEdit: false, partsDone: false }).includes('data-pdc-parts-complete'), 'read-only users get no tick');
 assert.ok(!api.detailHtml({ ...base, editing: true }).includes('data-pdc-parts-complete'), 'hidden while the date form is open');
 const placed = api.detailHtml({ ...base, placed: true });
@@ -40,20 +43,20 @@ assert.strictEqual(on.override_source, 'board_parts_complete');
 assert.strictEqual(on.feed, 'separate_parts_status');
 assert.deepStrictEqual(on.import_status, review);
 assert.strictEqual(on.jobs[0].colour, 'green');
-assert.deepStrictEqual(api.partsFlagsState(on), { done: true, board: true, who: 'craig@x', at: '2026-10-30T00:30:00Z' });
+assert.deepStrictEqual(api.partsFlagsState(on), { done: true, board: true, email: false, red: false, who: 'craig@x', at: '2026-10-30T00:30:00Z' });
 assert.deepStrictEqual(api.boardCompleteFlags(on, false), review, 'untick restores the import status');
 assert.strictEqual(api.boardCompleteFlags(null, false), null);
 assert.strictEqual(api.boardCompleteFlags(null, true).colour, 'green', 'a vehicle with no import status still goes green');
 const email = { colour: 'green', parts_complete: true, override_source: 'authorised_email_confirmation' };
 assert.strictEqual(api.boardCompleteFlags(email, true), email, 'an email confirmation still wins');
-assert.deepStrictEqual(api.partsFlagsState(email), { done: true, board: false, who: '', at: '' });
+assert.deepStrictEqual(api.partsFlagsState(email), { done: true, board: false, email: true, red: false, who: '', at: '' });
 
 // Runtime wiring.
 assert.ok(src.includes("document.addEventListener('change', event => {\n    const box = event.target?.closest?.('[data-pdc-parts-complete]');"), 'tick handler bound');
 assert.ok(/async function setPartsComplete[\s\S]*?rpc\(COMPLETE_RPC[\s\S]*?placedById\.has\(vid\)[\s\S]*?p_place: false[\s\S]*?repaintPartsBox\(vid\)/.test(src), 'tick saves, lifts STOPPAGE, repaints the Parts Jita box');
 assert.ok(src.includes(".pdc-parts-stoppage-place,.pdc-parts-complete-tick{display:inline-flex;flex:0 0 auto;") && src.includes('white-space:nowrap'), 'STOPPAGE chip no longer wraps');
 assert.ok(conf.includes("status.override_source === 'board_parts_complete'") && conf.includes("'import:Parts complete — marked on the board'"), 'parts confirmation treats the tick as complete');
-assert.ok(entry.includes('&r747=2026.10.30.r747\'') && entry.includes('person-confirmed.1&r747=2026.10.30.r747'), 'loaders cache-busted');
+assert.ok(/&r747=2026\.10\.30\.r747(?:&r803=2026\.11\.01\.r803)?'/.test(entry) && entry.includes('person-confirmed.1&r747=2026.10.30.r747'), 'loaders cache-busted');
 
 // Database.
 assert.ok(sql.includes('CREATE FUNCTION public.set_pdc_parts_board_complete_747(p_vehicle_id uuid, p_complete boolean)'));

@@ -14,6 +14,8 @@
  * r739 (F344): once a date is typed, the old email ETA block and its email line are hidden. Only the latest ETA shows.
  * r747 (F353): a Parts complete tick sits beside Place as STOPPAGE. Ticked, the Parts Jita box on Vehicle Locations turns
  * green (set_pdc_parts_board_complete_747) and any parts STOPPAGE is lifted. The STOPPAGE tick is a tidy one-line chip.
+ * r803 (F418): a green import no longer locks the tick. Unticking over a green import marks the parts outstanding (red)
+ * until Parts complete is ticked again. Only a confirmation email still locks it.
  */
 (() => {
   'use strict';
@@ -78,13 +80,22 @@
   function partsFlagsState(flags) {
     const f = flags && typeof flags === 'object' ? flags : null;
     const done = f?.parts_complete === true && f?.colour === 'green';
-    return { done, board: done && f.override_source === 'board_parts_complete', who: clean(f?.confirmed_by_name || f?.confirmed_by), at: f?.confirmed_at || '' };
+    return { done, board: done && f.override_source === 'board_parts_complete', email: done && f.override_source === 'authorised_email_confirmation',
+      red: f?.override_source === 'board_parts_outstanding', who: clean(f?.confirmed_by_name || f?.confirmed_by), at: f?.confirmed_at || '' };
   }
   /** r747: the flags the board shows once the tick is on (mirrors pdc_parts_flags_vehicle_20260911), or off again. */
   function boardCompleteFlags(flags, on, who, at) {
     const prior = flags && typeof flags === 'object' ? flags : null;
-    const imported = prior && prior.override_source === 'board_parts_complete' ? (prior.import_status ?? null) : prior;
-    if (!on) return imported;
+    const imported = prior && (prior.override_source === 'board_parts_complete' || prior.override_source === 'board_parts_outstanding') ? (prior.import_status ?? null) : prior;
+    if (!on) {
+      // r803 (F418): off over a green import = parts outstanding (red), the same flags pdc_parts_flags_vehicle_20260911 returns.
+      if (!imported || imported.colour !== 'green' || imported.override_source === 'authorised_email_confirmation') return imported;
+      const red = { colour: 'red', label: 'Parts outstanding — marked on the board', parts_complete: false, override_source: 'board_parts_outstanding',
+        person_confirmed: true, confirmed_at: at || new Date().toISOString(), confirmed_by: clean(who), confirmed_by_name: clean(who),
+        meaning: 'Parts complete was unticked on the board. Parts are outstanding until it is ticked again; original import evidence is retained.' };
+      return { ...imported, ...red, import_status: imported,
+        jobs: (Array.isArray(imported.jobs) ? imported.jobs : []).map(j => ({ ...j, ...red, import_status: j })) };
+    }
     if (prior && prior.override_source === 'authorised_email_confirmation') return prior;
     const mark = { colour: 'green', label: 'Parts complete — marked on the board', parts_complete: true, override_source: 'board_parts_complete',
       person_confirmed: true, confirmed_at: at || new Date().toISOString(), confirmed_by: clean(who), confirmed_by_name: clean(who),
@@ -95,11 +106,14 @@
   function completeTickHtml(state) {
     const vid = esc(state.vehicleId || '');
     const done = state.partsDone === true;
-    const locked = done && state.partsBoard !== true;
-    const title = locked ? 'Parts are already complete from the parts import or a confirmation email.'
-      : done ? `Parts complete${state.partsWho ? ` · ticked by ${state.partsWho}` : ''}${state.partsAt ? ` · ${whenLabel(state.partsAt)}` : ''}. Untick to show the import status again.`
+    const locked = done && state.partsEmail === true;
+    const red = !done && state.partsRed === true;
+    const title = locked ? 'Parts are complete from a confirmation email.'
+      : done && state.partsBoard !== true ? 'Parts complete from the parts import. Untick to mark the parts outstanding (red).'
+      : done ? `Parts complete${state.partsWho ? ` · ticked by ${state.partsWho}` : ''}${state.partsAt ? ` · ${whenLabel(state.partsAt)}` : ''}. Untick to mark the parts outstanding again.`
+      : red ? `Parts outstanding${state.partsWho ? ` · marked by ${state.partsWho}` : ''}${state.partsAt ? ` · ${whenLabel(state.partsAt)}` : ''}. Tick when all parts are here.`
       : 'Tick when all parts are here. The Parts Jita box on Vehicle Locations goes green and any parts STOPPAGE is lifted.';
-    return `<label class="pdc-parts-complete-tick${done ? ' is-done' : ''}" title="${esc(title)}"><input type="checkbox" data-pdc-parts-complete="${vid}"${done ? ' checked' : ''}${locked || state.partsBusy ? ' disabled' : ''}/> Parts complete</label>`;
+    return `<label class="pdc-parts-complete-tick${done ? ' is-done' : ''}${red ? ' is-outstanding' : ''}" title="${esc(title)}"><input type="checkbox" data-pdc-parts-complete="${vid}"${done ? ' checked' : ''}${locked || state.partsBusy ? ' disabled' : ''}/> Parts complete</label>`;
   }
   const emailFromHtml = html => { const m = /data-parts-eta="(\d{4}-\d{2}-\d{2})/.exec(String(html || '')); return m ? m[1] : ''; };
 
@@ -323,7 +337,7 @@
     const local = partsLocal.get(vid);
     if (!local) return live;
     // The snapshot has caught up once it agrees; then the server row is the one shown.
-    if (live.done === local.done && live.board === local.board) { partsLocal.delete(vid); return live; }
+    if (live.done === local.done && live.board === local.board && Boolean(live.red) === Boolean(local.red)) { partsLocal.delete(vid); return live; }
     return local;
   }
   function stateFor(vehicle) {
@@ -331,7 +345,7 @@
     const st = ui.get(vid) || {};
     const parts = partsFor(vehicle, vid);
     return {
-      partsDone: parts.done, partsBoard: parts.board, partsWho: parts.who, partsAt: parts.at, partsBusy: Boolean(st.partsBusy),
+      partsDone: parts.done, partsBoard: parts.board, partsEmail: Boolean(parts.email), partsRed: Boolean(parts.red), partsWho: parts.who, partsAt: parts.at, partsBusy: Boolean(st.partsBusy),
       vehicleId: vid,
       canEdit: canEdit && Boolean(vid),
       editing: Boolean(st.editing),
@@ -686,8 +700,9 @@
           if ('pdcPartsFlags' in row || !('parts_flags' in row)) row.pdcPartsFlags = next;
           if ('parts_flags' in row) row.parts_flags = next;
         }
-        partsLocal.set(vid, { done: want === true, board: want === true, who, at });
-        message = want ? 'Parts complete.' : 'Parts complete removed.';
+        const red = want !== true && result.outstanding === true;
+        partsLocal.set(vid, { done: want === true, board: want === true, red, who, at });
+        message = want ? 'Parts complete.' : red ? 'Parts marked outstanding (red).' : 'Parts complete removed.';
         if (want && placedById.has(vid)) {
           try {
             const lifted = await rpc(PLACE_RPC, { p_vehicle_id: vid, p_eta: null, p_note: '', p_place: false });
@@ -737,6 +752,7 @@
     '.pdc-parts-stoppage-place.is-placed{background:#1d4ed8;border-color:#1d4ed8;color:#fff}',
     '.pdc-parts-complete-tick{border-color:#86efac;background:#f0fdf4;color:#15803d}',
     '.pdc-parts-complete-tick.is-done{background:#16a34a;border-color:#16a34a;color:#fff}',
+    '.pdc-parts-complete-tick.is-outstanding{background:#fff0f3;border-color:#ba163c;color:#ba163c}',
     '.pdc-parts-complete-tick:has(input:disabled){cursor:default;opacity:.85}',
     '.pdc-parts-stoppage-detail .pdc-parts-stoppage-lead > button{height:26px;padding:0 10px;font-size:12px;width:auto;flex:0 0 auto}',
     '.pdc-parts-stoppage-placed{display:inline-block;padding:1px 5px;border-radius:4px;background:#dbeafe;color:#1d4ed8;font-size:10px;font-weight:800}',
