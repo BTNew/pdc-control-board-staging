@@ -16,6 +16,7 @@
  * green (set_pdc_parts_board_complete_747) and any parts STOPPAGE is lifted. The STOPPAGE tick is a tidy one-line chip.
  * r803 (F418): a green import no longer locks the tick. Unticking over a green import marks the parts outstanding (red)
  * until Parts complete is ticked again. Only a confirmation email still locks it.
+ * r804 (F419): a parts ETA in the future makes the box red automatically (server, parts_eta_future) until a tick made after it.
  */
 (() => {
   'use strict';
@@ -81,7 +82,7 @@
     const f = flags && typeof flags === 'object' ? flags : null;
     const done = f?.parts_complete === true && f?.colour === 'green';
     return { done, board: done && f.override_source === 'board_parts_complete', email: done && f.override_source === 'authorised_email_confirmation',
-      red: f?.override_source === 'board_parts_outstanding', who: clean(f?.confirmed_by_name || f?.confirmed_by), at: f?.confirmed_at || '' };
+      red: f?.override_source === 'board_parts_outstanding' || f?.override_source === 'parts_eta_future', eta: f?.override_source === 'parts_eta_future' ? clean(f?.eta_date) : '', who: clean(f?.confirmed_by_name || f?.confirmed_by), at: f?.confirmed_at || '' };
   }
   /** r747: the flags the board shows once the tick is on (mirrors pdc_parts_flags_vehicle_20260911), or off again. */
   function boardCompleteFlags(flags, on, who, at) {
@@ -111,6 +112,7 @@
     const title = locked ? 'Parts are complete from a confirmation email.'
       : done && state.partsBoard !== true ? 'Parts complete from the parts import. Untick to mark the parts outstanding (red).'
       : done ? `Parts complete${state.partsWho ? ` · ticked by ${state.partsWho}` : ''}${state.partsAt ? ` · ${whenLabel(state.partsAt)}` : ''}. Untick to mark the parts outstanding again.`
+      : red && state.partsEta ? `Parts outstanding: parts ETA ${ddmmyy(state.partsEta)} is in the future. Tick Parts complete if they arrive early.`
       : red ? `Parts outstanding${state.partsWho ? ` · marked by ${state.partsWho}` : ''}${state.partsAt ? ` · ${whenLabel(state.partsAt)}` : ''}. Tick when all parts are here.`
       : 'Tick when all parts are here. The Parts Jita box on Vehicle Locations goes green and any parts STOPPAGE is lifted.';
     return `<label class="pdc-parts-complete-tick${done ? ' is-done' : ''}${red ? ' is-outstanding' : ''}" title="${esc(title)}"><input type="checkbox" data-pdc-parts-complete="${vid}"${done ? ' checked' : ''}${locked || state.partsBusy ? ' disabled' : ''}/> Parts complete</label>`;
@@ -345,7 +347,7 @@
     const st = ui.get(vid) || {};
     const parts = partsFor(vehicle, vid);
     return {
-      partsDone: parts.done, partsBoard: parts.board, partsEmail: Boolean(parts.email), partsRed: Boolean(parts.red), partsWho: parts.who, partsAt: parts.at, partsBusy: Boolean(st.partsBusy),
+      partsDone: parts.done, partsBoard: parts.board, partsEmail: Boolean(parts.email), partsRed: Boolean(parts.red), partsEta: parts.eta || '', partsWho: parts.who, partsAt: parts.at, partsBusy: Boolean(st.partsBusy),
       vehicleId: vid,
       canEdit: canEdit && Boolean(vid),
       editing: Boolean(st.editing),
