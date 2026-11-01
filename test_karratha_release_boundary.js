@@ -63,6 +63,8 @@ test('all frozen native files outside declared boundary adaptations retain origi
     else if (item.file === 'pdc-parts-confirmation.js') assert.equal(sha(Buffer.from(native.toString('utf8').replace(/\r\n/g,'\n'))), item.baseline_sha256, item.file);
     // r756a: the PMG Completed page gained scope buttons (F361); the hidden Karratha copy stays frozen.
     else if (item.file === 'pdc-completed-history.css') assert.equal(sha(Buffer.from(native.toString('utf8').replace(/\r\n/g,'\n'))), item.baseline_sha256, item.file);
+    // r807: the PMG copy puts Email salesperson before Mark RFT'd and Mark collected on the RFT page only (F423); the hidden Karratha copy stays frozen.
+    else if (item.file === 'pdc-rft-actions.js') assert.equal(sha(Buffer.from(native.toString('utf8').replace(/\r\n/g,'\n'))), item.baseline_sha256, item.file);
     else assert.deepEqual(native,fs.readFileSync(path.join(original,item.file)),item.file);
   }
 });
@@ -234,7 +236,8 @@ const approvedRootImportPatch = Object.freeze({
   // r738: canonical-entry.js adds r738=2026.10.30.r738 to the slide-out loader (line Complete only from its own tick; F343).
   // r745: canonical-entry.js adds r745=2026.10.30.r745 to the table loader (Vehicle Locations opens on PMB; F350).
   // r747: canonical-entry.js adds r747=2026.10.30.r747 to the Parts stoppage and parts confirmation loaders (Parts complete tick; F353). Department 135 is not tagged.
-  "canonical-entry.js": "de3866e404afebd468a3c4f20b237e5c81bfe4c27a0ef334d84c3097697fa412", // r803 cache tags; merge; r800 loader; r798 cache tag; r797 slideout cache tag; r795 cache tag; r792: station headings red/green/off cache tag; r863 (F414): Unallocated parts chip; r747 (F353) cache tags
+  "pdc-rft-actions.js": "4500a18706c574128c5aa1a784879ec3abed17543f27651a56f5fb72ffe126de", // r807 (F423): email before RFT'd; collect on the RFT page only
+  "canonical-entry.js": "ddeedb2d62f866e2df123b7b2868deacc7a4fc4c3bdaa652b91db6df7e780281", // r803 cache tags; merge; r800 loader; r798 cache tag; r797 slideout cache tag; r795 cache tag; r792: station headings red/green/off cache tag; r863 (F414): Unallocated parts chip; r747 (F353) cache tags
   "pdc-workshop-vehicle-search.js": "d0be4a60c5ca2213ba71d4cd31cb7019736db3d7e0470d22b3fa88243e56eb4c",
   // r747: the side-panel Parts complete tick counts as a parts confirmation on the PMG board (F353). Department 135 keeps its frozen copy.
   "pdc-parts-confirmation.js": "3331298a8335e4b807b6108f67c2a5bc5a3bfdcbe2d97a8153c4061fb4c2e6c7", // r803 red label

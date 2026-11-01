@@ -22,9 +22,9 @@ test('canonical snapshot maps through reconciliation to QC signed off awaiting P
  assert.equal(ready(reconciled[0]),false);
  const html=controls(reconciled[0],options);
  assert.match(html,/QC’d/); assert.doesNotMatch(html,/Awaiting QC/);
- assert.match(html.match(/<button[^>]+data-rft-transport-booked-key[^>]*>/)[0],/disabled/);
- assert.doesNotMatch(html.match(/<button[^>]+data-pmb-rft-release-key[^>]*>/)[0],/disabled/);
- assert.match(html.match(/<button[^>]+data-rft-collected-key[^>]*>/)[0],/disabled/);
+ assert.doesNotMatch(html.match(/<button[^>]+data-rft-transport-booked-key[^>]*>/)[0],/disabled/); // r807: email first
+ assert.match(html.match(/<button[^>]+data-pmb-rft-release-key[^>]*>/)[0],/disabled/); // r807: email first
+ assert.equal(html.match(/<button[^>]+data-rft-collected-key[^>]*>/),null); // r807: collect only on RFT page
  assert.equal(reconciled[0].pdcQcCompleteAt,raw.qc_completed_at);
 });
 test('fresh reinspection nulls replace a stale previous signed-off state',()=>{

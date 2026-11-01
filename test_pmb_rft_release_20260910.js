@@ -6,17 +6,22 @@ const fs=require('node:fs');
 const vm=require('node:vm');
 const {controls,qcSigned,ready,collected}=require('./pdc-rft-actions.js');
 const qc={__emailVehicleServerAuthoritative:true,__emailVehicleId:'fixture-id',__emailVehicleVersion:10,
- pdcQcComplete:true,pdcQcCompleteAt:'2026-09-10T01:00:00Z',rftTransferredAt:'2026-09-10T01:00:01Z',pdcLocation:'RFT'};
+ pdcQcComplete:true,pdcQcCompleteAt:'2026-09-10T01:00:00Z',rftTransferredAt:'2026-09-10T01:00:01Z',pdcLocation:'RFT',
+ rftTransportDraft:{draft_id:'draft-1'}};
+// r807 (F423, Craig 1 Nov 19:47): Email salesperson comes before Mark RFT'd; Mark collected only on the RFT page.
+const qcNoEmail={...qc,rftTransportDraft:null};
 const opts={key:'fixture',allowed:true,authority:true,inFlight:false,collectionEnabled:false};
 const button=(html,key)=>html.match(new RegExp('<button[^>]+data-'+key+'[^>]*>'))?.[0];
-test('mobile QC shows QC tick and PMB release button; email and collection remain disabled',()=>{
- const html=controls(qc,opts);
- assert.equal(qcSigned(qc),true);assert.equal(ready(qc),false);
- assert.match(html,/QC’d/);
- assert.match(html,/Mark RFT’d/);
- assert.doesNotMatch(button(html,'pmb-rft-release-key'),/disabled/);
- assert.match(button(html,'rft-transport-booked-key'),/disabled/);
- assert.match(button(html,'rft-collected-key'),/disabled/);
+test('r807: WPC shows Email salesperson enabled first; RFT\'d waits for the email; no Mark collected on WPC',()=>{
+ const first=controls(qcNoEmail,opts);
+ assert.equal(qcSigned(qcNoEmail),true);assert.equal(ready(qcNoEmail),false);
+ assert.match(first,/QC’d/);
+ assert.doesNotMatch(button(first,'rft-transport-booked-key'),/disabled/);
+ assert.match(button(first,'pmb-rft-release-key'),/disabled/);
+ assert.equal(button(first,'rft-collected-key'),undefined);
+ const emailed=controls(qc,opts);
+ assert.doesNotMatch(button(emailed,'pmb-rft-release-key'),/disabled/);
+ assert.equal(button(emailed,'rft-collected-key'),undefined);
 });
 test('PMB confirmation for this inspection enables email without collecting',()=>{
  const v={...qc,rftConfirmedAt:'2026-09-10T01:05:00Z'};

@@ -228,7 +228,7 @@
     rftStyle.href = 'pdc-rft-actions.css?v=2026.09.10.04';
     document.head.appendChild(rftStyle);
     const rftScript = document.createElement('script');
-    rftScript.src = 'pdc-rft-actions.js?v=2026.09.10.04&render-cost=2026.09.14.01';
+    rftScript.src = 'pdc-rft-actions.js?v=2026.09.10.04&render-cost=2026.09.14.01&r807=2026.11.01.r807';
     document.head.appendChild(rftScript);
   };
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', load, { once: true });
