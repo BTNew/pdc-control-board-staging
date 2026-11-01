@@ -600,7 +600,7 @@
         if (html) {
           li.insertAdjacentHTML('beforeend', html); // grid column 4; the tick stays in column 5
           li.classList.add('vso-has-move');
-          if (li.querySelector('.pdc-sublet-po-inline')) li.classList.add('vso-move-row2');
+          if (li.querySelector('.pdc-sublet-po-inline, .pdc-sublet-po-nopo, .pdc-sublet-po-ref')) li.classList.add('vso-move-row2'); // r797 (F407): any PO chip puts Move to on row 2
           const select = li.querySelector('[data-vso-move]');
           select?.addEventListener('click', event => event.stopPropagation());
           select?.addEventListener('change', event => { event.stopPropagation(); void moveLineTo(key, lineKey, select.value, select); });
@@ -794,7 +794,7 @@
     if (doc.querySelector('link[data-pdc-vehicle-slideout]')) return;
     const link = doc.createElement('link');
     link.rel = 'stylesheet';
-    link.href = `pdc-vehicle-slideout.css?vehicle-slideout=${VERSION}&r681=2026.10.29.r681&r699=2026.10.29.r699&r721=2026.10.29.r721`; // r681 (F291): tidy Edit hours, description box on hover only. r695 (F305): Override location and Move to a bay styles
+    link.href = `pdc-vehicle-slideout.css?vehicle-slideout=${VERSION}&r681=2026.10.29.r681&r699=2026.10.29.r699&r721=2026.10.29.r721&r797=2026.11.01.r797`; // r681 (F291): tidy Edit hours, description box on hover only. r695 (F305): Override location and Move to a bay styles
     link.dataset.pdcVehicleSlideout = '1';
     doc.head.appendChild(link);
   }

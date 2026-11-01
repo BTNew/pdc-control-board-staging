@@ -170,3 +170,17 @@
 /* r721 (F331): Move all to ____ on a station heading. */
 #vso-shell .vso-move-all { display: inline-flex; align-items: center; gap: 6px; margin-left: auto; margin-right: 8px; font-size: 12px; font-weight: 800; color: #1d4ed8; }
 #vso-shell .vso-move-all select { border-color: #1d4ed8; font-weight: 700; }
+
+/* r797 (F407, Craig 1 Nov 2026 08:05 "can we fix this side menu"): the Move to drop-down had a percentage width, so its column
+   sized too narrow and the drop-down spilled over the hours and PO chip. The drop-down now has a fixed width; any line with a PO
+   chip puts the chip (left) and Move to (right) on row 2 so the description keeps the width; the Sublet group headers are a
+   simple row; the tick column only takes what it needs. Checked live at 1280 and 860 wide: nothing past the card edge. */
+#vso-shell .authenticated-email-operations .authenticated-operation-station li { grid-template-columns: max-content minmax(0, 1fr) max-content max-content max-content !important; }
+#vso-shell .vso-move { flex-wrap: nowrap; }
+#vso-shell .vso-move select { width: 8.5rem !important; max-width: 8.5rem; flex: 0 0 auto; }
+#vso-shell .authenticated-email-operations .authenticated-operation-station li.vso-move-row2 > .pdc-sublet-po-ref,
+#vso-shell .authenticated-email-operations .authenticated-operation-station li.vso-move-row2 > .pdc-sublet-po-nopo,
+#vso-shell .authenticated-email-operations .authenticated-operation-station li.vso-move-row2 > .pdc-sublet-po-inline { grid-column: 2 !important; grid-row: 2; justify-self: start; }
+#vso-shell .authenticated-email-operations .authenticated-operation-station li.vso-move-row2 > .vso-move { grid-column: 2 / -1; grid-row: 2; justify-self: end; }
+#vso-shell .authenticated-email-operations .authenticated-operation-station li.pdc-sublet-group { display: flex !important; flex-wrap: wrap; align-items: center; gap: .45rem; }
+#vso-shell .authenticated-email-operations .authenticated-operation-station li.pdc-sublet-group > span { flex: 1 1 8rem; }
