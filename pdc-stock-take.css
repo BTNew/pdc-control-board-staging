@@ -1,53 +1,80 @@
-/* r720 (F330): Stock take. Big touch targets for an iPad walk-around. */
+/* Stock take. r720 (F330); r808 (F443): keys low to high, tap = Seen (blue), Close = Processed (orange), green ✓ / red ✗
+   per item. Big touch targets for an iPad walk-around. */
 #stock-take .st-bar { position: sticky; top: 0; z-index: 4; background: var(--panel-bg, #fff); padding: 8px 0 6px; border-bottom: 1px solid #e2e8f0; }
-#stock-take .st-chips { display: flex; flex-wrap: wrap; gap: 8px; }
-#stock-take .st-chip { font: inherit; font-weight: 700; min-height: 44px; padding: 8px 16px; border-radius: 10px; border: 1px solid #cbd5e1; background: #fff; color: #0f172a; cursor: pointer; }
-#stock-take .st-chip[aria-pressed="true"] { background: #1d4ed8; border-color: #1d4ed8; color: #fff; }
-#stock-take .st-tools { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-top: 8px; }
+#stock-take .st-tools { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
 #stock-take .st-tools input[type="search"] { flex: 1 1 220px; min-height: 44px; font: inherit; font-size: 17px; padding: 8px 12px; border: 1px solid #cbd5e1; border-radius: 10px; }
 #stock-take .st-open { display: flex; align-items: center; gap: 8px; font-weight: 600; }
 #stock-take .st-open input { width: 24px; height: 24px; }
+#stock-take .st-reset { margin-left: auto; min-height: 44px; padding: 6px 14px; border-radius: 10px; border: 2px solid #475569; background: #fff; color: #334155; font: inherit; font-weight: 800; cursor: pointer; }
+#stock-take .st-reset[aria-pressed="true"] { background: #b91c1c; border-color: #b91c1c; color: #fff; }
 #stock-take .st-sum { margin: 8px 0 0; color: #475569; font-size: 14px; display: flex; flex-wrap: wrap; gap: 6px 12px; align-items: center; }
+#stock-take .st-s-todo { color: #334155; }
+#stock-take .st-s-seen { color: #1d4ed8; }
+#stock-take .st-s-done { color: #c2410c; }
+#stock-take .st-sum-miss { color: #b91c1c; }
+#stock-take .st-round { color: #64748b; }
 #stock-take .st-live { margin-left: auto; font-weight: 700; color: #15803d; }
 #stock-take .st-live::before { content: ""; display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #16a34a; margin-right: 6px; vertical-align: 1px; }
-#stock-take .st-list { display: grid; gap: 10px; margin-top: 10px; }
-#stock-take .st-car { border: 1px solid #e2e8f0; border-radius: 12px; background: #fff; overflow: hidden; }
-#stock-take .st-car.is-done { border-color: #16a34a; background: #f0fdf4; }
-#stock-take .st-car h3 { margin: 0; display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 12px; padding: 10px 12px; border-bottom: 1px solid #e2e8f0; font-size: 16px; }
-#stock-take .st-key { font-size: 24px; font-weight: 900; min-width: 84px; }
+#stock-take .st-empty, #stock-take .st-loading { color: #64748b; padding: 18px; text-align: center; margin: 0; }
+#stock-take .st-error { margin: 8px 12px; color: #b91c1c; font-weight: 700; }
+
+/* the list: one row per key */
+#stock-take .st-list { display: grid; gap: 8px; margin-top: 10px; }
+#stock-take .st-car { border: 1px solid #e2e8f0; border-left: 8px solid #cbd5e1; border-radius: 12px; background: #fff; overflow: hidden; }
+#stock-take .st-car h3 { margin: 0; display: flex; align-items: stretch; font-size: 16px; }
+#stock-take .st-toggle { flex: 1; display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px; padding: 12px; border: 0; background: transparent; font: inherit; text-align: left; cursor: pointer; color: inherit; min-height: 60px; }
+#stock-take .st-key { font-size: 24px; font-weight: 900; min-width: 92px; }
 #stock-take .st-stock { font-weight: 700; }
 #stock-take .st-veh { color: #64748b; font-weight: 500; }
-#stock-take .st-count { margin-left: auto; font-weight: 800; color: #475569; }
-#stock-take .st-car ul { list-style: none; margin: 0; padding: 2px 0; }
-#stock-take .st-row { display: flex; align-items: stretch; }
-#stock-take .st-row > label { flex: 1; }
-#stock-take .st-line label { display: flex; gap: 12px; align-items: flex-start; padding: 10px 12px; min-height: 48px; cursor: pointer; }
-#stock-take .st-line + .st-line label { border-top: 1px solid #f1f5f9; }
-#stock-take .st-line input { width: 28px; height: 28px; flex: none; margin: 0; accent-color: #16a34a; }
-#stock-take .st-d { flex: 1; font-size: 16px; }
-#stock-take .st-d em { font-style: normal; font-size: 12px; font-weight: 700; color: #1d4ed8; background: #eff6ff; border-radius: 6px; padding: 1px 6px; margin-left: 4px; }
-#stock-take .st-meta { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; white-space: nowrap; }
-#stock-take .st-meta b { color: #15803d; font-size: 13px; }
-#stock-take .st-meta small { color: #64748b; }
-#stock-take .st-line.is-done .st-d { text-decoration: line-through; color: #64748b; }
-#stock-take .st-line.is-fresh { animation: st-fresh 2s ease-in-out 3; }
-@keyframes st-fresh { 0%, 100% { background: transparent; } 50% { background: #fef9c3; } }
-#stock-take .st-error { margin: 8px 12px; color: #b91c1c; font-weight: 700; }
-#stock-take .st-empty { color: #64748b; padding: 24px; text-align: center; }
-@media (prefers-reduced-motion: reduce) { #stock-take .st-line.is-fresh { animation: none; background: #fef9c3; } }
-#stock-take .st-missing { font: inherit; font-weight: 800; min-height: 40px; padding: 6px 14px; border-radius: 10px; border: 2px solid #dc2626; background: #fff; color: #b91c1c; cursor: pointer; }
+#stock-take .st-status { margin-left: auto; font-size: 14px; font-weight: 800; border-radius: 999px; padding: 3px 12px; background: #e2e8f0; color: #334155; }
+#stock-take .st-who { font-size: 13px; color: #64748b; font-weight: 600; }
+#stock-take .st-chev { color: #64748b; font-size: 14px; }
+#stock-take .st-car.is-seen { border-left-color: #2563eb; background: #eff6ff; }
+#stock-take .st-car.is-seen .st-status { background: #2563eb; color: #fff; }
+#stock-take .st-car.is-processed { border-color: #fdba74; border-left-color: #f97316; background: #fff7ed; }
+#stock-take .st-car.is-processed .st-status { background: #f97316; color: #fff; }
+#stock-take .st-car.is-missing { border: 2px solid #dc2626; border-left-width: 8px; background: #fef2f2; }
+#stock-take .st-car.is-missing .st-status { background: #dc2626; color: #fff; }
+#stock-take .st-car.is-open { box-shadow: 0 4px 14px rgba(15, 23, 42, .14); border-top-color: #94a3b8; }
+#stock-take .st-missing { align-self: center; margin-right: 10px; font: inherit; font-weight: 800; min-height: 40px; padding: 6px 14px; border-radius: 10px; border: 2px solid #dc2626; background: #fff; color: #b91c1c; cursor: pointer; }
 #stock-take .st-missing[aria-pressed="true"] { background: #16a34a; border-color: #16a34a; color: #fff; }
-#stock-take .st-car.is-missing { border: 2px solid #dc2626; background: #fef2f2; }
 #stock-take .st-miss-note { margin: 0; padding: 8px 12px; background: #dc2626; color: #fff; font-weight: 800; }
-#stock-take .st-sum-miss { color: #b91c1c; }
-/* r723 (F333): X = looked at, not done */
-#stock-take .st-x { flex: none; width: 56px; margin: 6px 8px 6px 0; border-radius: 10px; border: 2px solid #cbd5e1; background: #fff; color: #94a3b8; font-size: 24px; font-weight: 900; cursor: pointer; }
-#stock-take .st-x[aria-pressed="true"] { border-color: #dc2626; background: #dc2626; color: #fff; }
-#stock-take .st-x:disabled { opacity: .35; cursor: default; }
+
+/* the drop down: every item, green ✓ there / red ✗ missing, Close at the bottom */
+#stock-take .st-body { background: #fff; border-top: 1px solid #e2e8f0; }
+#stock-take .st-notes { margin: 0; padding: 8px 12px; background: #f8fafc; color: #475569; font-size: 14px; border-bottom: 1px solid #f1f5f9; }
+#stock-take .st-lines { list-style: none; margin: 0; padding: 0; }
+#stock-take .st-line { display: flex; align-items: center; gap: 10px; padding: 8px 10px 8px 12px; min-height: 64px; }
+#stock-take .st-line + .st-line { border-top: 1px solid #f1f5f9; }
+#stock-take .st-item { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+#stock-take .st-d { font-size: 16px; font-weight: 600; color: #0f172a; overflow-wrap: anywhere; }
+#stock-take .st-meta { display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: center; font-size: 13px; }
+#stock-take .st-meta em { font-style: normal; font-weight: 700; color: #64748b; background: #f1f5f9; border-radius: 6px; padding: 1px 6px; }
+#stock-take .st-line.is-done .st-meta b { color: #15803d; }
+#stock-take .st-line.is-x .st-meta b { color: #b91c1c; }
+#stock-take .st-line.is-done { background: #f0fdf4; }
 #stock-take .st-line.is-x { background: #fef2f2; }
-#stock-take .st-line.is-x .st-d { color: #991b1b; font-weight: 700; }
-#stock-take .st-meta .st-xwho { color: #b91c1c; }
-#stock-take .st-looked { font-weight: 800; color: #1d4ed8; }
+#stock-take .st-btns { display: flex; gap: 8px; flex: none; }
+#stock-take .st-yes, #stock-take .st-no { width: 60px; height: 52px; border-radius: 12px; border: 2px solid #cbd5e1; background: #fff; font-size: 28px; font-weight: 900; line-height: 1; cursor: pointer; }
+#stock-take .st-yes { color: #16a34a; border-color: #86efac; }
+#stock-take .st-no { color: #dc2626; border-color: #fca5a5; }
+#stock-take .st-yes[aria-pressed="true"] { background: #16a34a; border-color: #16a34a; color: #fff; }
+#stock-take .st-no[aria-pressed="true"] { background: #dc2626; border-color: #dc2626; color: #fff; }
+#stock-take .st-yes:disabled, #stock-take .st-no:disabled { opacity: .45; cursor: default; }
+#stock-take .st-line.is-fresh { animation: st-fresh 2s ease-in-out 3; }
+@keyframes st-fresh { 0%, 100% { filter: none; } 50% { filter: brightness(.93) sepia(.4); } }
+@media (prefers-reduced-motion: reduce) { #stock-take .st-line.is-fresh { animation: none; } }
+#stock-take .st-foot { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; padding: 12px; border-top: 1px solid #e2e8f0; background: #f8fafc; }
+#stock-take .st-tally { display: flex; gap: 10px; font-size: 15px; }
+#stock-take .st-t-yes { color: #15803d; }
+#stock-take .st-t-no { color: #b91c1c; }
+#stock-take .st-t-left { color: #64748b; }
+#stock-take .st-closed-by { color: #c2410c; font-weight: 700; font-size: 14px; }
+#stock-take .st-link { border: 0; background: none; padding: 0; font: inherit; color: #1d4ed8; text-decoration: underline; cursor: pointer; }
+#stock-take .st-close { margin-left: auto; min-width: 160px; min-height: 52px; padding: 8px 22px; border: 0; border-radius: 12px; background: #f97316; color: #fff; font: inherit; font-size: 18px; font-weight: 900; cursor: pointer; }
+#stock-take .st-close-view { background: #475569; }
+#stock-take .st-close:disabled { opacity: .6; }
+
 /* r724 (F334): found a car not on the list */
 #stock-take .st-found { margin-top: 10px; border: 2px dashed #1d4ed8; border-radius: 12px; background: #eff6ff; padding: 6px 12px; }
 #stock-take .st-found > summary { cursor: pointer; font-weight: 800; color: #1d4ed8; min-height: 40px; display: flex; align-items: center; gap: 8px; }
@@ -66,16 +93,10 @@
 #stock-take .st-found-rows small { color: #64748b; margin-left: auto; }
 #stock-take .st-sorted { min-height: 36px; padding: 4px 12px; border: 2px solid #16a34a; border-radius: 8px; background: #fff; color: #15803d; font: inherit; font-weight: 800; cursor: pointer; }
 #stock-take .st-found-none { color: #64748b; margin: 4px 0 8px; }
-/* r725 (F335): collapsed car rows with status; tap to open */
-#stock-take .st-car h3 { padding: 0; align-items: stretch; }
-#stock-take .st-toggle { flex: 1; display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px; padding: 12px; border: 0; background: transparent; font: inherit; text-align: left; cursor: pointer; color: inherit; min-height: 56px; }
-#stock-take .st-car h3 .st-missing { align-self: center; margin-right: 10px; }
-#stock-take .st-status { font-size: 13px; font-weight: 800; border-radius: 999px; padding: 2px 10px; background: #e2e8f0; color: #334155; }
-#stock-take .st-car.is-part .st-status { background: #fef3c7; color: #92400e; }
-#stock-take .st-car.is-looked .st-status { background: #dbeafe; color: #1d4ed8; }
-#stock-take .st-car.is-done .st-status { background: #dcfce7; color: #166534; }
-#stock-take .st-car.is-missing .st-status { background: #dc2626; color: #fff; }
-#stock-take .st-chev { color: #64748b; font-size: 14px; margin-left: 4px; }
-#stock-take .st-car.is-open { border: 2px solid #1d4ed8; box-shadow: 0 4px 14px rgba(15, 23, 42, .12); }
-#stock-take .st-car:not(.is-open) { border-bottom-width: 1px; }
-#stock-take .st-list { gap: 6px; }
+
+@media (max-width: 640px) {
+  #stock-take .st-key { font-size: 22px; min-width: 0; }
+  #stock-take .st-veh { flex-basis: 100%; }
+  #stock-take .st-yes, #stock-take .st-no { width: 52px; }
+  #stock-take .st-close { flex: 1 1 100%; }
+}
