@@ -18,6 +18,7 @@
     if (status === 'import:Parts complete — person confirmed' || status === 'import:Parts complete — marked on the board' || status === 'import:Parts complete — confirmed by Wayne' || status === 'import:All active jobs parts-ready') return 'parts-status-complete';
     if (status === 'import:Parts outstanding — see job cards') return 'parts-status-ordered';
     if (status === 'import:Parts outstanding — marked on the board') return 'parts-status-stoppage'; // r803 (F418): red
+    if (status.startsWith('import:Parts outstanding — ETA ')) return 'parts-status-stoppage'; // r804 (F419): future ETA, red
     return priorClass(status);
   };
   const time = value => new Date(value).toLocaleString('en-AU', {timeZone:'Australia/Perth'});

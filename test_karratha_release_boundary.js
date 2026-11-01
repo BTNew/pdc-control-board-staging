@@ -234,10 +234,10 @@ const approvedRootImportPatch = Object.freeze({
   // r738: canonical-entry.js adds r738=2026.10.30.r738 to the slide-out loader (line Complete only from its own tick; F343).
   // r745: canonical-entry.js adds r745=2026.10.30.r745 to the table loader (Vehicle Locations opens on PMB; F350).
   // r747: canonical-entry.js adds r747=2026.10.30.r747 to the Parts stoppage and parts confirmation loaders (Parts complete tick; F353). Department 135 is not tagged.
-  "canonical-entry.js": "cf50c8b5df4619c6b82f7f837f6fc44d93b9e78b52c2bfaadcdc794afb3fbddc", // r803 cache tags; merge; r800 loader; r798 cache tag; r797 slideout cache tag; r795 cache tag; r792: station headings red/green/off cache tag; r863 (F414): Unallocated parts chip; r747 (F353) cache tags
+  "canonical-entry.js": "de3866e404afebd468a3c4f20b237e5c81bfe4c27a0ef334d84c3097697fa412", // r803 cache tags; merge; r800 loader; r798 cache tag; r797 slideout cache tag; r795 cache tag; r792: station headings red/green/off cache tag; r863 (F414): Unallocated parts chip; r747 (F353) cache tags
   "pdc-workshop-vehicle-search.js": "d0be4a60c5ca2213ba71d4cd31cb7019736db3d7e0470d22b3fa88243e56eb4c",
   // r747: the side-panel Parts complete tick counts as a parts confirmation on the PMG board (F353). Department 135 keeps its frozen copy.
-  "pdc-parts-confirmation.js": "e2a377062a02a5353f9be5c4baf8d087dfa669e1c898ab69409ab9523ee305f4", // r803 red label
+  "pdc-parts-confirmation.js": "3331298a8335e4b807b6108f67c2a5bc5a3bfdcbe2d97a8153c4061fb4c2e6c7", // r803 red label
   // Owner-authorised PMG fitter read recovery, 13 October 2026.
   // Coaster and HiAce conversions: one Start / Done tick per section in a
   // dropdown (20 Oct 2026); every bay item gets Start / Done and the board

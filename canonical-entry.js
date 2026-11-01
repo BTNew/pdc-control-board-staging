@@ -125,7 +125,7 @@
     const loadPartsStoppage = () => {
       if (document.querySelector('script[data-pdc-parts-stoppage]')) return;
       const stoppage = document.createElement('script');
-      stoppage.src = 'pdc-parts-stoppage.js?r567=2026.10.27.r567&r573=2026.10.27.r573&r595=2026.10.28.r595&r616=2026.10.28.r616&r739=2026.10.30.r739&r747=2026.10.30.r747&r803=2026.11.01.r803&r863=2026.10.30.r863';
+      stoppage.src = 'pdc-parts-stoppage.js?r567=2026.10.27.r567&r573=2026.10.27.r573&r595=2026.10.28.r595&r616=2026.10.28.r616&r739=2026.10.30.r739&r747=2026.10.30.r747&r803=2026.11.01.r803&r804=2026.11.01.r804&r863=2026.10.30.r863';
       stoppage.dataset.pdcPartsStoppage = '1';
       stoppage.onload = loadVehicleLocationsTable;
       stoppage.onerror = loadVehicleLocationsTable;
@@ -196,7 +196,7 @@
     subletPo.onerror = loadSubletPoAttach;
     document.head.appendChild(subletPo);
     const partsConfirmation = document.createElement('script');
-    partsConfirmation.src = 'pdc-parts-confirmation.js?v=2026.09.13.person-confirmed.1&r747=2026.10.30.r747&r803=2026.11.01.r803';
+    partsConfirmation.src = 'pdc-parts-confirmation.js?v=2026.09.13.person-confirmed.1&r747=2026.10.30.r747&r803=2026.11.01.r803&r804=2026.11.01.r804';
     document.head.appendChild(partsConfirmation);
     const intakeStyle = document.createElement('link');
     intakeStyle.rel = 'stylesheet';
