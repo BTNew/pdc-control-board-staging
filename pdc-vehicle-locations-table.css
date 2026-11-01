@@ -167,13 +167,13 @@ body.vlt-resizing, body.vlt-resizing * { cursor: col-resize !important; user-sel
 
 /* ---- Compact station strip: 9 x 26 px cells, 20 px tall (was 52 x 34). Same markup, classes, symbols, colours. ---- */
 .vlt-table td.c-work { padding: 0 4px; }
-.vlt-table td.c-work .pdc-station-strip { display: grid !important; grid-template-columns: repeat(9, 27px) !important; gap: 3px !important; width: auto !important; min-width: 0 !important; margin: 0 !important; padding: 0 !important; align-items: center; }
+.vlt-table td.c-work .pdc-station-strip { display: grid !important; grid-template-columns: none !important; grid-auto-flow: column; grid-auto-columns: 27px; /* r799: 8 or 9 columns by department */ gap: 3px !important; width: auto !important; min-width: 0 !important; margin: 0 !important; padding: 0 !important; align-items: center; }
 .vlt-table td.c-work .incoming-work-check { width: 27px !important; height: 22px !important; min-width: 0 !important; min-height: 0 !important; padding: 0 !important; margin: 0 !important; border-radius: 3px !important; box-sizing: border-box; }
 .vlt-table td.c-work .incoming-work-check:not(.parts-jita-split) .incoming-work-box { width: auto !important; height: 20px !important; font-size: 12px !important; line-height: 20px !important; }
 .vlt-table td.c-work .parts-jita-split .incoming-work-box, .vlt-table td.c-work .parts-jita-split .parts-jita-marker { width: 13px !important; height: 11px !important; font-size: 9.5px !important; line-height: 11px !important; }
 .vlt-table td.c-work .incoming-work-label { display: none !important; }
 .vlt-table th.c-work { padding: 0 4px 3px; vertical-align: bottom; overflow: visible; }
-.vlt-table th.c-work .pdc-grid-stations-heading { display: grid !important; grid-template-columns: repeat(9, 27px) !important; gap: 3px !important; width: auto !important; position: static !important; margin: 0 !important; padding: 0 !important; height: 36px; align-items: end; }
+.vlt-table th.c-work .pdc-grid-stations-heading { display: grid !important; grid-template-columns: none !important; grid-auto-flow: column; grid-auto-columns: 27px; gap: 3px !important; width: auto !important; position: static !important; margin: 0 !important; padding: 0 !important; height: 36px; align-items: end; }
 .vlt-table th.c-work .pdc-grid-stations-heading > * { font-size: 8px !important; min-width: 0 !important; width: 27px !important; white-space: nowrap; transform-origin: left bottom; }
 /* r476 (F89): smaller angled station labels; "Parts Jita" on one line so it fits its 27 px column (label text unchanged). */
 .vlt-table th.c-work .pdc-grid-stations-heading > * > span { font-size: 7.5px !important; left: 5px !important; bottom: 2px !important; }

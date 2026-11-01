@@ -1294,6 +1294,7 @@ function pdcJobFallbackRequired(vehicle = {}, def = {}) {
 }
 
 function pdcJobRequired(vehicle = {}, def = {}) {
+  if (def?.busCategory) return busCategoryState(vehicle, def).required; // r799
   if (!def?.requireKey) return false;
   // Parts is not an optional work bucket in this PDC flow.
   // Every imported vehicle with a real batch / stock number requires Parts to order and sign off before RFT.
@@ -1312,6 +1313,7 @@ function pdcJobRequired(vehicle = {}, def = {}) {
 }
 
 function pdcJobComplete(vehicle = {}, def = {}) {
+  if (def?.busCategory) return busCategoryState(vehicle, def).complete; // r799
   if (!def?.completeKey) return false;
   if (vehicle[def.completeKey] === true) return true;
   if (vehicle[def.completeKey] === false) return false;
@@ -1381,6 +1383,83 @@ function pdcJobDefsPartsFirst() {
   return rowOrder.map(key => PDC_JOB_BY_KEY.get(key)).filter(Boolean);
 }
 
+// r799 (F409, Craig 1 Nov 2026 08:16): Vehicle Locations station columns follow the Department filter.
+//   All departments: today's columns (pdcJobDefsPartsFirst). Department 139: the same without Bus 4x4.
+//   Department 138: one column per Bus 4x4 category (Mechanical, Accessories, Electrical, QA, Pit) instead of Bus 4x4.
+// A category column is red while any of its lines is open, orange when a Bus 4x4 booking for that category is open,
+// green when every line is ticked (or the Bus 4x4 override with no line part-way, the r578 rule), grey when the car
+// has no line in that category. The numbers come from list_station_icon_completion_578 (category rows, r799).
+const PDC_BUS_CATEGORY_DEFS = Object.freeze([
+  { key: 'busMechanical', label: 'BUS MECHANICAL', short: 'Me', busCategory: 'BUS_MECHANICAL', gridLabel: 'Mechanical' },
+  { key: 'busAccessories', label: 'BUS ACCESSORIES', short: 'Ac', busCategory: 'BUS_ACCESSORIES', gridLabel: 'Accessories' },
+  { key: 'busElectrical', label: 'BUS ELECTRICAL', short: 'El', busCategory: 'BUS_ELECTRICAL', gridLabel: 'Electrical' },
+  { key: 'busQa', label: 'BUS QA', short: 'QA', busCategory: 'BUS_QA', gridLabel: 'QA' },
+  { key: 'busPit', label: 'BUS PIT', short: 'Pi', busCategory: 'BUS_PIT', gridLabel: 'Pit' },
+].map(def => Object.freeze(def)));
+const PDC_BUS_CATEGORY_BY_KEY = new Map(PDC_BUS_CATEGORY_DEFS.map(def => [def.key, def]));
+
+function pdcJobDefsForDepartment(department = '') {
+  const dept = String(department ?? '').trim();
+  const base = pdcJobDefsPartsFirst();
+  if (dept === '139') return base.filter(def => def.key !== 'bus4x4');
+  if (dept === '138') return ['parts', ...PDC_BUS_CATEGORY_DEFS.map(def => def.key), 'tint', 'tyre', 'sublet']
+    .map(key => PDC_JOB_BY_KEY.get(key) || PDC_BUS_CATEGORY_BY_KEY.get(key)).filter(Boolean);
+  return base;
+}
+
+// The Vehicle Locations table asks for its columns here (it follows the Department filter); every other screen keeps
+// pdcJobDefsPartsFirst.
+function pdcVehicleLocationsStationDefs() {
+  return pdcJobDefsForDepartment(typeof incomingDepartmentFilterValue === 'function' ? incomingDepartmentFilterValue() : '');
+}
+
+// r799: per-category state for one car. Lines come from the car's own operation lines (instant) and the server tally
+// (ticks, overrides, bookings) once list_station_icon_completion_578 has answered.
+function busCategoryState(vehicle = {}, def = {}) {
+  const category = String(def?.busCategory || '').toUpperCase();
+  const empty = { required: false, complete: false, booked: false, stoppage: false, stoppageReason: '', total: 0, done: 0, override: false, by: '', at: '' };
+  if (!category) return empty;
+  const id = typeof pmbArrivalVehicleId === 'function' ? pmbArrivalVehicleId(vehicle) : String(vehicle?.id || '');
+  const row = id && typeof app !== 'undefined' && app?.busCategoryCompletion instanceof Map ? app.busCategoryCompletion.get(String(id))?.[category] : null;
+  const lines = Array.isArray(vehicle?.pdcQcOperationLines) ? vehicle.pdcQcOperationLines : [];
+  const own = lines.filter(line => line && line.active !== false && line.rejected !== true
+    && String(line.workCategory || line.work_category || '').toUpperCase() === category).length;
+  if (!row) return { ...empty, required: own > 0, total: own };
+  return {
+    required: Number(row.total) > 0 || own > 0,
+    complete: row.complete === true,
+    booked: row.booked === true && row.complete !== true,
+    stoppage: row.stoppage === true && row.complete !== true,
+    stoppageReason: String(row.stoppageReason || ''),
+    total: Number(row.total) || own,
+    done: Number(row.done) || 0,
+    override: row.override === true,
+    by: String(row.by || ''),
+    at: String(row.at || ''),
+  };
+}
+
+function busCategoryCheckHtml(vehicle = {}, def = {}) {
+  const state = busCategoryState(vehicle, def);
+  const label = pdcGridJobLabel(def);
+  const classes = ['incoming-work-check', `pdc-station-${def.key}`];
+  let marker = '–'; let word = 'not required';
+  if (state.complete) { classes.push('is-required', 'is-complete'); marker = '✓'; word = 'complete'; }
+  else if (state.required && state.stoppage) { classes.push('is-required', 'is-blocked'); marker = '!'; word = 'STOPPAGE'; }
+  else if (state.required && state.booked) { classes.push('is-required', 'is-booked'); marker = '!'; word = 'booked'; }
+  else if (state.required) { classes.push('is-required'); marker = '•'; word = 'required'; }
+  else classes.push('is-not-required');
+  const count = state.total ? ` · ${state.done} of ${state.total} lines ticked` : '';
+  const title = state.complete
+    ? (state.override ? `${label} complete (override by ${state.by || 'controller'})${count}` : `${label} complete${count}`)
+    : state.stoppage ? `${label} STOPPAGE${state.stoppageReason ? `: ${state.stoppageReason}` : ''}${count}`
+    : state.booked ? `${label} booked${count}` : state.required ? `${label} required${count}` : `${label} not required`;
+  return `<span class="${classes.join(' ')}" title="${escapeHtml(title)}" aria-label="${escapeHtml(`${label} ${word}`)}">
+      <span class="incoming-work-box" aria-hidden="true">${marker}</span>
+      <span class="incoming-work-label">${escapeHtml(label)}</span>
+    </span>`;
+}
+
 
 const PDC_GRID_JOB_LABELS = {
   parts: 'Parts',
@@ -1395,7 +1474,7 @@ const PDC_GRID_JOB_LABELS = {
 };
 
 function pdcGridJobLabel(def = {}) {
-  return PDC_GRID_JOB_LABELS[def.key] || def.label || def.key || 'Station';
+  return PDC_GRID_JOB_LABELS[def.key] || def.gridLabel || def.label || def.key || 'Station';
 }
 
 function pdcGridCompletedJobsText(vehicle = {}) {
@@ -1483,7 +1562,7 @@ function productionGridHeaderHtml(className = '', options = {}) {
       <span class="pdc-grid-action-heading workflow-header-actions"><span>${escapeHtml(actionLabel)}</span>${hasColumnFilters ? '<button type="button" data-workflow-clear-column-filters>Clear</button>' : ''}</span>
     </div>`;
   }
-  const stationHeaders = pdcJobDefsPartsFirst().map(def => {
+  const stationHeaders = (Array.isArray(options.stationDefs) ? options.stationDefs : pdcJobDefsPartsFirst()).map(def => { // r799: Vehicle Locations passes dept columns
     const label = pdcGridJobLabel(def);
     return `<span class="pdc-grid-station-heading pdc-grid-station-${escapeHtml(def.key)}" title="${escapeHtml(label)}"><span>${escapeHtml(label)}</span></span>`;
   }).join('');
@@ -9060,10 +9139,12 @@ function ensurePmbKeyAssigned() {
 
 function stationIconCompletionSignature() {
   const map = app.stationIconCompletion instanceof Map ? app.stationIconCompletion : new Map();
+  const cats = app.busCategoryCompletion instanceof Map ? app.busCategoryCompletion : new Map(); // r799: category rows redraw too
+  const catBits = [...cats.entries()].map(([id, row]) => `${id}#${Object.keys(row || {}).sort().map(key => `${key}:${row[key].done}/${row[key].total}${row[key].complete ? 'c' : ''}${row[key].booked ? 'b' : ''}${row[key].stoppage ? 's' : ''}`).join(',')}`);
   return [...map.entries()].map(([id, row]) => {
     const bits = Object.keys(row || {}).sort().map(key => `${key}:${row[key]?.override ? 'o' : 'l'}:${row[key]?.by || ''}`);
     return `${id}|${bits.join(',')}`;
-  }).sort().join('\n');
+  }).concat(catBits).sort().join('\n');
 }
 
 function storeStationIconCompletion(ids, stations, startedAt = 0) {
@@ -9076,9 +9157,23 @@ function storeStationIconCompletion(ids, stations, startedAt = 0) {
   });
   requested.forEach(id => app.stationIconCompletion.delete(id));
   const grouped = new Map();
+  // r799 (F409): category rows (work_key 'bus4x4:<category>') feed the Department 138 columns and never the station map.
+  if (!(app.busCategoryCompletion instanceof Map)) app.busCategoryCompletion = new Map();
+  requested.forEach(id => app.busCategoryCompletion.delete(id));
   (Array.isArray(stations) ? stations : []).forEach(row => {
     const id = String(row?.vehicle_id || '');
-    if (!requested.has(id) || row?.complete !== true || !row.work_key || row.work_key === 'pitInspection') return;
+    if (!requested.has(id) || !row?.work_key || !String(row.work_key).startsWith('bus4x4:')) return;
+    const category = String(row.category || String(row.work_key).slice('bus4x4:'.length)).toUpperCase();
+    if (!app.busCategoryCompletion.has(id)) app.busCategoryCompletion.set(id, {});
+    app.busCategoryCompletion.get(id)[category] = {
+      total: Number(row.total) || 0, done: Number(row.done) || 0, complete: row.complete === true,
+      booked: row.booked === true, stoppage: row.stoppage === true, stoppageReason: row.stoppage_reason || '',
+      override: row.override === true, by: row.override === true ? String(row.override_email || 'controller') : '', at: row.acted_at || '',
+    };
+  });
+  (Array.isArray(stations) ? stations : []).forEach(row => {
+    const id = String(row?.vehicle_id || '');
+    if (!requested.has(id) || row?.complete !== true || !row.work_key || row.work_key === 'pitInspection' || String(row.work_key).startsWith('bus4x4:')) return;
     if (!grouped.has(id)) grouped.set(id, {});
     grouped.get(id)[row.work_key] = {
       complete: true,
@@ -9968,7 +10063,8 @@ function incomingWorkChecklistHtml(vehicle = {}, options = {}) {
     .filter(entry => String(entry?.status || '').toLowerCase() === 'stoppage')
     .map(entry => [normalizePmbStage(entry.stage), entry]));
 
-  return `<div class="incoming-work-checks pdc-station-strip" data-workshop-booking-required="${bookingWarning ? 'true' : 'false'}" aria-label="Required work stations${bookingWarning ? '; workshop booking incomplete' : ''}"${bookingWarning ? ' title="One or more required PMB workshop departments are not booked"' : ''}>${pdcJobDefsPartsFirst().map(def => {
+  return `<div class="incoming-work-checks pdc-station-strip" data-workshop-booking-required="${bookingWarning ? 'true' : 'false'}" aria-label="Required work stations${bookingWarning ? '; workshop booking incomplete' : ''}"${bookingWarning ? ' title="One or more required PMB workshop departments are not booked"' : ''}>${(Array.isArray(options.stationDefs) ? options.stationDefs : pdcJobDefsPartsFirst()).map(def => {
+    if (def.busCategory) return busCategoryCheckHtml(vehicle, def); // r799: Department 138 category columns
     const required = pdcJobRequired(vehicle, def);
     const signedOff = pdcJobComplete(vehicle, def);
     const linesComplete = signedOff ? false : (typeof pdcStationLinesMakeComplete === 'function' && pdcStationLinesMakeComplete(vehicle, def));
@@ -10105,7 +10201,7 @@ function incomingVehicleDetailRow(vehicle = {}, bucketKey = '', options = {}) {
     available: options.workshopProjectionAvailable,
     plans: options.workshopPlans,
   });
-  const workChecks = incomingWorkChecklistHtml(vehicle, { stationTransfer: (bucketKey === 'pmb' || bucketKey === 'newpmb') && options.stationTransfer !== false, bookingProjection, subletNavigation: options.subletNavigation === true });
+  const workChecks = incomingWorkChecklistHtml(vehicle, { stationDefs: options.stationDefs, stationTransfer: (bucketKey === 'pmb' || bucketKey === 'newpmb') && options.stationTransfer !== false, bookingProjection, subletNavigation: options.subletNavigation === true });
   const stage = inferredPmbStage(vehicle);
   const rowStatus = incomingGridStatusLabel(vehicle, bucketKey, { bookingProjection });
   const subletProvider = pmbBaySubletProvider(vehicle);
