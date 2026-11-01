@@ -316,9 +316,14 @@
   // '' = All vehicles, STOPPAGES, or a bucket key). Without search text the person's own tile applies, exactly as before.
   // r685 (F295, Craig 29 Oct): click a station heading (Tint, Elec ...) to show only vehicles that still need that station:
   // required and not complete (red, orange/booked/ordered or STOPPAGE). Grey (not required) and green (done) are hidden.
+  // r799 (F409): the columns follow the Department filter (app.js pdcVehicleLocationsStationDefs); tests pass the plain list.
+  function stationDefs(deps = root) {
+    if (typeof deps.pdcVehicleLocationsStationDefs === 'function') return deps.pdcVehicleLocationsStationDefs();
+    return typeof deps.pdcJobDefsPartsFirst === 'function' ? deps.pdcJobDefsPartsFirst() : [];
+  }
   function stationNeeds(vehicle, stationKey, deps = root) {
     if (!stationKey) return true;
-    const def = (typeof deps.pdcJobDefsPartsFirst === 'function' ? deps.pdcJobDefsPartsFirst() : []).find(item => item.key === stationKey);
+    const def = stationDefs(deps).find(item => item.key === stationKey);
     if (!def || typeof deps.pdcJobRequired !== 'function' || typeof deps.pdcJobComplete !== 'function') return true;
     try { return Boolean(deps.pdcJobRequired(vehicle, def)) && !stationTicked(vehicle, def, deps); } catch (_) { return true; }
   }
@@ -327,17 +332,18 @@
   // green but still passed the red "needs" filter.
   function stationTicked(vehicle, def, deps = root) {
     if (deps.pdcJobComplete(vehicle, def)) return true;
+    if (def.busCategory) return false; // r799: a category is complete only by its own lines (pdcJobComplete above)
     return typeof deps.pdcStationLinesMakeComplete === 'function' && Boolean(deps.pdcStationLinesMakeComplete(vehicle, def));
   }
   function stationLabel(stationKey, deps = root) {
-    const def = (typeof deps.pdcJobDefsPartsFirst === 'function' ? deps.pdcJobDefsPartsFirst() : []).find(item => item.key === stationKey);
+    const def = stationDefs(deps).find(item => item.key === stationKey);
     return def && typeof deps.pdcGridJobLabel === 'function' ? deps.pdcGridJobLabel(def) : (def?.label || stationKey);
   }
 
   // r792 (F401, Craig 1 Nov 2026 06:59): each station heading cycles red (still needs it) -> green (complete) -> off. Several
   // headings combine (all must match), e.g. green on every station but red on Fab = cars waiting only on Fab.
   function stationDone(vehicle, stationKey, deps = root) {
-    const def = (typeof deps.pdcJobDefsPartsFirst === 'function' ? deps.pdcJobDefsPartsFirst() : []).find(item => item.key === stationKey);
+    const def = stationDefs(deps).find(item => item.key === stationKey);
     if (!def || typeof deps.pdcJobRequired !== 'function' || typeof deps.pdcJobComplete !== 'function') return true;
     try { return stationTicked(vehicle, def, deps); } catch (_) { return true; } // r795: green = shows a green tick
   }
@@ -415,7 +421,7 @@
     return { alert: parts.length > 0, count: missing.length + zero.length + dups.reduce((n, d) => n + d.stocks.length, 0), missing, zero, dups, text: parts.join(' · ') };
   }
 
-  const api = { VERSION, VIEWS, pmbKeyAlert, stationNeeds, stationTicked, stationDone, nextStationMode, stationFilterMatch, DROPDOWN_VIEW_ENABLED, JOURNEY, TILE, STORAGE_PREFIX, topLevelElements, splitCard, tableRowHtml, journeyOrder, storageKey, readView, writeView,
+  const api = { VERSION, VIEWS, pmbKeyAlert, stationDefs, stationNeeds, stationTicked, stationDone, nextStationMode, stationFilterMatch, DROPDOWN_VIEW_ENABLED, JOURNEY, TILE, STORAGE_PREFIX, topLevelElements, splitCard, tableRowHtml, journeyOrder, storageKey, readView, writeView,
     STOPPAGES, searchScope, departmentElsewhere, locationSearchSummaryLabel, COLUMNS, COLUMN_MAX, COLUMN_STORAGE_PREFIX, SEL_WIDTH, extractPartsLocation, extractPartsEta, comparePartsLocation, columnStorageKey, sanitizeWidths, readWidths, writeWidths, resetWidths, widthStyle, layoutWidths };
   if (typeof module === 'object' && module.exports) module.exports = api;
   if (!root || !root.document || typeof root.renderIncomingDashboardBoard !== 'function' || root.PDC_VEHICLE_LOCATIONS_TABLE) {
@@ -439,7 +445,7 @@
     if (doc.querySelector('link[data-pdc-vehicle-locations-table]')) return;
     const link = doc.createElement('link');
     link.rel = 'stylesheet';
-    link.href = `pdc-vehicle-locations-table.css?vehicle-locations-table=${VERSION}&r622=2026.10.28.r622&r672=2026.10.28.r672&r685=2026.10.29.r685&r693=2026.10.29.r693&r694=2026.10.29.r694&r792=2026.11.01.r792&r795=2026.11.01.r795`; // r672 (F281) red PMB key alert; r622 (F237): new Parts ETA and Pit cell styles
+    link.href = `pdc-vehicle-locations-table.css?vehicle-locations-table=${VERSION}&r622=2026.10.28.r622&r672=2026.10.28.r672&r685=2026.10.29.r685&r693=2026.10.29.r693&r694=2026.10.29.r694&r792=2026.11.01.r792&r795=2026.11.01.r795&r799=2026.11.01.r799`; // r672 (F281) red PMB key alert; r622 (F237): new Parts ETA and Pit cell styles
     link.dataset.pdcVehicleLocationsTable = '1';
     doc.head.appendChild(link);
   }
@@ -732,6 +738,8 @@
       ? root.vehicleLocationsDisplayBuckets(vehicle)
       : [typeof root.vehicleLocationsDisplayBucket === 'function' ? root.vehicleLocationsDisplayBucket(vehicle) : root.incomingBucketForVehicle(vehicle)];
     // r685 (F295): the station heading filter narrows the tiles and the table together.
+    const columns = stationDefs(); // r799: dept-aware station columns; a heading filter from another department's columns is dropped
+    Object.keys(state.stations).forEach(key => { if (!columns.some(def => def.key === key)) delete state.stations[key]; });
     const stationOn = Object.keys(state.stations).length > 0; // r792: red/green/off per heading, combined
     const stationRows = stationOn ? filteredRows.filter(vehicle => stationFilterMatch(vehicle, state.stations)) : filteredRows;
     const counts = new Map();
@@ -750,7 +758,7 @@
     const scope = searchScope({ entries, bucket: state.bucket, stoppages: state.stoppages, needle, pick: state.search.pick, order });
     const elsewhere = needle ? searchElsewhere(rows, filters, filteredRows, matchesSearch, rank) : [];
     const tileName = key => (key === STOPPAGES ? 'STOPPAGES' : TILE[key]?.[0] || root.incomingBucketLabel(key) || key);
-    const cardFor = entry => root.incomingVehicleDetailRow(entry.vehicle, entry.bucket, { workshopPlans, workshopProjectionAvailable, subletNavigation: true });
+    const cardFor = entry => root.incomingVehicleDetailRow(entry.vehicle, entry.bucket, { workshopPlans, workshopProjectionAvailable, subletNavigation: true, stationDefs: columns });
     const shown = entries
       .filter(entry => (!scope.bucket || entry.bucket === scope.bucket) && (!scope.stoppages || stoppageKeys.has(entry.key)))
       .filter(entry => scope.bucket || entry.bucket !== 'newpmb' || !entries.some(other => other.key === entry.key && other.bucket === 'pmb'))
@@ -825,7 +833,7 @@
           <tbody>${bodyHtml}</tbody></table></div>
       </section>`;
     const holder = doc.createElement('div');
-    holder.innerHTML = root.productionGridHeaderHtml('incoming-production-grid-header', { actionLabel: 'Booking', incomingSort: sort });
+    holder.innerHTML = root.productionGridHeaderHtml('incoming-production-grid-header', { actionLabel: 'Booking', incomingSort: sort, stationDefs: columns });
     const stations = holder.querySelector('.pdc-grid-stations-heading');
     if (stations) {
       // r685 (F295): each station heading toggles the "needs this station" filter.
@@ -1039,7 +1047,7 @@
     const workshopPlans = workshopProjectionAvailable && typeof root.workshopLoadPlans === 'function' ? root.workshopLoadPlans() : null;
     const esc = value => root.escapeHtml(String(value ?? ''));
     const tile = TILE[bucket] || [bucket, '', 'unknown', String(bucket || '').toUpperCase()];
-    const card = root.incomingVehicleDetailRow(vehicle, bucket, { workshopPlans, workshopProjectionAvailable, subletNavigation: true })
+    const card = root.incomingVehicleDetailRow(vehicle, bucket, { workshopPlans, workshopProjectionAvailable, subletNavigation: true, stationDefs: stationDefs() })
       .replace('<details class="incoming-vehicle-card', '<details open class="incoming-vehicle-card vlt-drawer-card');
     drawer.innerHTML = `<div class="vlt-drawer-head"><div><span class="vlt-pill ${esc(tile[2])}">${esc(tile[3])}</span><h3>${esc(root.displayStockNumber(vehicle) || key)}</h3><p>${esc(root.displayVehicle(vehicle) || '')}</p></div><button type="button" class="small-button" data-vlt-close>Close</button></div>
       <div class="vlt-drawer-body">${card}</div>`;
