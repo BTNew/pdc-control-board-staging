@@ -85,8 +85,11 @@ if (typeof window !== 'undefined') (function () {
     const sections = [
       ['archived', 'Completing (off the board)', 'Not on the Revolution open-RO list and no Navision record. Completed; planned bookings go back to the queue.', true],
       ['leaving_tagged', 'Staying, tagged "not on Revolution list"', 'Not on the Revolution open-RO list but still on Navision. Stays until Navision shows Delivered to Dealer or drops the car.', true],
-      ['new', 'Coming onto the board', 'Not on the board yet.', true],
-      ['updated', 'Changed', 'Already imported; at least one line changed since the last import.', true],
+      // r802 (F417): deal items and parts are not board cars; name the buckets for what the report does.
+      ['new', payload.kind === 'service_whole' || !payload.kind ? 'Coming onto the board' : 'New in this report', payload.kind === 'service_whole' || !payload.kind ? 'Not on the board yet.' : 'Not in the last import of this report.', true],
+      ['updated', 'Changed', payload.kind === 'cw_parts' ? 'Parts status changed since the last import.' : 'Already imported; at least one line changed since the last import.', true],
+      ['stays_off', 'Staying off the board', 'Not on the board and held by every earlier import (completed, delivered or needs a restore). The import leaves these alone.', false],
+      ['skipped_last', 'Not on Navision (skipped)', 'The importer skipped these last time: the stock is not on this dealer\'s current Navision.', false],
       ['held_before', 'Held last time, retrying', 'Not applied by the last import (staff-locked hours, review or identity holds). Tried again; usually held again.', false],
       ['awaiting_approval', 'Imported, waiting on New Vehicles', 'Already imported and unchanged; approve them on the New Vehicles page.', false],
       ['unchanged', 'Unchanged', 'Line-for-line what the last import applied. The server skips these.', false],

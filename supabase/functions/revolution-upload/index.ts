@@ -79,6 +79,7 @@ Deno.serve(async (req) => {
   if (action === 'apply' && OTHER_781.has(parsed.kind)) return await applyOther781(projectUrl, auth, bytes, filename, parsed, result, uploader);
   if (action === 'apply') return await applyService(projectUrl, auth, bytes, filename, parsed, result, board.board, uploader);
   if (parsed.kind === 'service_whole') await previewDelta773(projectUrl, auth, bytes, filename, parsed, result, board.board, uploader);
+  if (OTHER_781.has(parsed.kind)) await previewOther802(projectUrl, auth, parsed, result);
   const body = {
     ...result,
     apply_enabled: parsed.kind === 'service_whole' || OTHER_781.has(parsed.kind),
@@ -265,24 +266,27 @@ async function previewDelta773(projectUrl, auth, bytes, filename, parsed, result
     const heldBefore = new Set((compared.held_before || []).map(up));
     const seenBefore = (stock) => unchanged.has(up(stock)) || changed.has(up(stock));
     const changes = result.changes || {};
-    const keepUpdated = []; const nowUnchanged = []; const retrying = []; const awaiting = []; const stillNew = [];
+    const keepUpdated = []; const nowUnchanged = []; const retrying = []; const awaiting = []; const stillNew = []; const staysOff = [];
     for (const entry of changes.updated || []) {
       if (unchanged.has(up(entry.stock))) nowUnchanged.push(entry);
       else if (heldBefore.has(up(entry.stock))) retrying.push(entry);
       else keepUpdated.push(entry);
     }
-    for (const entry of changes.new || []) (seenBefore(entry.stock) ? awaiting : stillNew).push(entry);
+    // r802 (F417): a stock off the board that every earlier apply held (completed, delivered, needs restore) stays off; it is not new.
+    for (const entry of changes.new || []) (seenBefore(entry.stock) ? awaiting : heldBefore.has(up(entry.stock)) ? staysOff : stillNew).push(entry);
     changes.updated = keepUpdated;
     changes.unchanged = [...(changes.unchanged || []), ...nowUnchanged];
     changes.held_before = retrying;
     changes.awaiting_approval = awaiting;
     changes.new = stillNew;
+    changes.stays_off = staysOff;
     result.changes = changes;
     result.counts.updated = keepUpdated.length;
     result.counts.unchanged = changes.unchanged.length;
     result.counts.new = stillNew.length;
     result.counts.held_before = retrying.length;
     result.counts.awaiting_approval = awaiting.length;
+    result.counts.stays_off = staysOff.length;
     // r777 (F381): split "leaving the board" by what the server will do.
     const leaving = Array.isArray(changes.archived) ? changes.archived : [];
     if (leaving.length) {
@@ -296,7 +300,42 @@ async function previewDelta773(projectUrl, auth, bytes, filename, parsed, result
       }
     }
     result.delta = { ok: true, since: 'last OK apply', unchanged: unchanged.size, changed: changed.size, held_before: heldBefore.size, first_time: (compared.first_time || []).length, held_in_file: prepared.holds.length };
-    result.summary = `${stillNew.length} new, ${keepUpdated.length} changed, ${retrying.length} held last time (retrying), ${changes.unchanged.length} unchanged, ${awaiting.length} awaiting approval, ${result.counts.archived || 0} completing, ${result.counts.leaving_tagged || 0} staying tagged`;
+    result.summary = `${stillNew.length} new, ${keepUpdated.length} changed, ${retrying.length} held last time (retrying), ${staysOff.length} staying off the board, ${changes.unchanged.length} unchanged, ${awaiting.length} awaiting approval, ${result.counts.archived || 0} completing, ${result.counts.leaving_tagged || 0} staying tagged`;
+  } catch (error) {
+    result.delta = { ok: false, error: error instanceof Error ? error.message : 'delta_unavailable' };
+  }
+}
+
+// r802 (F417): Craig 1 Nov 12:04 "Shouldnt it just tell me whats changing?". CW parts and deal items: compare each RO / stock with
+// the rows of the last good apply of the same report, so a file that matches the last one shows nothing changing.
+async function previewOther802(projectUrl, auth, parsed, result) {
+  try {
+    const delta = await rpcAs(projectUrl, auth, 'revolution_upload_other_delta_802', { p_kind: parsed.kind, p_rows: parsed.rows });
+    if (delta.ok !== true || !Array.isArray(delta.unchanged)) { result.delta = { ok: false, error: delta.error || 'delta_unavailable' }; return; }
+    if (!delta.since) { result.delta = { ok: true, since: null }; return; }
+    const up = (value) => String(value || '').trim().toUpperCase();
+    const unchanged = new Set(delta.unchanged.map(up));
+    const skippedLast = new Set((delta.skipped_last || []).map(up));
+    const changes = result.changes || {};
+    const keyOf = (entry) => up(entry.stock || entry.ro);
+    const moved = { updated: [], unchanged: [...(changes.unchanged || [])], new: [], skipped_last: [] };
+    for (const entry of changes.updated || []) (unchanged.has(keyOf(entry)) ? moved.unchanged : moved.updated).push(entry);
+    for (const entry of changes.new || []) {
+      if (skippedLast.has(keyOf(entry))) moved.skipped_last.push(entry);
+      else if (unchanged.has(keyOf(entry))) moved.unchanged.push(entry);
+      else moved.new.push(entry);
+    }
+    Object.assign(changes, moved);
+    result.changes = changes;
+    result.counts.updated = moved.updated.length;
+    result.counts.unchanged = moved.unchanged.length;
+    result.counts.new = moved.new.length;
+    result.counts.skipped_last = moved.skipped_last.length;
+    result.delta = { ok: true, since: delta.since, unchanged: unchanged.size, changed: (delta.changed || []).length, first_time: (delta.first_time || []).length };
+    const errors = (result.errors || []).length;
+    result.summary = parsed.kind === 'cw_parts'
+      ? `${moved.updated.length} job cards changed, ${moved.unchanged.length} unchanged, ${result.counts.skipped || 0} not on the board, errors ${errors}`
+      : `${moved.new.length} new, ${moved.updated.length} changed, ${moved.unchanged.length} unchanged, ${moved.skipped_last.length} not on Navision (skipped last time), errors ${errors}`;
   } catch (error) {
     result.delta = { ok: false, error: error instanceof Error ? error.message : 'delta_unavailable' };
   }
