@@ -24,10 +24,10 @@ test('random temporary PINs always pass the rule', () => {
 test('Craig 06:33: username is the Tune mechanic ID, first password is initials then mechanic ID', () => {
   assert.equal(L.initials('Mudassar Rasheed'), 'MR');
   assert.equal(L.initials('Chelsea Rees # 2'), 'CR');
-  assert.equal(L.defaultTempPassword('Mudassar Rasheed', '2686'), 'MR2686');
+  assert.equal(L.defaultTempPassword('Mudassar Rasheed', '2686'), '2686', 'Craig 07:30: first PIN is the fitter number');
   assert.equal(L.defaultTempPassword('Mudassar Rasheed', ''), '', 'no Tune ID, no default');
   assert.match(sql, /username text NOT NULL UNIQUE CHECK \(username ~ '\^\[0-9\]\{2,6\}\$'\)/);
-  assert.match(sql, /extensions\.crypt\(v_ini \|\| t\.code, extensions\.gen_salt\('bf', 8\)\), true/, 'bulk logins start with initials+ID and must change');
+  assert.match(sql, /extensions\.crypt\(t\.code, extensions\.gen_salt\('bf', 8\)\), true/, 'bulk logins start with the fitter number and must change');
   assert.equal(F.fitterPinProblem('MR2686'), 'pin_format', 'initials+ID is never accepted as the fitter\'s own PIN');
 });
 
@@ -37,7 +37,7 @@ test('sign-in screen: names, then a masked password box and PIN pad', () => {
   assert.match(pick, /Mudassar Rasheed/);
   const pin = F.fitterLoginGateHtml({ mode:'pin', username:'2686', name:'Mudassar', pin:'MR2686', newPin:null });
   assert.match(pin, /<input type="password"[^>]*data-fitter-pin-input/);
-  assert.match(pin, /initials then your mechanic ID/);
+  assert.match(pin, /Your PIN is your fitter number/);
   assert.match(pin, /data-fitter-pin-ok(?![^>]*disabled)/);
   const short = F.fitterLoginGateHtml({ mode:'pin', username:'2686', pin:'25', newPin:null });
   assert.match(short, /data-fitter-pin-ok[^>]*disabled/);
@@ -91,7 +91,7 @@ test('admin panel: Tune ID usernames, initials+ID first passwords, one-button cr
   assert.match(out, /Temporary PIN · not signed in yet/);
   assert.match(out, /No login/);
   assert.match(out, /value="2401"/);
-  assert.match(out, /value="JT2401"/);
+  assert.equal((out.match(/value="2401"/g) || []).length, 2, 'ID and first PIN both prefilled');
   assert.match(out, /must pick their own 4 to 6 number PIN/);
   assert.match(out, /data-fitter-login-bulk/);
   assert.match(out, /1 without a Tune ID/);

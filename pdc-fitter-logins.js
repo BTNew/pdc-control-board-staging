@@ -8,7 +8,7 @@
     technician_not_found:'That mechanic is not active any more.',
     username_format:'The username is the Tune mechanic ID: 2 to 6 numbers (for example 2686).',
     username_taken:'Another fitter already has that mechanic ID.',
-    pin_format:'The temporary password is initials then mechanic ID (MR2686), or a 4 to 6 number PIN.',
+    pin_format:'The first PIN is the fitter number (2 to 6 numbers), or a 4 to 6 number PIN.',
     pin_too_simple:'Pick a harder PIN: not all the same number and not a run like 1234.',
     login_not_found:'This fitter has no login yet.',
     no_fitter_logins:'Add at least one fitter login before switching sign-in on.',
@@ -19,9 +19,9 @@
   function initials(name) {
     return String(name || '').toUpperCase().replace(/[^A-Z ]/g, ' ').split(/\s+/).filter(Boolean).map(w => w[0]).join('').slice(0, 4);
   }
-  // Craig 2 Nov 06:33: username = Tune mechanic ID; first password = initials then mechanic ID (changed at first sign-in).
+  // Craig 2 Nov 07:30: the fitter taps their name; the first PIN is their fitter number (changed at first sign-in).
   function defaultTempPassword(name, id) {
-    return /^[0-9]{2,6}$/.test(String(id || '')) && initials(name) ? initials(name) + id : '';
+    return /^[0-9]{2,6}$/.test(String(id || '')) ? String(id) : '';
   }
   // A random temporary PIN that passes the PIN rule.
   function randomPin(rand = Math.random) {
@@ -49,20 +49,20 @@
       return `<tr data-fitter-login-row="${esc(t.technician_id)}">
         <td><strong>${esc(t.name)}</strong>${t.timed_jobs_14d ? `<small class="fitter-logins-used">${esc(t.timed_jobs_14d)} timed items, 14 days</small>` : ''}</td>
         <td><input aria-label="Tune mechanic ID for ${esc(t.name)}" data-fitter-login-initials value="${esc(id)}" inputmode="numeric" maxlength="6" size="6" autocomplete="off" placeholder="ID"></td>
-        <td><input aria-label="Temporary password for ${esc(t.name)}" data-fitter-login-pin value="${esc(temp)}" maxlength="10" size="9" autocomplete="off" placeholder="${t.username ? 'reset to' : 'MR2686'}"><button type="button" data-fitter-login-random title="Initials then mechanic ID">Default</button></td>
+        <td><input aria-label="Temporary password for ${esc(t.name)}" data-fitter-login-pin value="${esc(temp)}" maxlength="10" size="9" autocomplete="off" placeholder="${t.username ? 'reset to' : 'fitter no.'}"><button type="button" data-fitter-login-random title="Fitter number">Default</button></td>
         <td>${esc(statusText(t))}${t.last_sign_in ? `<small>Last in ${esc(new Date(t.last_sign_in).toLocaleString('en-AU', { timeZone:'Australia/Perth', day:'numeric', month:'short', hour:'numeric', minute:'2-digit' }))}</small>` : ''}</td>
         <td class="fitter-logins-actions"><button type="button" data-fitter-login-save ${state.busy ? 'disabled' : ''}>${t.username ? 'Reset PIN' : 'Create login'}</button>
           ${t.username ? `<button type="button" data-fitter-login-active="${t.active === false ? '1' : '0'}" ${state.busy ? 'disabled' : ''}>${t.active === false ? 'Enable' : 'Disable'}</button>` : ''}
           ${state.rowMessage[t.technician_id] ? `<small role="status">${esc(state.rowMessage[t.technician_id])}</small>` : ''}</td></tr>`;
     }).join('');
     return `<section class="fitter-logins" aria-label="Fitter logins"><h2>Fitter logins</h2>
-      <p>Each fitter signs in on the tablet with their Tune mechanic ID. The first password is their initials then mechanic ID (for example MR2686). Anyone could work that out, so at first sign-in the fitter must pick their own 4 to 6 number PIN.</p>
+      <p>Each fitter taps their name on the tablet. Their first PIN is their fitter number. Anyone could work that out, so at first sign-in the fitter must pick their own 4 to 6 number PIN.</p>
       <p><button type="button" data-fitter-login-bulk ${state.busy ? 'disabled' : ''}>Create logins for every mechanic with a Tune ID</button> ${techs.filter(t => !t.username && !/^[0-9]{2,6}$/.test(String(t.code || ''))).length ? `<small>${techs.filter(t => !t.username && !/^[0-9]{2,6}$/.test(String(t.code || ''))).length} without a Tune ID: type their ID in the row.</small>` : ''}</p>
       <div class="fitter-logins-switch"><label><input type="checkbox" data-fitter-login-required ${p.required ? 'checked' : ''} ${state.busy ? 'disabled' : ''}> Fitter sign-in required on the Fitters bay</label>
         <label>Sign out after <input type="number" min="2" max="60" data-fitter-login-idle value="${esc(p.idle_minutes || 10)}"> idle minutes</label>
         <span>${withLogin} of ${techs.length} mechanics have a login.${p.required ? ' Sign-in is ON: fitters without a login cannot record work.' : ' Sign-in is OFF: the tablets still use the name list.'}</span></div>
       ${state.message ? `<p class="fitter-logins-msg" role="status">${esc(state.message)}</p>` : ''}
-      <div class="fitter-logins-table"><table><thead><tr><th>Mechanic</th><th>Tune ID</th><th>Temporary password</th><th>Status</th><th></th></tr></thead><tbody>${rows}</tbody></table></div></section>`;
+      <div class="fitter-logins-table"><table><thead><tr><th>Mechanic</th><th>Tune ID</th><th>First PIN</th><th>Status</th><th></th></tr></thead><tbody>${rows}</tbody></table></div></section>`;
   }
 
   const api = { initials, defaultTempPassword, randomPin, statusText, panelHtml, MESSAGES };
@@ -127,7 +127,7 @@
       let result = null;
       void act(async () => { result = await rpc('admin_create_fitter_logins_from_tune_816'); }, () => {
         const skipped = (result?.skipped || []).length;
-        state.message = `${result?.created || 0} logins created (password: initials then mechanic ID).${skipped ? ` ${skipped} skipped: add their Tune ID in the row.` : ''}`;
+        state.message = `${result?.created || 0} logins created (first PIN: their fitter number).${skipped ? ` ${skipped} skipped: add their Tune ID in the row.` : ''}`;
       });
     });
     h.querySelectorAll('[data-fitter-login-active]').forEach(b => b.addEventListener('click', () => {

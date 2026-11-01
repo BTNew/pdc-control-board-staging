@@ -3,9 +3,9 @@
 -- dont apply it yet until i get all the names etc.."
 -- Every timer on the Fitters bay records a technician, but the shared tablet logins let anyone pick any name, so the hours
 -- do not prove who did the work. 06:33: "lets use the mechanic ID which they get from TUNE as the username. password, use
--- there intials then mechanic ID?" Each fitter signs in on the tablet with their Tune mechanic ID. The first password is
--- their initials then mechanic ID (MR2686); because anyone can work that out, it is temporary: at first sign-in the fitter
--- picks their own 4 to 6 digit PIN (not a date of birth). An administrator creates the logins on the board (Bay Manager >
+-- there intials then mechanic ID?" 07:30: "maybe we use there name as the login and there fitter number as the pin number".
+-- The fitter taps their name; the first PIN is their fitter (Tune mechanic) number. Anyone can work that out, so it is
+-- temporary: at first sign-in the fitter picks their own 4 to 6 digit PIN (not a date of birth). An administrator creates the logins on the board (Bay Manager >
 -- Fitter logins; one button creates every mechanic that has a Tune ID). 5 wrong passwords lock the login for 5 minutes.
 -- A fitter is signed out after 10 idle minutes, or when signing in on another tablet.
 -- The Fitters bay write RPCs (job command, Later, send / undo send) refuse work without a signed-in fitter, and refuse work
@@ -98,11 +98,12 @@ BEGIN
 END $f$;
 REVOKE ALL ON FUNCTION public.pdc_fitter_pin_problem_816(text) FROM PUBLIC, anon, authenticated;
 
--- A temporary password is a good PIN, or initials then mechanic ID (MR2686). It must be changed at first sign-in.
+-- A temporary password is the fitter number (2 to 6 digits), initials then fitter number (MR2686), or a good PIN.
+-- It must be changed at first sign-in.
 CREATE FUNCTION public.pdc_fitter_temp_problem_816(p_temp text)
 RETURNS text LANGUAGE plpgsql IMMUTABLE SET search_path TO 'pg_catalog' AS $f$
 BEGIN
-  IF upper(btrim(coalesce(p_temp, ''))) ~ '^[A-Z]{1,4}[0-9]{2,6}$' THEN RETURN NULL; END IF;
+  IF upper(btrim(coalesce(p_temp, ''))) ~ '^([A-Z]{1,4})?[0-9]{2,6}$' THEN RETURN NULL; END IF;
   RETURN public.pdc_fitter_pin_problem_816(p_temp);
 END $f$;
 REVOKE ALL ON FUNCTION public.pdc_fitter_temp_problem_816(text) FROM PUBLIC, anon, authenticated;
@@ -306,7 +307,7 @@ BEGIN
 END $f$;
 
 -- One button: a login for every active mechanic with a Tune mechanic ID and no login yet.
--- Username = mechanic ID; temporary password = initials then mechanic ID (MR2686), changed at first sign-in.
+-- Username = mechanic ID; first PIN = the fitter number itself (Craig 07:30), changed at first sign-in.
 CREATE FUNCTION public.admin_create_fitter_logins_from_tune_816()
 RETURNS jsonb LANGUAGE plpgsql VOLATILE SECURITY DEFINER SET search_path TO 'pg_catalog', 'public' AS $f$
 DECLARE v_email text := public.current_actor_email(); t record; v_created integer := 0; v_skipped jsonb := '[]'::jsonb; v_ini text;
@@ -322,7 +323,7 @@ BEGIN
       v_skipped := v_skipped || jsonb_build_object('name', t.name, 'reason', 'username_taken'); CONTINUE;
     END IF;
     INSERT INTO public.pdc_fitter_logins_816(technician_id, username, pin_hash, must_change, created_by, updated_by)
-    VALUES (t.id, t.code, extensions.crypt(v_ini || t.code, extensions.gen_salt('bf', 8)), true, v_email, v_email);
+    VALUES (t.id, t.code, extensions.crypt(t.code, extensions.gen_salt('bf', 8)), true, v_email, v_email);
     INSERT INTO public.pdc_fitter_login_events_816(technician_id, username, event, device_user, actor_email)
     VALUES (t.id, t.code, 'created_from_tune', auth.uid(), v_email);
     v_created := v_created + 1;
@@ -416,6 +417,7 @@ SELECT public.pdc_fitter_pin_problem_816('1234') = 'pin_too_simple' AND public.p
    AND public.pdc_fitter_pin_problem_816('987654') = 'pin_too_simple' AND public.pdc_fitter_pin_problem_816('12a4') = 'pin_format'
    AND public.pdc_fitter_pin_problem_816('123') = 'pin_format' AND public.pdc_fitter_pin_problem_816('2580') IS NULL
    AND public.pdc_fitter_pin_problem_816('MR2686') = 'pin_format' AND public.pdc_fitter_temp_problem_816('mr2686') IS NULL
+   AND public.pdc_fitter_temp_problem_816('2345') IS NULL
    AND public.pdc_fitter_initials_816('Mudassar Rasheed') = 'MR' AND public.pdc_fitter_initials_816('Chelsea Rees # 2') = 'CR'
  AS ok, 'PIN rules hold' AS detail
 $chk$, true, 605, 'r816');

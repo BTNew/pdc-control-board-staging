@@ -259,7 +259,7 @@ const approvedRootImportPatch = Object.freeze({
   // r740: the key tag shows on the next job, later jobs and other active jobs too (Craig, 30 Oct 2026). Department 135 keeps its frozen pdc-fitters.js.
   // r741: one Complete button; unticked items stay open for the station (Craig, 30 Oct 2026). Department 135 keeps its frozen pdc-fitters.js.
   // 30 Oct 2026: Start shows the busy overlay while the server starts the job and pushes later jobs back. Department 135 is not tagged.
-  "pdc-fitters.js": "617bb5920cdb7a251182c9ab562196be1f08152dfb8bd2d6b8c17c677bccaaa1",
+  "pdc-fitters.js": "2c34072fb460a317bed676913fd3b25cb8794f545ef9a989095a7f4820a450f0",
   // Deliberate live-board change, 19 October 2026. Department 135 stays parked.
   // app.js keeps Setup backup polling, hoist-corrections=2026.10.19.02,
   // planner-followup=2026.10.19.01, and the Vehicle Locations summary that

@@ -128,7 +128,7 @@
     // r816 (F455): fitter initials + PIN sign-in.
     fitter_sign_in_required:'Sign in with your initials and PIN to record work.',
     fitter_not_this_mechanic:'You are signed in as a different fitter. Sign out and sign in as yourself.',
-    fitter_sign_in_failed:'That password is not right. Try again. (First time: your initials then your mechanic ID, for example MR2686.)',
+    fitter_sign_in_failed:'That PIN is not right. Try again. (First time: your PIN is your fitter number.)',
     fitter_locked:'Too many wrong passwords. This login is locked for 5 minutes.',
     fitter_pin_wrong:'Your current password is not right.',
     pin_format:'A PIN is 4 to 6 numbers.',
@@ -531,8 +531,8 @@
     if (/^(.)\1+$/.test(d) || '0123456789'.includes(d) || '9876543210'.includes(d)) return 'pin_too_simple';
     return '';
   }
-  // r816 (F455): the tablet sign-in: tap your name (Tune mechanic ID), then your PIN. The first password is initials then
-  // mechanic ID (MR2686); it is changed to the fitter's own PIN at first sign-in.
+  // r816 (F455): the tablet sign-in: tap your name, then your PIN. The first PIN is the fitter number (Craig 2 Nov 07:30);
+  // it is changed to the fitter's own PIN at first sign-in.
   function fitterLoginGateHtml(m) {
     const busy = m.busy ? 'disabled' : '';
     const dots = n => `<div class="fitter-pin-dots" aria-hidden="true">${Array.from({length:6},(_,i)=>`<span class="${i<n?'is-on':''}"></span>`).join('')}</div>`;
@@ -550,7 +550,7 @@
     if (m.mode === 'pin') {
       return `<section class="fitter-login" aria-label="Enter your PIN"><h2>${esc(m.name || m.username)}</h2><p>Mechanic ${esc(m.username)} · enter your PIN</p>
         ${error}<input type="password" class="fitter-pin-input" id="fitter-pin-input" data-fitter-pin-input value="${esc(m.pin)}" maxlength="12" autocomplete="off" autocapitalize="characters" spellcheck="false" aria-label="PIN or first-time password" ${busy}>
-        <p class="fitter-login-hint">First time? Type your initials then your mechanic ID, for example MR2686.</p>${pad}
+        <p class="fitter-login-hint">First time? Your PIN is your fitter number. You will then pick your own.</p>${pad}
         <div class="fitter-login-actions"><button type="button" class="fitter-primary" data-fitter-pin-ok ${busy||(m.pin.length<4?'disabled':'')}>${m.busy?'Signing in…':'Sign in'}</button>
         <button type="button" data-fitter-login-cancel ${busy}>Not me</button></div></section>`;
     }
