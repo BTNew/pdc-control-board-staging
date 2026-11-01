@@ -334,6 +334,6 @@ test('r485 panel: parity() is unaffected (the parity strip draws only the card) 
   assert.doesNotMatch(/function parityStrip\([\s\S]*?\n {2}\}/.exec(SLIDEOUT)[0], /stoppage/i);
   assert.doesNotMatch(SLIDEOUT, /\bfetch\s*\(|\.rpc\s*\(|clearVehicleStoppage|clear_vehicle_stoppage_422'/, 'the panel reuses app.js; it has no write path of its own');
   assert.match(SLIDEOUT, /root\.bindFixFirstRows\(stoppages\)/);
-  assert.match(fs.readFileSync('canonical-entry.js', 'utf8'), /pdc-vehicle-slideout\.js\?vehicle-slideout=2026\.10\.28\.r588&r595=2026\.10\.28\.r595(&r681=2026\.10\.29\.r681)?(&r695=2026\.10\.29\.r695)?(&r696=2026\.10\.29\.r696)?(&r699=2026\.10\.29\.r699)?(&r705=2026\.10\.29\.r705)?(&r721=2026\.10\.29\.r721)?(&r738=2026\.10\.30\.r738)?(&r797=2026\.11\.01\.r797)?(&r798=2026\.11\.01\.r798)?'/); // r588 (F202) cache-bust stays; r595 opens the panel once
+  assert.match(fs.readFileSync('canonical-entry.js', 'utf8'), /pdc-vehicle-slideout\.js\?vehicle-slideout=2026\.10\.28\.r588&r595=2026\.10\.28\.r595(&r681=2026\.10\.29\.r681)?(&r695=2026\.10\.29\.r695)?(&r696=2026\.10\.29\.r696)?(&r699=2026\.10\.29\.r699)?(&r705=2026\.10\.29\.r705)?(&r721=2026\.10\.29\.r721)?(&r738=2026\.10\.30\.r738)?(&r797=2026\.11\.01\.r797)?(&r798=2026\.11\.01\.r798)?(&r800=2026\.11\.01\.r800)?'/); // r588 (F202) cache-bust stays; r595 opens the panel once
   assert.match(fs.readFileSync('pdc-vehicle-slideout.css', 'utf8'), /#vso-shell \.vso-stoppages \{/);
 });

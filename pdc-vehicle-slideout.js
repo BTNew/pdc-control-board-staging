@@ -161,6 +161,7 @@
   const workKeyFor = stage => WORK_KEY_FOR_STAGE[String(stage || '').toUpperCase()] || '';
   let dragChip = null;
   const isController = () => CONTROLLER_ROLES.includes(String(root.PDC_AUTH_CONTEXT?.role || '').trim().toLowerCase());
+  const isAdministrator = () => String(root.PDC_AUTH_CONTEXT?.role || '').trim().toLowerCase() === 'administrator'; // r800
   const editReady = () => {
     if (!root.app || !EDIT_NEEDS.every(name => typeof root[name] === 'function')) return false;
     try { return root.vehicleWorkshopCanEditLines() === true; } catch (_) { return false; }
@@ -797,7 +798,7 @@
     if (doc.querySelector('link[data-pdc-vehicle-slideout]')) return;
     const link = doc.createElement('link');
     link.rel = 'stylesheet';
-    link.href = `pdc-vehicle-slideout.css?vehicle-slideout=${VERSION}&r681=2026.10.29.r681&r699=2026.10.29.r699&r721=2026.10.29.r721&r797=2026.11.01.r797&r798=2026.11.01.r798`; // r681 (F291): tidy Edit hours, description box on hover only. r695 (F305): Override location and Move to a bay styles
+    link.href = `pdc-vehicle-slideout.css?vehicle-slideout=${VERSION}&r681=2026.10.29.r681&r699=2026.10.29.r699&r721=2026.10.29.r721&r797=2026.11.01.r797&r798=2026.11.01.r798&r800=2026.11.01.r800`; // r681 (F291): tidy Edit hours, description box on hover only. r695 (F305): Override location and Move to a bay styles
     link.dataset.pdcVehicleSlideout = '1';
     doc.head.appendChild(link);
   }
@@ -900,6 +901,15 @@
       button.textContent = overridden ? `Location overridden: ${vehicle.pdcLocationOverride}` : 'Override location';
       button.title = overridden ? `Change or clear the override. Reason: ${vehicle.pdcLocationOverrideReason || ''}` : 'Show this vehicle in another location (PMB, Yard Hold, In Transit, PIT, QC, RFT) with a reason';
       button.addEventListener('click', event => { event.stopPropagation(); root.PDC_OPEN_LOCATION_OVERRIDE(vehicleFor(key) || vehicle); });
+      panel.querySelector('.vso-open-row').appendChild(button);
+    }
+    // r800 (F415): administrators can complete a vehicle from the drawer (pdc-admin-complete.js owns the dialog and the save).
+    if (typeof root.PDC_OPEN_ADMIN_COMPLETE === 'function' && vehicle.__emailVehicleId && isAdministrator() && !['completed', 'archived', 'deleted'].includes(String(vehicle.pdcLifecycleState || vehicle.vehicleLifecycleState || '').toLowerCase())) {
+      const button = doc.createElement('button');
+      button.type = 'button'; button.className = 'vso-open-vehicle vso-admin-complete'; button.dataset.vsoAdminComplete = '';
+      button.textContent = 'Complete vehicle';
+      button.title = 'Administrator override: take this vehicle off the board and mark it Completed (with a reason)';
+      button.addEventListener('click', event => { event.stopPropagation(); root.PDC_OPEN_ADMIN_COMPLETE(vehicleFor(key) || vehicle); });
       panel.querySelector('.vso-open-row').appendChild(button);
     }
     panel.querySelectorAll('.vso-body [data-open-stock]').forEach(stockButton => {

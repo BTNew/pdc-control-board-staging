@@ -334,7 +334,7 @@ test('5. slimWorkPage keeps inputs and selectors, removes every button, keeps dr
 
 test('6. loader, styles and docs: r565 cache-bust tags, FAULT_LOG F109 and F179, panel doc; no real stock numbers here', () => {
   assert.equal(slideout.VERSION, '2026.10.28.r588');
-  assert.match(fs.readFileSync('canonical-entry.js', 'utf8'), /pdc-vehicle-slideout\.js\?vehicle-slideout=2026\.10\.28\.r588&r595=2026\.10\.28\.r595(&r681=2026\.10\.29\.r681)?(&r695=2026\.10\.29\.r695)?(&r696=2026\.10\.29\.r696)?(&r699=2026\.10\.29\.r699)?(&r705=2026\.10\.29\.r705)?(&r721=2026\.10\.29\.r721)?(&r738=2026\.10\.30\.r738)?(&r797=2026\.11\.01\.r797)?(&r798=2026\.11\.01\.r798)?'/);
+  assert.match(fs.readFileSync('canonical-entry.js', 'utf8'), /pdc-vehicle-slideout\.js\?vehicle-slideout=2026\.10\.28\.r588&r595=2026\.10\.28\.r595(&r681=2026\.10\.29\.r681)?(&r695=2026\.10\.29\.r695)?(&r696=2026\.10\.29\.r696)?(&r699=2026\.10\.29\.r699)?(&r705=2026\.10\.29\.r705)?(&r721=2026\.10\.29\.r721)?(&r738=2026\.10\.30\.r738)?(&r797=2026\.11\.01\.r797)?(&r798=2026\.11\.01\.r798)?(&r800=2026\.11\.01\.r800)?'/);
   assert.match(fs.readFileSync('index.html', 'utf8'), /canonical-entry\.js\?[^"]*&amp;r496=2026\.10\.22\.r496&amp;/);
   assert.match(fs.readFileSync('index.html', 'utf8'), /&amp;r563=2026\.10\.27\.r563&amp;/);
   assert.match(fs.readFileSync('index.html', 'utf8'), /&amp;r565=2026\.10\.27\.r565&amp;/);

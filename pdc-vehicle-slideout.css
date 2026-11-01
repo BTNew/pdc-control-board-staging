@@ -193,3 +193,7 @@
 #vso-shell .authenticated-email-operations .authenticated-operation-station li > div[data-review-control] { grid-column: 1 / -1 !important; grid-row: 3; margin-top: 2px; }
 #vso-shell .authenticated-email-operations .authenticated-operation-station li > div[data-review-control] > label { display: none; }
 #vso-shell .vso-move-all select, #vso-shell .vso-move select { width: 9.5rem !important; max-width: 9.5rem; }
+
+/* r800 (F415): administrator Complete vehicle button, dark red so it reads as an override. */
+#vso-shell .vso-admin-complete { background: #7f1d1d; border-color: #7f1d1d; }
+#vso-shell .vso-admin-complete:hover { background: #641616; border-color: #641616; }
