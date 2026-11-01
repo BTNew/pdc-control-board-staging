@@ -161,6 +161,7 @@
   const workKeyFor = stage => WORK_KEY_FOR_STAGE[String(stage || '').toUpperCase()] || '';
   let dragChip = null;
   const isController = () => CONTROLLER_ROLES.includes(String(root.PDC_AUTH_CONTEXT?.role || '').trim().toLowerCase());
+  const isAdministrator = () => String(root.PDC_AUTH_CONTEXT?.role || '').trim().toLowerCase() === 'administrator'; // r800
   const editReady = () => {
     if (!root.app || !EDIT_NEEDS.every(name => typeof root[name] === 'function')) return false;
     try { return root.vehicleWorkshopCanEditLines() === true; } catch (_) { return false; }
@@ -594,7 +595,10 @@
       li.insertAdjacentHTML('beforeend', `<label class="vso-tick"><input type="checkbox" data-vso-tick="${esc(lineKey)}" aria-checked="${checked ? 'true' : 'false'}"${checked ? ' checked' : ''}${control ? '' : ' disabled'} title="${control ? (checked ? 'Untick: this line is not done' : 'Tick to confirm this line is done (or override it as done)') : 'Read-only for your role'}"><span>${checked ? 'Complete' : 'Tick'}</span></label>`);
       // r699 (F309): Move to drop-down for an open line (controllers who can edit lines).
       li.querySelectorAll('.vso-move').forEach(node => node.remove());
-      li.classList.remove('vso-has-move');
+      li.classList.remove('vso-has-move', 'vso-move-row2'); // r798 (F408): a ticked line drops the row-2 layout too
+      // r798 (F408): clipped descriptions show in full on hover.
+      const desc = li.querySelector(':scope > span:not([class])');
+      if (desc && !desc.title) desc.title = desc.textContent.trim().replace(/\s+/g, ' ');
       if (!completed && /^(source|manual):[0-9a-f-]{36}$/i.test(lineKey) && canMoveLines(key)) {
         const html = moveSelectHtml(vehicle, lineKey, record.category || move.category);
         if (html) {
@@ -794,7 +798,7 @@
     if (doc.querySelector('link[data-pdc-vehicle-slideout]')) return;
     const link = doc.createElement('link');
     link.rel = 'stylesheet';
-    link.href = `pdc-vehicle-slideout.css?vehicle-slideout=${VERSION}&r681=2026.10.29.r681&r699=2026.10.29.r699&r721=2026.10.29.r721&r797=2026.11.01.r797`; // r681 (F291): tidy Edit hours, description box on hover only. r695 (F305): Override location and Move to a bay styles
+    link.href = `pdc-vehicle-slideout.css?vehicle-slideout=${VERSION}&r681=2026.10.29.r681&r699=2026.10.29.r699&r721=2026.10.29.r721&r797=2026.11.01.r797&r798=2026.11.01.r798&r800=2026.11.01.r800`; // r681 (F291): tidy Edit hours, description box on hover only. r695 (F305): Override location and Move to a bay styles
     link.dataset.pdcVehicleSlideout = '1';
     doc.head.appendChild(link);
   }
@@ -897,6 +901,15 @@
       button.textContent = overridden ? `Location overridden: ${vehicle.pdcLocationOverride}` : 'Override location';
       button.title = overridden ? `Change or clear the override. Reason: ${vehicle.pdcLocationOverrideReason || ''}` : 'Show this vehicle in another location (PMB, Yard Hold, In Transit, PIT, QC, RFT) with a reason';
       button.addEventListener('click', event => { event.stopPropagation(); root.PDC_OPEN_LOCATION_OVERRIDE(vehicleFor(key) || vehicle); });
+      panel.querySelector('.vso-open-row').appendChild(button);
+    }
+    // r800 (F415): administrators can complete a vehicle from the drawer (pdc-admin-complete.js owns the dialog and the save).
+    if (typeof root.PDC_OPEN_ADMIN_COMPLETE === 'function' && vehicle.__emailVehicleId && isAdministrator() && !['completed', 'archived', 'deleted'].includes(String(vehicle.pdcLifecycleState || vehicle.vehicleLifecycleState || '').toLowerCase())) {
+      const button = doc.createElement('button');
+      button.type = 'button'; button.className = 'vso-open-vehicle vso-admin-complete'; button.dataset.vsoAdminComplete = '';
+      button.textContent = 'Complete vehicle';
+      button.title = 'Administrator override: take this vehicle off the board and mark it Completed (with a reason)';
+      button.addEventListener('click', event => { event.stopPropagation(); root.PDC_OPEN_ADMIN_COMPLETE(vehicleFor(key) || vehicle); });
       panel.querySelector('.vso-open-row').appendChild(button);
     }
     panel.querySelectorAll('.vso-body [data-open-stock]').forEach(stockButton => {
