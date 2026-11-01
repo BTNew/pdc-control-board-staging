@@ -6710,8 +6710,10 @@ function qcPageWorkItemsHtml(vehicle = {}) {
     const hoursUnknown = stage !== 'SUBLET' && (line.estimatedHours === null || line.estimatedHours === undefined || line.estimatedHours === '' || !Number.isFinite(Number(line.estimatedHours)));
     const mappingReview = stage === 'UNALLOCATED_MAPPING_REVIEW';
     const pending = qcPageOperationPending.get(qcPagePendingKey(key, line.lineIdentity));
-    return `<label class="qc-work-item qc-operation-line ${line.completed ? 'is-complete' : 'is-required'} ${pending ? 'is-saving' : ''}" data-qc-line-identity="${escapeHtml(line.lineIdentity)}" ${pending ? 'aria-busy="true"' : ''}>
-      <input type="checkbox" data-qc-operation-check="${escapeHtml(key)}" data-qc-line-identity="${escapeHtml(line.lineIdentity)}" data-qc-line-version="${Number(line.lineVersion || 0)}" ${line.completed ? 'checked' : ''} ${(mappingReview || hoursUnknown || pending) ? `disabled title="${pending ? 'Saving this operation' : mappingReview ? 'Station mapping review is required before QC completion' : 'Unknown operation hours require review before QC completion'}"` : ''} aria-label="${escapeHtml(`${line.operationNo || 'Manual'} ${line.description} ${pending ? 'saving' : mappingReview ? 'requires station mapping review' : hoursUnknown ? 'requires hours review' : line.completed ? 'completed' : 'not completed'}`)}" />
+    // r805 (F420): a queued tick shows its new state straight away.
+    const shownDone = pending ? pending.checked === true : line.completed;
+    return `<label class="qc-work-item qc-operation-line ${shownDone ? 'is-complete' : 'is-required'} ${pending ? 'is-saving' : ''}" data-qc-line-identity="${escapeHtml(line.lineIdentity)}" ${pending ? 'aria-busy="true"' : ''}>
+      <input type="checkbox" data-qc-operation-check="${escapeHtml(key)}" data-qc-line-identity="${escapeHtml(line.lineIdentity)}" data-qc-line-version="${Number(line.lineVersion || 0)}" ${shownDone ? 'checked' : ''} ${(mappingReview || hoursUnknown || pending) ? `disabled title="${pending ? 'Saving this operation' : mappingReview ? 'Station mapping review is required before QC completion' : 'Unknown operation hours require review before QC completion'}"` : ''} aria-label="${escapeHtml(`${line.operationNo || 'Manual'} ${line.description} ${pending ? 'saving' : mappingReview ? 'requires station mapping review' : hoursUnknown ? 'requires hours review' : line.completed ? 'completed' : 'not completed'}`)}" />
       <span class="qc-work-marker" aria-hidden="true">${pending ? '…' : line.completed ? '✓' : '○'}</span>
       <span class="qc-work-copy"><strong>${escapeHtml(`${line.operationNo || 'Manual'} · ${line.description}`)}</strong><small class="${line.hoursProvenance==='ai_estimated' && stage!=='SUBLET'?'pdc-ai-estimate':''}">${escapeHtml(`${qcPageStageLabel(stage)} · ${qcPageOperationHoursLabel(line)} · ${line.jobCardNumber ? `JC ${line.jobCardNumber}` : line.sourceKind === 'manual' ? 'Audited manual line' : 'Source JC unavailable'}`)}</small></span>
     </label>`;
@@ -6918,12 +6920,22 @@ async function qcPageSetOperationState(key = '', lineIdentity = '', checked = fa
   }
   qcPageFeedback.set(key, { kind: 'saved', message: `${line.operationNo || 'Operation'} saved. You can continue ticking other jobs.` });
   renderQualityControlPage();
-  void qcPageAwaitOperationSnapshot(key, lineIdentity, checked, 3, authority).then(converged => {
-    if (!pdcWriteAuthorityCurrent(authority)) return;
-    if (!converged) qcPageFeedback.set(key, { kind: 'error', message: 'Saved by receipt; the shared QC list is still syncing.' });
-    renderQualityControlPage();
-  });
+  if (typeof qcPageScheduleSync === 'function') qcPageScheduleSync(authority);
   return true;
+}
+
+// r805 (F420): Craig 1 Nov 19:20 "when i click an item to say its done, its saving each click and taking a while".
+// The server receipt is the saved state. The whole board snapshot (2 to 9 s) is reloaded once, 2.5 s after the last tick,
+// not three times after every tick (each reload cancelled the one before, so the page waited on the last of them).
+let qcPageSyncTimer = 0;
+function qcPageScheduleSync(authority = capturePdcWriteAuthority()) {
+  if (qcPageSyncTimer) window.clearTimeout(qcPageSyncTimer);
+  qcPageSyncTimer = window.setTimeout(() => {
+    qcPageSyncTimer = 0;
+    if (qcPageOperationPending.size) { qcPageScheduleSync(authority); return; }
+    if (!pdcWriteAuthorityCurrent(authority)) return;
+    void refreshEmailVehicleLocations().then(() => { if (pdcWriteAuthorityCurrent(authority)) renderQualityControlPage(); });
+  }, 2500);
 }
 
 function qcPageQueueOperationState(key = '', lineIdentity = '', checked = false, input = null) {
@@ -6933,7 +6945,8 @@ function qcPageQueueOperationState(key = '', lineIdentity = '', checked = false,
   if (qcPageOperationPending.has(pendingKey)) return;
   const vehicle = qcPageVehicles().find(row => qcPageVehicleKey(row) === String(key || '').trim());
   const line = qcPageOperationLines(vehicle || {}).find(item => item.lineIdentity === String(lineIdentity || ''));
-  if (input && line) input.checked = line.completed === true;
+  // r805 (F420): the tick shows straight away; a failed save reloads the real state.
+  if (input) input.checked = checked === true;
   const queued = { checked, authority };
   qcPageOperationPending.set(pendingKey, queued);
   qcPageFeedback.set(key, { kind: 'saving', message: `${line?.operationNo || 'Operation'} queued for saving…` });
