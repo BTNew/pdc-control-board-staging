@@ -325,7 +325,7 @@ const approvedRootImportPatch = Object.freeze({
   // r593: a recent key is listed in New to PMB and stays in the PMB bucket. No department tick (F207). Department 135 keeps its frozen app.js.
   // r591: Admin > Revolution uploads is administrators only (F205). Department 135 is not tagged.
   // r687: ".2" hours save as 0.2 in Edit hours and jobs (F297). Department 135 keeps its frozen app.js.
-  "app.js": "2388d6d86865494878da6bab57e5b3a3185974942436a5cae8c50b9c605d9d1f", // merge; r799 dept station columns; r863 (F414): Unallocated parts chip; r862 (F413): At PMB sort; returned bookings sorted in (r861 F411, r860 F410)
+  "app.js": "c56f00d66dfb4107b9fabe32930093c88129cd3d0977ff4384afc4e30a95fbc9", // merge; r799 dept station columns; r863 (F414): Unallocated parts chip; r862 (F413): At PMB sort; returned bookings sorted in (r861 F411, r860 F410)
   "vehicle-requirements-guard.js": "7462e178c839df0ce1bd2509b838dab61fd739172f20fd0c34a419e011052658",
   // r464: a booking that runs past the day divider is one bar (joined per-day pieces, display only; F77). The Karratha copy stays frozen.
   // r465: overview bar labels show Key · JC and the customer only (Stock and the vehicle description stay in the hover title); the customer span is classed for the Running layout (F78).
