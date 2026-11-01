@@ -174,6 +174,7 @@ const approvedRootImportPatch = Object.freeze({
   // r566: the runtime list adds pdc-workshop-vehicle-search.js before the Vehicle Locations table (F180). Department 135 is not tagged.
   // r570: the runtime list adds pdc-bay-manager.css and pdc-bay-manager.js (F184). Department 135 is not tagged.
   // r591: the runtime list adds pdc-revolution-upload.css and pdc-revolution-upload.js (F205). Department 135 is not tagged.
+  // r816: the runtime list adds pdc-fitter-logins.js; pdc-fitters.js/.css and pdc-bay-manager.css carry r816 (fitter logins, F455). Department 135 is not tagged.
   "scripts/build_pages_runtime.js": "201582c959e13dbaa39601a0c322a5a1ec67ddf4f0e12aad31f62b52cd3701ad",
   "pdc-operation-review-slim.css": "67196ee7dd4415c31c1eb2237fbcdb6c49fa5852fa7d0020aedf6198db0b167a",
   // Quick approval ignores unable-to-estimate, AI and conflicting hours tags
@@ -258,7 +259,7 @@ const approvedRootImportPatch = Object.freeze({
   // r740: the key tag shows on the next job, later jobs and other active jobs too (Craig, 30 Oct 2026). Department 135 keeps its frozen pdc-fitters.js.
   // r741: one Complete button; unticked items stay open for the station (Craig, 30 Oct 2026). Department 135 keeps its frozen pdc-fitters.js.
   // 30 Oct 2026: Start shows the busy overlay while the server starts the job and pushes later jobs back. Department 135 is not tagged.
-  "pdc-fitters.js": "a5ab4b8056f1ac3eb86245b06e5d7aed7c4bf4aa35885981b13117876825bb30",
+  "pdc-fitters.js": "617bb5920cdb7a251182c9ab562196be1f08152dfb8bd2d6b8c17c677bccaaa1",
   // Deliberate live-board change, 19 October 2026. Department 135 stays parked.
   // app.js keeps Setup backup polling, hoist-corrections=2026.10.19.02,
   // planner-followup=2026.10.19.01, and the Vehicle Locations summary that
@@ -479,7 +480,7 @@ const approvedRootImportPatch = Object.freeze({
   // r604: index.html adds r604=2026.10.28.r604 on canonical-entry.js (pit bookings, F218). Department 135 is not tagged.
   // r616: pdc-auth.js, pdc-bay-manager.js and canonical-entry.js carry r616=2026.10.28.r616 (fitter sessions send only Fitters bay requests, F231). Department 135 is not tagged.
   // r642: Sublet · MMT nav and view, pdc-mmt-sublet.css/js, r642 on app.js and pdc-staff-usage.js (F257). Department 135 is not tagged.
-  "index.html": "f99ad4d8f79957a33efab765a5880eaa7530a8503faa1c5d66235a423e01b550", // r808 (F443) stock take tag and intro text (was r781 F386)
+  "index.html": "fbd170c6ab02624049d679e87353c9bd78a3ef6b5bf98d5df627275b5b2ebafb", // r808 (F443) stock take tag and intro text (was r781 F386)
   "pdc-conversions.js": "0a99e7a5306f15e434b293a3ca9a318ffad4b78eb814c27144d75ff98821d810",
   // r401: Pit tick and read RPCs (set_pdc_pit_line_tick_401, get_pdc_pit_line_ticks_401).
   // r414: readQcPhotoReceipt (get_pdc_qc_photo_receipt_414) for the QC page (F30).
@@ -497,7 +498,7 @@ const approvedRootImportPatch = Object.freeze({
   // r532: other-station items stay full strength when this bay can tick them (F146).
   // r564: fitter-key-badge styles beside stock (F178).
   // r583: a sent line is blue (#1d4ed8 / #2563eb). Green stays complete (F197). Department 135 keeps its frozen stylesheet.
-  "pdc-fitters.css": "60b962d80747f876f791ff823f9b6ac309b3ff53625b9f918e281a54b4464a1a",
+  "pdc-fitters.css": "b7be2bb27352e03840e544ed51beb5c02ab8aa33347eeeaa2c6d8663157486f6",
   // r572: stacked job cards are readable outside the incoming row (F186). Department 135 keeps the previous sheet.
   "pdc-stacked-jobcards.css": "ae0ca5c86f4342befcb197bbf262a2775c527cac82aaad6b8c7f2c35f6bef30b",
   "pdc-stacked-jobcards.js": "76e6b3da13a00eb26a2fdda738233876f7333632526b7a657d39fc612c4211de",

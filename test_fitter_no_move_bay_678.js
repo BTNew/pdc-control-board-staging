@@ -7,7 +7,7 @@ const src = fs.readFileSync('pdc-fitters.js', 'utf8');
 test('fitter cards are built without handoff targets, so no move-to-bay picker', () => {
   assert.doesNotMatch(src, /handoffTargets: detail\?\.handoff_targets/);
   assert.match(src, /fitterLaterHtml\(line, cardState\)/);
-  assert.match(fs.readFileSync('index.html', 'utf8'), /pdc-fitters\.js\?[^"]*&amp;r678=2026\.10\.29\.r678(&amp;r740=2026\.10\.30\.r740)?(&amp;r741=2026\.10\.30\.r741)?"/);
+  assert.match(fs.readFileSync('index.html', 'utf8'), /pdc-fitters\.js\?[^"]*&amp;r678=2026\.10\.29\.r678(&amp;r740=2026\.10\.30\.r740)?(&amp;r741=2026\.10\.30\.r741)?(?:&amp;r816=2026\.11\.02\.r816)?"/);
 });
 test('a card with no targets has Later and no Send this line', () => {
   const { fitterLineCardHtml } = require('./pdc-fitters.js');

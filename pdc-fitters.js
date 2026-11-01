@@ -125,6 +125,15 @@
     booking_not_found:'This bay job could not be found. Refresh and try again.',
     vehicle_mismatch:'This item is on a different vehicle. Refresh the job.',
     invalid_line:'Choose an item to send.',
+    // r816 (F455): fitter initials + PIN sign-in.
+    fitter_sign_in_required:'Sign in with your initials and PIN to record work.',
+    fitter_not_this_mechanic:'You are signed in as a different fitter. Sign out and sign in as yourself.',
+    fitter_sign_in_failed:'That password is not right. Try again. (First time: your initials then your mechanic ID, for example MR2686.)',
+    fitter_locked:'Too many wrong passwords. This login is locked for 5 minutes.',
+    fitter_pin_wrong:'Your current password is not right.',
+    pin_format:'A PIN is 4 to 6 numbers.',
+    pin_too_simple:'Pick a harder PIN: not all the same number and not a run like 1234.',
+    pin_same:'The new PIN must be different from the old one.',
   };
   const HANDOFF_LABELS = {TINT:'Tint',HOIST:'Hoist',FITTING:'Fitting',FABRICATION:'Fabrication',ELECTRICAL:'Electrical',TYRE:'Tyres',SUBLET:'Sublet',BUS_4X4:'Bus 4x4'};
   function handoffLabel(code) { return HANDOFF_LABELS[code] || String(code || '').replaceAll('_',' '); }
@@ -303,7 +312,9 @@
         const result = await Promise.race([
           options.fetch(`${owner.config.url.replace(/\/$/, '')}/rest/v1/rpc/${name}`, {
             method:'POST', signal:abort.signal,
-            headers:{ apikey:owner.config.publishableKey, Authorization:`Bearer ${owner.token}`, 'Content-Type':'application/json' },
+            headers:{ apikey:owner.config.publishableKey, Authorization:`Bearer ${owner.token}`, 'Content-Type':'application/json',
+              // r816 (F455): the signed-in fitter's session travels with every Fitters bay request.
+              ...(options.fitterToken?.() ? { 'x-pdc-fitter-session':options.fitterToken() } : {}) },
             body:JSON.stringify(body),
           }).then(async response => ({ ok:response.ok, body:await response.json() })),
           new Promise((_, reject) => { timer = setTimeout(() => { abort.abort(); reject(error('Connection lost. Refresh to check the job, or retry the same action.', 'unconfirmed')); }, options.timeoutMs || 25000); }),
@@ -394,6 +405,8 @@
       undoHandoff:body => { invalidateReads(); return rpc('undo_line_handoff_583', body, true); },
       setLater:body => { invalidateReads(); return rpc('set_line_later_627', body, true); },
       listHandoffs:vehicleId => rpc('list_line_handoffs_583', {p_vehicle_id:vehicleId || null}, false),
+      // r816 (F455): fitter sign-in RPCs (read path: a fitter account may call them).
+      login:(name, body) => rpc(name, body || {}, false),
       invalidate() { generation++; retry = null; rosterCache = null; rosterRequest = null; invalidateReads(); },
       get busy() { return busy; }, get retryPending() { return Boolean(retry); },
       get retryAction() { return retry?.body.p_action || ''; },
@@ -511,12 +524,47 @@
       ${line.source_note ? `<p class="fitter-source-note">${esc(line.source_note)}</p>` : ''}
       ${editable || note ? `<details class="fitter-notes" ${open ? 'open' : ''}><summary>${note ? 'Item notes' : 'Add a note'}</summary><label for="fitter-note-${index}">Work notes</label><textarea id="fitter-note-${index}" data-fitter-note="${esc(line.line_identity)}" rows="2" maxlength="2000" ${disabled ? 'disabled' : ''}>${esc(note)}</textarea>${editable && !sentAway ? `<button type="button" data-fitter-save-note="${esc(line.line_identity)}" ${disabled ? 'disabled' : ''}>Save note</button>` : ''}${open ? '<small>Unsaved note</small>' : ''}</details>` : ''}</article>`;
   }
+  // r816 (F455): the same PIN rule as the server (pdc_fitter_pin_problem_816).
+  function fitterPinProblem(pin) {
+    const d = String(pin ?? '');
+    if (!/^[0-9]{4,6}$/.test(d)) return 'pin_format';
+    if (/^(.)\1+$/.test(d) || '0123456789'.includes(d) || '9876543210'.includes(d)) return 'pin_too_simple';
+    return '';
+  }
+  // r816 (F455): the tablet sign-in: tap your name (Tune mechanic ID), then your PIN. The first password is initials then
+  // mechanic ID (MR2686); it is changed to the fitter's own PIN at first sign-in.
+  function fitterLoginGateHtml(m) {
+    const busy = m.busy ? 'disabled' : '';
+    const dots = n => `<div class="fitter-pin-dots" aria-hidden="true">${Array.from({length:6},(_,i)=>`<span class="${i<n?'is-on':''}"></span>`).join('')}</div>`;
+    const pad = `<div class="fitter-pin-pad" role="group" aria-label="PIN pad">${['1','2','3','4','5','6','7','8','9','clear','0','back'].map(k=>
+      `<button type="button" data-fitter-pin-key="${k}" ${busy}>${k==='clear'?'Clear':k==='back'?'⌫':k}</button>`).join('')}</div>`;
+    const error = m.error ? `<p class="fitter-warning" role="alert">${esc(m.error)}</p>` : '';
+    if (m.mode === 'change') {
+      const step = m.newPin === null ? 'new' : 'confirm';
+      return `<section class="fitter-login" aria-label="Change your PIN"><h2>Hi ${esc(m.name || m.username)}, pick your own PIN</h2>
+        <p>${step==='new'?'Enter a new 4 to 6 number PIN. Not your birthday, not 1234.':'Enter the same PIN again.'}</p>
+        ${error}${dots(m.pin.length)}${pad}
+        <div class="fitter-login-actions"><button type="button" class="fitter-primary" data-fitter-pin-ok ${busy||(m.pin.length<4?'disabled':'')}>${step==='new'?'Next':'Save PIN'}</button>
+        <button type="button" data-fitter-login-cancel ${busy}>Cancel</button></div></section>`;
+    }
+    if (m.mode === 'pin') {
+      return `<section class="fitter-login" aria-label="Enter your PIN"><h2>${esc(m.name || m.username)}</h2><p>Mechanic ${esc(m.username)} · enter your PIN</p>
+        ${error}<input type="password" class="fitter-pin-input" id="fitter-pin-input" data-fitter-pin-input value="${esc(m.pin)}" maxlength="12" autocomplete="off" autocapitalize="characters" spellcheck="false" aria-label="PIN or first-time password" ${busy}>
+        <p class="fitter-login-hint">First time? Type your initials then your mechanic ID, for example MR2686.</p>${pad}
+        <div class="fitter-login-actions"><button type="button" class="fitter-primary" data-fitter-pin-ok ${busy||(m.pin.length<4?'disabled':'')}>${m.busy?'Signing in…':'Sign in'}</button>
+        <button type="button" data-fitter-login-cancel ${busy}>Not me</button></div></section>`;
+    }
+    const fitters = Array.isArray(m.fitters) ? m.fitters : [];
+    return `<section class="fitter-login" aria-label="Fitter sign in"><h2>Who is working?</h2><p>Tap your name to sign in.</p>${error}
+      ${fitters.length ? `<div class="fitter-login-grid">${fitters.map(f=>`<button type="button" data-fitter-login-user="${esc(f.username)}" ${busy}><strong>${esc(f.name)}</strong><span>${esc(f.username)}</span></button>`).join('')}</div>`
+        : '<p class="fitter-empty">No fitter logins yet. Ask the controller to add yours in Bay Manager.</p>'}</section>`;
+  }
   // The cache token of the pdc-fitters.js tag (index.html text or a script src).
   function fitterScriptToken(text) {
     const m = String(text || '').match(/pdc-fitters\.js\?([^"'\s<>]+)/);
     return m ? m[1].replace(/&amp;/g, '&') : '';
   }
-  const api = { createService, fitterScriptToken, progressHtml, runningHtml, timerModel, timerHtml, formatElapsed, startConfirmationMessage, fitterJobFlow, esc, fitterJobKeyNumber, fitterKeyBadgeHtml, conversionUsesSimpleTick, fitterLineCardHtml, fitterHandoffHtml, controllerHandoffListHtml, fitterItemTicksHtml, itemTimingModel, conversionTicksHtml, conversionSectionHtml, itemPauseHtml };
+  const api = { createService, fitterPinProblem, fitterLoginGateHtml, fitterScriptToken, progressHtml, runningHtml, timerModel, timerHtml, formatElapsed, startConfirmationMessage, fitterJobFlow, esc, fitterJobKeyNumber, fitterKeyBadgeHtml, conversionUsesSimpleTick, fitterLineCardHtml, fitterHandoffHtml, controllerHandoffListHtml, fitterItemTicksHtml, itemTimingModel, conversionTicksHtml, conversionSectionHtml, itemPauseHtml };
   if (typeof module !== 'undefined' && module.exports) { module.exports = api; return; }
   root.PdcFitters = api;
   const doc = root.document;
@@ -524,6 +572,7 @@
     context:() => ({ actor:root.PDC_AUTH_CONTEXT?.userId, role:root.PDC_AUTH_CONTEXT?.role,
       token:typeof getPdcSupabaseAccessToken === 'function' ? getPdcSupabaseAccessToken() : '', config:root.PDC_SUPABASE_CONFIG }),
     fetch:(...args) => root.fetch(...args), uuid:() => root.crypto.randomUUID(),
+    fitterToken:() => fitterSession?.token || '',
   });
   const busService = () => root.PdcBusWorkflow?.service();
   const busPending = () => Boolean(busService()?.retryPending);
@@ -534,6 +583,13 @@
   let detailReceivedAt = 0, timerFreeze = null;
   let pendingConversionNote = '';
   let handover = null, scrollToCurrent = false;
+  // r816 (F455): fitter initials + PIN sign-in. Off until an administrator switches "Fitter sign-in required" on.
+  const LOGIN_KEY = 'pdc-fitter-session-816';
+  const blankGate = () => ({ mode:'pick', username:'', name:'', pin:'', newPin:null, currentPin:'', error:'', busy:false });
+  let loginState = null, fitterSession = null, gate = blankGate(), lastTouch = Date.now();
+  try { const t = root.sessionStorage?.getItem(LOGIN_KEY); if (t) fitterSession = { token:t, fitter:null, restoring:true }; } catch { /* no storage: sign in again */ }
+  const loginRequired = () => loginState?.required === true;
+  const signedIn = () => Boolean(fitterSession?.fitter && !fitterSession.must_change);
   const clockNow=()=>root.performance?.now?.() ?? Date.now();
   const timingOptions=()=>({connected,receivedAt:detailReceivedAt,now:clockNow(),
     pendingAction:saving||loading?pendingAction:'',unconfirmed:service.retryPending||busPending(),unconfirmedAction:busPending()?'supplier':service.retryAction,
@@ -636,8 +692,18 @@
     const sent = lines.filter(l => l.handoff?.sent_away && !l.completed);
     const own = lines.filter(l => !sent.includes(l) && (l.stage_code===detail.stage_code || l.handoff?.received_here));
     const other = lines.filter(l => !own.includes(l) && !sent.includes(l));
-    target.innerHTML = `<div class="fitter-app"><header class="fitter-header"><div><h1>Fitters bay</h1><p>Your work, shared with the workshop planner</p></div><nav aria-label="Fitter navigation"><button type="button" data-fitter-refresh ${locked ? 'disabled' : ''}>Refresh</button><button type="button" data-fitter-signout ${saving ? 'disabled' : ''}>Sign out</button></nav></header>
-      <div class="fitter-toolbar"><label for="fitter-mechanic">Mechanic<select id="fitter-mechanic" ${locked ? 'disabled' : ''}><option value="">Select your name</option>${roster.map(t=>`<option value="${esc(t.id)}" ${t.id===mechanic?'selected':''}>${esc(t.name)}</option>`).join('')}</select></label><p class="fitter-sync" role="status">${saving ? savingLabel : loading ? 'Refreshing…' : connected ? `Connected · Updated ${esc(new Date(lastSync).toLocaleTimeString('en-AU',{timeZone:'Australia/Perth',hour:'numeric',minute:'2-digit',second:'2-digit'}))}` : 'Not connected · Changes unavailable'}</p></div>
+    const headerHtml = `<header class="fitter-header"><div><h1>Fitters bay</h1><p>Your work, shared with the workshop planner</p></div><nav aria-label="Fitter navigation"><button type="button" data-fitter-refresh ${locked ? 'disabled' : ''}>Refresh</button><button type="button" data-fitter-signout ${saving ? 'disabled' : ''}>Sign out</button></nav></header>`;
+    // r816 (F455): sign-in required and no fitter signed in: show only the sign-in.
+    if (loginRequired() && !signedIn()) {
+      target.innerHTML = `<div class="fitter-app">${headerHtml}${message ? `<div class="fitter-notice" role="status">${esc(message)}</div>` : ''}${fitterLoginGateHtml({...gate, fitters:loginState.fitters})}</div>`;
+      bindGate(target);
+      return;
+    }
+    const whoHtml = loginRequired()
+      ? `<div class="fitter-signed-in" role="status">Signed in: <strong>${esc(fitterSession.fitter.username)}</strong> · ${esc(fitterSession.fitter.name || '')} <button type="button" data-fitter-switch ${saving ? 'disabled' : ''}>Sign out fitter</button></div>`
+      : `<label for="fitter-mechanic">Mechanic<select id="fitter-mechanic" ${locked ? 'disabled' : ''}><option value="">Select your name</option>${roster.map(t=>`<option value="${esc(t.id)}" ${t.id===mechanic?'selected':''}>${esc(t.name)}</option>`).join('')}</select></label>`;
+    target.innerHTML = `<div class="fitter-app">${headerHtml}
+      <div class="fitter-toolbar">${whoHtml}<p class="fitter-sync" role="status">${saving ? savingLabel : loading ? 'Refreshing…' : connected ? `Connected · Updated ${esc(new Date(lastSync).toLocaleTimeString('en-AU',{timeZone:'Australia/Perth',hour:'numeric',minute:'2-digit',second:'2-digit'}))}` : 'Not connected · Changes unavailable'}</p></div>
       ${updateReady ? `<div class="fitter-notice fitter-update" role="status">A new version of the Fitters bay is ready. <button type="button" data-fitter-update>Update now</button></div>` : ''}
       ${message ? `<div class="fitter-notice" role="status">${esc(message)}</div>` : ''}
       ${handoverText ? `<div class="fitter-handover" role="status">${esc(handoverText)}</div>` : ''}
@@ -669,10 +735,14 @@
     refreshing = true; loading = !background;
     if (!background) render();
     try {
+      if (!loginState || forceRoster || !background) await loadLoginState();
+      if (generation!==loadGeneration || !active()) return;
       const rosterResult = await service.roster({ force: forceRoster });
       if (generation!==loadGeneration || !active()) return;
       const nextRoster = rosterResult.technicians;
-      const nextMechanic = nextRoster.some(t=>t.id===mechanicBefore) ? mechanicBefore : '';
+      // r816 (F455): with sign-in required, the mechanic is the signed-in fitter, never a name picked from a list.
+      const wanted = loginRequired() ? (signedIn() ? fitterSession.fitter.technician_id : '') : mechanicBefore;
+      const nextMechanic = nextRoster.some(t=>t.id===wanted) ? wanted : '';
       let nextJobs = [], nextBays = [], nextSelected = '', nextDetail = null;
       if (nextMechanic) {
         if(rosterResult.refresh_supported===true) {
@@ -770,7 +840,7 @@
         :'';
       message=result.action==='complete'?'':result.action==='start'?startConfirmationMessage(result):result.action==='resume'?'Job resumed on the workshop planner.':crossText||'Saved to the workshop planner.';
       connected=false;
-    } catch(e) { message=e.message; if(e.code!=='busy') connected=false; }
+    } catch(e) { message=e.message; if(e.code!=='busy') connected=false; if(loginError(e)) { saving=false; void signOutFitter(e.message); return; } }
     finally {
       saving=false; if(!service.retryPending) pendingConversionNote='';
       if(service.retryPending) { pendingAction=''; render(); }
@@ -884,6 +954,7 @@
     on('[data-fitter-refresh]','click',()=>{ message=''; void refresh({forceRoster:true}); });
     on('[data-fitter-job]','click',e=>{ if(saving||loading||service.retryPending) return; selected=e.currentTarget.dataset.fitterJob; detail=null; handover=null; scrollToCurrent=false; stopOpen=false; stopReason=''; message=''; void refresh(); });
     on('[data-fitter-signout]','click',()=>doc.querySelector('#pdc-auth-signout')?.click());
+    on('[data-fitter-switch]','click',()=>{ if(unsavedWork()) { message='Save your notes and wait for the last save before signing out.'; render(); return; } void signOutFitter(''); });
     on('[data-fitter-action]','click',e=>{ if(e.currentTarget.dataset.fitterCompleteLater!==undefined) return; void act(e.currentTarget.dataset.fitterAction); });
     on('[data-fitter-line]','change',e=>{ const n=e.currentTarget; const checked=n.checked; n.checked=!checked; void act('line',n.dataset.fitterLine,checked); });
     on('[data-fitter-handoff]','change',e=>{ const value=e.target.value; e.target.value=''; if(value) void sendLine(e.target.dataset.fitterHandoff, value); });
@@ -912,6 +983,83 @@
       pendingConversionNote=key; void act('conversion',box.dataset.conversionLine,null,false,{mode:'tick',section:box.dataset.conversionSection,step:'note',note:box.value}); });
     on('[data-conversion-list]','toggle',e=>{ const k=e.currentTarget.dataset.conversionList; if(e.currentTarget.open) conversionClosed.delete(k); else conversionClosed.add(k); });
   }
+  // r816 (F455): fitter sign-in.
+  const loginError = e => ['fitter_sign_in_required','fitter_not_this_mechanic'].includes(e?.code);
+  async function loadLoginState() {
+    try {
+      const r = await service.login('fitter_login_state_816');
+      loginState = { required:r.required === true, idle:Number(r.idle_minutes) || 10, fitters:Array.isArray(r.fitters) ? r.fitters : [] };
+    } catch {
+      // Not applied yet, or a blip: keep what we had; first load assumes sign-in is off (the server still checks).
+      if (!loginState) loginState = { required:false, idle:10, fitters:[] };
+    }
+    if (loginRequired() && fitterSession?.restoring) {
+      try {
+        const r = await service.login('fitter_session_816', { p_token:fitterSession.token });
+        fitterSession = r.must_change ? null : { token:fitterSession.token, fitter:r.fitter, must_change:false };
+      } catch { fitterSession = null; }
+      if (!fitterSession) { try { root.sessionStorage?.removeItem(LOGIN_KEY); } catch { /* ignore */ } }
+      lastTouch = Date.now();
+    }
+  }
+  function enterAsFitter() {
+    gate = blankGate(); lastTouch = Date.now();
+    mechanic = fitterSession.fitter.technician_id; selected = ''; detail = null; handover = null; scrollToCurrent = false; stopOpen = false; stopReason = ''; message = '';
+    void refresh({ forceRoster:true });
+  }
+  async function signOutFitter(note) {
+    const token = fitterSession?.token;
+    fitterSession = null; gate = blankGate();
+    try { root.sessionStorage?.removeItem(LOGIN_KEY); } catch { /* ignore */ }
+    mechanic = ''; selected = ''; detail = null; jobs = []; bays = []; handover = null; stopOpen = false; stopReason = ''; drafts.clear();
+    message = note || ''; render();
+    if (token) { try { await service.login('fitter_sign_out_816', { p_token:token }); } catch { /* the server ends it when idle */ } }
+  }
+  async function gateOk() {
+    if (gate.busy || gate.pin.length < 4) return;
+    if (gate.mode === 'pin') {
+      gate.busy = true; gate.error = ''; render();
+      try {
+        const r = await service.login('fitter_sign_in_816', { p_username:gate.username, p_pin:gate.pin });
+        fitterSession = { token:r.token, fitter:r.fitter, must_change:r.must_change === true };
+        try { root.sessionStorage?.setItem(LOGIN_KEY, r.token); } catch { /* sign in again after a reload */ }
+        if (fitterSession.must_change) { gate = { ...blankGate(), mode:'change', username:r.fitter.username, name:r.fitter.name, currentPin:gate.pin }; render(); return; }
+        enterAsFitter();
+      } catch (e) { gate.busy = false; gate.pin = ''; gate.error = e.message; render(); }
+      return;
+    }
+    if (gate.mode === 'change' && gate.newPin === null) {
+      const problem = fitterPinProblem(gate.pin);
+      if (problem) { gate.error = errors[problem]; gate.pin = ''; render(); return; }
+      gate.newPin = gate.pin; gate.pin = ''; gate.error = ''; render(); return;
+    }
+    if (gate.mode === 'change') {
+      if (gate.pin !== gate.newPin) { gate.error = 'The two PINs do not match. Start again.'; gate.pin = ''; gate.newPin = null; render(); return; }
+      gate.busy = true; gate.error = ''; render();
+      try {
+        await service.login('fitter_change_pin_816', { p_token:fitterSession.token, p_current_pin:gate.currentPin, p_new_pin:gate.newPin });
+        fitterSession.must_change = false;
+        enterAsFitter();
+      } catch (e) { gate = { ...gate, busy:false, pin:'', newPin:null, error:e.message }; if (loginError(e)) { void signOutFitter(e.message); return; } render(); }
+    }
+  }
+  function bindGate(target) {
+    const on=(selector,event,fn)=>target.querySelectorAll(selector).forEach(n=>n.addEventListener(event,fn));
+    on('[data-fitter-signout]','click',()=>doc.querySelector('#pdc-auth-signout')?.click());
+    on('[data-fitter-refresh]','click',()=>{ message=''; void refresh({forceRoster:true}); });
+    on('[data-fitter-login-user]','click',e=>{ const u=e.currentTarget.dataset.fitterLoginUser, f=(loginState?.fitters||[]).find(x=>x.username===u); gate={...blankGate(),mode:'pin',username:u,name:f?.name||''}; message=''; render(); });
+    on('[data-fitter-pin-key]','click',e=>{ const k=e.currentTarget.dataset.fitterPinKey; if(gate.busy) return;
+      const max = gate.mode==='pin' ? 12 : 6;
+      gate.pin = k==='clear' ? '' : k==='back' ? gate.pin.slice(0,-1) : gate.pin.length<max ? gate.pin+k : gate.pin; render(); });
+    on('[data-fitter-pin-ok]','click',()=>void gateOk());
+    on('[data-fitter-pin-input]','input',e=>{ gate.pin=String(e.target.value||'').toUpperCase().slice(0,12); const ok=target.querySelector('[data-fitter-pin-ok]'); if(ok) ok.disabled=gate.busy||gate.pin.length<4; });
+    on('[data-fitter-pin-input]','keydown',e=>{ if(e.key==='Enter') void gateOk(); });
+    on('[data-fitter-login-cancel]','click',()=>{ if(gate.mode==='change') void signOutFitter(''); else { gate=blankGate(); render(); } });
+  }
+  // r816 (F455): a shared tablet signs the fitter out after the idle time (never with unsaved work).
+  doc.addEventListener('pointerdown',()=>{ lastTouch=Date.now(); },true);
+  doc.addEventListener('keydown',()=>{ lastTouch=Date.now(); },true);
+  root.addEventListener('pdc-auth-locked',()=>{ fitterSession=null; loginState=null; gate=blankGate(); try { root.sessionStorage?.removeItem(LOGIN_KEY); } catch { /* ignore */ } });
   api.open = () => { render(); if(!initialized) {initialized=true;void refresh();} };
   api.close = () => { freezeTimer(); loadGeneration++; service.invalidateReads(); loading=false; refreshing=false; initialized=false; connected=false; };
   const reset=()=>{root.PdcBusWorkflow?.reset();supplierDraftKey='';service.invalidate();api.close();roster=[];mechanic='';jobs=[];bays=[];selected='';detail=null;handover=null;scrollToCurrent=false;detailReceivedAt=0;timerFreeze=null;pendingAction='';stopOpen=false;stopReason='';drafts.clear();conversionNotes.clear();conversionClosed.clear();root.PdcConversions?.reset();message='';render();};
@@ -961,5 +1109,10 @@
       root.dispatchEvent(new root.CustomEvent('pdc-fitter-workshop-saved',{detail:{bookingId:result.booking_id,action:'item_reset',revision:result.revision}}));
     } catch(err) { n.disabled=false; root.alert?.(err.message); }
   },true);
+  // r816 (F455): registered after the refresh and timer intervals (their order is relied on).
+  setInterval(()=>{
+    if(!active() || !loginRequired() || !fitterSession?.fitter || unsavedWork()) return;
+    if(Date.now()-lastTouch > (loginState.idle||10)*60000) void signOutFitter(`Signed out after ${loginState.idle||10} minutes without use.`);
+  },20000);
   root.addEventListener('beforeunload',e=>{if(saving||drafts.size||conversionNotes.size||root.PdcConversions?.hasDrafts()||root.PdcBusWorkflow?.hasDrafts()||busPending()||service.retryPending){e.preventDefault();e.returnValue='';}});
 })(typeof window !== 'undefined' ? window : globalThis);
