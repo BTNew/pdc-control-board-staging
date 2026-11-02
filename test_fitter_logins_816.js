@@ -43,7 +43,7 @@ test('sign-in screen: names, then a masked password box and PIN pad', () => {
   assert.match(short, /data-fitter-pin-ok[^>]*disabled/);
   const change = F.fitterLoginGateHtml({ mode:'change', username:'MR', name:'Mudassar', pin:'', newPin:null });
   assert.match(change, /pick your own PIN/);
-  assert.match(F.fitterLoginGateHtml({ mode:'pick', fitters:[], pin:'' }), /No fitter logins yet/);
+  assert.match(F.fitterLoginGateHtml({ mode:'pick', fitters:[], pin:'' }), /No fitter PINs yet/);
 });
 
 test('every Fitters bay request carries the signed-in fitter session header', async () => {
@@ -80,7 +80,7 @@ test('page: with sign-in required the mechanic is the signed-in fitter, not the 
   assert.match(fitters, /if \(loginRequired\(\) && !signedIn\(\)\) \{/);
   assert.match(fitters, /Signed out after \$\{loginState\.idle\|\|10\} minutes without use\./);
   assert.match(html, /<script src="pdc-fitter-logins\.js\?r816=2026\.11\.02\.r816" defer><\/script>/);
-  assert.match(html, /<div id="fitter-logins-content" class="panel"><\/div>/);
+  assert.match(html, /id="mechanic-list-admin"><\/div>\s*<div id="fitter-logins-content"><\/div>/, 'Craig 08:07: PIN reset sits under Setup > Mechanic list');
 });
 
 test('admin panel: Tune ID usernames, initials+ID first passwords, one-button create', () => {
@@ -95,5 +95,5 @@ test('admin panel: Tune ID usernames, initials+ID first passwords, one-button cr
   assert.match(out, /must pick their own 4 to 6 number PIN/);
   assert.match(out, /data-fitter-login-bulk/);
   assert.match(out, /1 without a Tune ID/);
-  assert.match(out, /Sign-in is OFF/);
+  assert.match(out, /PIN is OFF: fitters keep working as now/);
 });

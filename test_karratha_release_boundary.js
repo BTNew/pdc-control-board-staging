@@ -259,7 +259,7 @@ const approvedRootImportPatch = Object.freeze({
   // r740: the key tag shows on the next job, later jobs and other active jobs too (Craig, 30 Oct 2026). Department 135 keeps its frozen pdc-fitters.js.
   // r741: one Complete button; unticked items stay open for the station (Craig, 30 Oct 2026). Department 135 keeps its frozen pdc-fitters.js.
   // 30 Oct 2026: Start shows the busy overlay while the server starts the job and pushes later jobs back. Department 135 is not tagged.
-  "pdc-fitters.js": "2c34072fb460a317bed676913fd3b25cb8794f545ef9a989095a7f4820a450f0",
+  "pdc-fitters.js": "83248f3e4d71e859a5723c84e2c096e0fd201cc356fac8c902e10b1ae94f1ee4",
   // Deliberate live-board change, 19 October 2026. Department 135 stays parked.
   // app.js keeps Setup backup polling, hoist-corrections=2026.10.19.02,
   // planner-followup=2026.10.19.01, and the Vehicle Locations summary that
@@ -480,7 +480,7 @@ const approvedRootImportPatch = Object.freeze({
   // r604: index.html adds r604=2026.10.28.r604 on canonical-entry.js (pit bookings, F218). Department 135 is not tagged.
   // r616: pdc-auth.js, pdc-bay-manager.js and canonical-entry.js carry r616=2026.10.28.r616 (fitter sessions send only Fitters bay requests, F231). Department 135 is not tagged.
   // r642: Sublet · MMT nav and view, pdc-mmt-sublet.css/js, r642 on app.js and pdc-staff-usage.js (F257). Department 135 is not tagged.
-  "index.html": "fbd170c6ab02624049d679e87353c9bd78a3ef6b5bf98d5df627275b5b2ebafb", // r808 (F443) stock take tag and intro text (was r781 F386)
+  "index.html": "21586dc5b16e470f5464e8043a82ee0c52511fb18628dc15f990390224900d74", // r808 (F443) stock take tag and intro text (was r781 F386)
   "pdc-conversions.js": "0a99e7a5306f15e434b293a3ca9a318ffad4b78eb814c27144d75ff98821d810",
   // r401: Pit tick and read RPCs (set_pdc_pit_line_tick_401, get_pdc_pit_line_ticks_401).
   // r414: readQcPhotoReceipt (get_pdc_qc_photo_receipt_414) for the QC page (F30).

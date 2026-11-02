@@ -557,7 +557,7 @@
     const fitters = Array.isArray(m.fitters) ? m.fitters : [];
     return `<section class="fitter-login" aria-label="Fitter sign in"><h2>Who is working?</h2><p>Tap your name to sign in.</p>${error}
       ${fitters.length ? `<div class="fitter-login-grid">${fitters.map(f=>`<button type="button" data-fitter-login-user="${esc(f.username)}" ${busy}><strong>${esc(f.name)}</strong><span>${esc(f.username)}</span></button>`).join('')}</div>`
-        : '<p class="fitter-empty">No fitter logins yet. Ask the controller to add yours in Bay Manager.</p>'}</section>`;
+        : '<p class="fitter-empty">No fitter PINs yet. Ask the controller to add yours in Setup > Mechanic list.</p>'}</section>`;
   }
   // The cache token of the pdc-fitters.js tag (index.html text or a script src).
   function fitterScriptToken(text) {

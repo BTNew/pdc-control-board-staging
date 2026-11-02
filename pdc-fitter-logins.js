@@ -1,4 +1,4 @@
-/* Fitter logins. r816 (F455). Administrator only: Bay Manager > Fitter logins.
+/* Fitter logins. r816 (F455). Administrator only: Setup > Mechanic list > Fitter PINs (Craig 2 Nov 08:07).
    Each fitter signs in on the tablet with initials and a PIN. Reads and writes stay on staging. */
 (function (root) {
   'use strict';
@@ -38,8 +38,8 @@
     return 'Active';
   }
   function panelHtml(state) {
-    if (state.error) return `<section class="fitter-logins"><h2>Fitter logins</h2><p class="fitter-logins-error">${esc(state.error)}</p></section>`;
-    if (!state.payload) return `<section class="fitter-logins"><h2>Fitter logins</h2><p>Loading…</p></section>`;
+    if (state.error) return `<section class="fitter-logins"><h3>Fitter PINs</h3><p class="fitter-logins-error">${esc(state.error)}</p></section>`;
+    if (!state.payload) return `<section class="fitter-logins"><h3>Fitter PINs</h3><p>Loading…</p></section>`;
     const p = state.payload, techs = p.technicians || [];
     const withLogin = techs.filter(t => t.username && t.active !== false).length;
     const rows = techs.map(t => {
@@ -51,16 +51,16 @@
         <td><input aria-label="Tune mechanic ID for ${esc(t.name)}" data-fitter-login-initials value="${esc(id)}" inputmode="numeric" maxlength="6" size="6" autocomplete="off" placeholder="ID"></td>
         <td><input aria-label="Temporary password for ${esc(t.name)}" data-fitter-login-pin value="${esc(temp)}" maxlength="10" size="9" autocomplete="off" placeholder="${t.username ? 'reset to' : 'fitter no.'}"><button type="button" data-fitter-login-random title="Fitter number">Default</button></td>
         <td>${esc(statusText(t))}${t.last_sign_in ? `<small>Last in ${esc(new Date(t.last_sign_in).toLocaleString('en-AU', { timeZone:'Australia/Perth', day:'numeric', month:'short', hour:'numeric', minute:'2-digit' }))}</small>` : ''}</td>
-        <td class="fitter-logins-actions"><button type="button" data-fitter-login-save ${state.busy ? 'disabled' : ''}>${t.username ? 'Reset PIN' : 'Create login'}</button>
+        <td class="fitter-logins-actions"><button type="button" data-fitter-login-save ${state.busy ? 'disabled' : ''}>${t.username ? 'Reset PIN' : 'Create PIN'}</button>
           ${t.username ? `<button type="button" data-fitter-login-active="${t.active === false ? '1' : '0'}" ${state.busy ? 'disabled' : ''}>${t.active === false ? 'Enable' : 'Disable'}</button>` : ''}
           ${state.rowMessage[t.technician_id] ? `<small role="status">${esc(state.rowMessage[t.technician_id])}</small>` : ''}</td></tr>`;
     }).join('');
-    return `<section class="fitter-logins" aria-label="Fitter logins"><h2>Fitter logins</h2>
+    return `<section class="fitter-logins" aria-label="Fitter logins"><h3>Fitter PINs</h3>
       <p>Each fitter taps their name on the tablet. Their first PIN is their fitter number. Anyone could work that out, so at first sign-in the fitter must pick their own 4 to 6 number PIN.</p>
-      <p><button type="button" data-fitter-login-bulk ${state.busy ? 'disabled' : ''}>Create logins for every mechanic with a Tune ID</button> ${techs.filter(t => !t.username && !/^[0-9]{2,6}$/.test(String(t.code || ''))).length ? `<small>${techs.filter(t => !t.username && !/^[0-9]{2,6}$/.test(String(t.code || ''))).length} without a Tune ID: type their ID in the row.</small>` : ''}</p>
-      <div class="fitter-logins-switch"><label><input type="checkbox" data-fitter-login-required ${p.required ? 'checked' : ''} ${state.busy ? 'disabled' : ''}> Fitter sign-in required on the Fitters bay</label>
+      <p><button type="button" data-fitter-login-bulk ${state.busy ? 'disabled' : ''}>Create PINs for every mechanic with a Tune ID</button> ${techs.filter(t => !t.username && !/^[0-9]{2,6}$/.test(String(t.code || ''))).length ? `<small>${techs.filter(t => !t.username && !/^[0-9]{2,6}$/.test(String(t.code || ''))).length} without a Tune ID: type their ID in the row.</small>` : ''}</p>
+      <div class="fitter-logins-switch"><label><input type="checkbox" data-fitter-login-required ${p.required ? 'checked' : ''} ${state.busy ? 'disabled' : ''}> Fitter PIN required on the Fitters bay</label>
         <label>Sign out after <input type="number" min="2" max="60" data-fitter-login-idle value="${esc(p.idle_minutes || 10)}"> idle minutes</label>
-        <span>${withLogin} of ${techs.length} mechanics have a login.${p.required ? ' Sign-in is ON: fitters without a login cannot record work.' : ' Sign-in is OFF: the tablets still use the name list.'}</span></div>
+        <span>${withLogin} of ${techs.length} mechanics have a login.${p.required ? ' PIN is ON: fitters without a login cannot record work.' : ' PIN is OFF: fitters keep working as now (pick their name, no PIN).'}</span></div>
       ${state.message ? `<p class="fitter-logins-msg" role="status">${esc(state.message)}</p>` : ''}
       <div class="fitter-logins-table"><table><thead><tr><th>Mechanic</th><th>Tune ID</th><th>First PIN</th><th>Status</th><th></th></tr></thead><tbody>${rows}</tbody></table></div></section>`;
   }
@@ -73,7 +73,7 @@
   const state = { payload:null, error:'', message:'', busy:false, drafts:{}, rowMessage:{}, loading:false };
   const host = () => doc.getElementById('fitter-logins-content');
   const isAdmin = () => root.PDC_AUTH_CONTEXT?.role === 'administrator';
-  const shown = () => doc.body?.dataset.currentView === 'bay-manager';
+  const shown = () => doc.body?.dataset.currentView === 'lists';
 
   async function rpc(name, body) {
     const config = root.PDC_SUPABASE_CONFIG;

@@ -5,8 +5,9 @@
 -- do not prove who did the work. 06:33: "lets use the mechanic ID which they get from TUNE as the username. password, use
 -- there intials then mechanic ID?" 07:30: "maybe we use there name as the login and there fitter number as the pin number".
 -- The fitter taps their name; the first PIN is their fitter (Tune mechanic) number. Anyone can work that out, so it is
--- temporary: at first sign-in the fitter picks their own 4 to 6 digit PIN (not a date of birth). An administrator creates the logins on the board (Bay Manager >
--- Fitter logins; one button creates every mechanic that has a Tune ID). 5 wrong passwords lock the login for 5 minutes.
+-- temporary: at first sign-in the fitter picks their own 4 to 6 digit PIN (not a date of birth). An administrator creates and resets PINs in
+-- Setup > Mechanic list > Fitter PINs (Craig 08:07; one button creates every mechanic that has a Tune ID). Required stays OFF, so current
+-- fitters keep working exactly as now until it is switched on. 5 wrong passwords lock the login for 5 minutes.
 -- A fitter is signed out after 10 idle minutes, or when signing in on another tablet.
 -- The Fitters bay write RPCs (job command, Later, send / undo send) refuse work without a signed-in fitter, and refuse work
 -- under another fitter's name, but ONLY once an administrator switches "Fitter sign-in required" on. Applying this changes
@@ -264,7 +265,7 @@ BEGIN
   RETURN jsonb_build_object('ok', true);
 END $f$;
 
--- Administrator: Bay Manager > Fitter logins.
+-- Administrator: Setup > Mechanic list > Fitter PINs.
 CREATE FUNCTION public.admin_list_fitter_logins_816()
 RETURNS jsonb LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path TO 'pg_catalog', 'public' AS $f$
 DECLARE st pdc_ops.fitter_login_settings_816;
