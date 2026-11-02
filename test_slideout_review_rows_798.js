@@ -12,5 +12,5 @@ test('r798: review row, full width, stale class cleared, hover title, cache tags
   assert.match(js, /li\.classList\.remove\('vso-has-move', 'vso-move-row2'\)/);
   assert.match(js, /if \(desc && !desc\.title\) desc\.title = desc\.textContent\.trim\(\)/);
   assert.match(js, /r798=2026\.11\.01\.r798(&r800=2026\.11\.01\.r800)?`/);
-  assert.match(fs.readFileSync('canonical-entry.js', 'utf8'), /pdc-vehicle-slideout\.js\?[^']*&r798=2026\.11\.01\.r798(&r800=2026\.11\.01\.r800)?'/);
+  assert.match(fs.readFileSync('canonical-entry.js', 'utf8'), /pdc-vehicle-slideout\.js\?[^']*&r798=2026\.11\.01\.r798(&r800=2026\.11\.01\.r800)?(?:&r820=2026\.11\.02\.r820)?'/);
 });

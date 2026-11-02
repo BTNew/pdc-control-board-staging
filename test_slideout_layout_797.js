@@ -12,5 +12,5 @@ test('r797: fixed-width Move to, PO chip rows, group header row, cache tags', ()
   assert.match(css, /li\.pdc-sublet-group \{ display: flex !important;/);
   assert.match(js, /li\.querySelector\('\.pdc-sublet-po-inline, \.pdc-sublet-po-nopo, \.pdc-sublet-po-ref'\)\) li\.classList\.add\('vso-move-row2'\)/);
   assert.match(js, /r797=2026\.11\.01\.r797(&r798=2026\.11\.01\.r798)?(&r800=2026\.11\.01\.r800)?`/);
-  assert.match(fs.readFileSync('canonical-entry.js', 'utf8'), /pdc-vehicle-slideout\.js\?[^']*&r797=2026\.11\.01\.r797(&r798=2026\.11\.01\.r798)?(&r800=2026\.11\.01\.r800)?'/);
+  assert.match(fs.readFileSync('canonical-entry.js', 'utf8'), /pdc-vehicle-slideout\.js\?[^']*&r797=2026\.11\.01\.r797(&r798=2026\.11\.01\.r798)?(&r800=2026\.11\.01\.r800)?(?:&r820=2026\.11\.02\.r820)?'/);
 });

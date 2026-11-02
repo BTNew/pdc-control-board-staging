@@ -17,7 +17,7 @@ test('r800: drawer button for administrators only, dialog module, loader, migrat
   assert.match(mod, /refreshEmailVehicleLocations\(\)/);
   const entry = fs.readFileSync('canonical-entry.js', 'utf8');
   assert.match(entry, /pdc-admin-complete\.js\?r800=2026\.11\.01\.r800/);
-  assert.match(entry, /pdc-vehicle-slideout\.js\?[^']*&r800=2026\.11\.01\.r800'/);
+  assert.match(entry, /pdc-vehicle-slideout\.js\?[^']*&r800=2026\.11\.01\.r800(?:&r820=2026\.11\.02\.r820)?'/);
   assert.match(fs.readFileSync('scripts/build_pages_runtime.js', 'utf8'), /'pdc-admin-complete\.js'/);
   const mig = fs.readFileSync('supabase/migrations/20261101093000_r800_admin_complete_vehicle.sql', 'utf8');
   assert.match(mig, /r\.role = 'administrator'/);
