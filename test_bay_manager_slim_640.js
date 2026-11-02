@@ -23,5 +23,5 @@ test('refusals show on the bay with plain words (hide with open bookings)', () =
   assert.match(css, /\.bay-manager-row-actions \{ margin-left: auto;/);
   const html = fs.readFileSync('index.html', 'utf8');
   assert.match(html, /pdc-bay-manager\.js\?[^"]*&amp;r640=2026\.10\.28\.r640"/);
-  assert.match(html, /pdc-bay-manager\.css\?[^"]*&amp;r640=2026\.10\.28\.r640"/);
+  assert.match(html, /pdc-bay-manager\.css\?[^"]*&amp;r640=2026\.10\.28\.r640(?:&amp;r816=2026\.11\.02\.r816)?"/);
 });

@@ -42,3 +42,12 @@
 .bay-manager-week th, .bay-manager-week td { padding: 2px 10px 2px 0; }
 .bay-manager-off { display: inline-flex; gap: 4px; align-items: center; color: #475569; }
 .bay-manager-bay-error { background: #fef2f2; color: #991b1b; }
+
+/* r816 (F455): Bay Manager > Fitter logins (administrator) */
+.fitter-logins{margin-top:16px}.fitter-logins h2{margin:0 0 6px}.fitter-logins>p{color:#526375;margin:0 0 10px}
+.fitter-logins-switch{display:flex;flex-wrap:wrap;gap:12px 20px;align-items:center;padding:10px 12px;border:1px solid #cfdbe5;border-radius:8px;background:#f6f9fc;margin-bottom:10px}
+.fitter-logins-switch input[type=number]{width:56px}
+.fitter-logins-table{overflow-x:auto}.fitter-logins table{width:100%;border-collapse:collapse;font-size:.92rem}
+.fitter-logins th,.fitter-logins td{text-align:left;padding:7px 6px;border-bottom:1px solid #e3e8ee;vertical-align:top}
+.fitter-logins td small{display:block;color:#647487}.fitter-logins td input{font:inherit;padding:5px 6px;border:1px solid #aab7c5;border-radius:5px;text-transform:uppercase}
+.fitter-logins td button{margin:0 4px 4px 0;padding:5px 9px}.fitter-logins-msg{color:#1d3557;font-weight:600}.fitter-logins-error{color:#b42318}

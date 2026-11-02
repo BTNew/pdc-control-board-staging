@@ -58,6 +58,7 @@ const STARTUP_ORDER = [
   'pdc-fitters.js',
   // r570 (F184): Bay Manager loads with the board so the planner can read per-bay hours.
   'pdc-bay-manager.js',
+  'pdc-fitter-logins.js',
   // r591 (F205): Revolution uploads loads with the board. Apply stays off in this preview.
   'pdc-revolution-upload.js',
   // r642 (F257): Sublet · MMT page.

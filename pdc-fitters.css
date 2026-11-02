@@ -135,3 +135,19 @@ body.fitter-only #hosting-security-warning { display: none !important; }
 /* Conversion parent and section checklists */
 .conversion h4{margin:0 0 8px;font-size:1.1rem}.conversion-section{border:1px solid #ccd5df;border-radius:8px;margin:8px 0;padding:12px}.conversion-section.is-done{border-color:#23834b;background:#f1faf4}.conversion summary{cursor:pointer;display:flex;justify-content:space-between;gap:12px}.conversion summary span{flex:1}.conversion-fields{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:12px}.conversion-form{display:grid;gap:10px;margin:12px 0}.conversion-form label{display:grid;gap:5px}.conversion-form input,.conversion-form select,.conversion-form textarea{font:inherit;max-width:100%;padding:8px;border:1px solid #aab7c5;border-radius:5px;box-sizing:border-box}.conversion-form input[type=checkbox]{width:auto}.conversion-form button{justify-self:start;padding:10px 16px}.conversion-planning{margin-top:16px}.conversion-form small{color:#526375}.conversion-section summary b{white-space:nowrap}
 
+
+/* r816 (F455): fitter initials + PIN sign-in */
+.fitter-login{max-width:560px;margin:16px auto;padding:20px;background:#fff;border:1px solid #cfdbe5;border-radius:12px;text-align:center}
+.fitter-login h2{margin:0 0 4px;font-size:1.5rem}.fitter-login>p{margin:0 0 14px;color:#526375}
+.fitter-login-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:10px}
+.fitter-login-grid button{display:grid;gap:2px;padding:14px 8px;border:1px solid #aab7c5;border-radius:10px;background:#f6f9fc;font:inherit;cursor:pointer;min-height:72px}
+.fitter-login-grid button strong{font-size:1.5rem;letter-spacing:.05em}.fitter-login-grid button span{font-size:.78rem;color:#526375;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.fitter-pin-dots{display:flex;justify-content:center;gap:10px;margin:8px 0 16px}.fitter-pin-dots span{width:14px;height:14px;border-radius:50%;border:2px solid #7b8a9a}.fitter-pin-dots span.is-on{background:#1d3557;border-color:#1d3557}
+.fitter-pin-pad{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;max-width:320px;margin:0 auto}
+.fitter-pin-pad button{font:inherit;font-size:1.5rem;padding:16px 0;border:1px solid #aab7c5;border-radius:10px;background:#f6f9fc;cursor:pointer;min-height:60px}
+.fitter-pin-pad button[data-fitter-pin-key="clear"],.fitter-pin-pad button[data-fitter-pin-key="back"]{font-size:1rem}
+.fitter-login-actions{display:flex;justify-content:center;gap:10px;margin-top:16px}.fitter-login-actions button{padding:12px 20px;font:inherit;border-radius:8px}
+.fitter-signed-in{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:1.05rem}.fitter-signed-in button{padding:8px 12px;font:inherit;border-radius:8px}
+.fitter-pin-input{display:block;margin:6px auto 4px;width:220px;max-width:100%;font:inherit;font-size:1.6rem;letter-spacing:.2em;text-align:center;padding:10px;border:1px solid #7b8a9a;border-radius:10px;box-sizing:border-box}
+.fitter-login-hint{margin:0 0 12px;color:#647487;font-size:.85rem}
+.fitter-login-grid button strong{font-size:1rem;letter-spacing:0}.fitter-login-grid button span{font-size:.85rem}
