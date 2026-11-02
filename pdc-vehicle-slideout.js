@@ -91,7 +91,30 @@
     if (!Number.isInteger(bay) || bay < 1) return { action: 'none', reason: 'bay', hours, lineKey };
     return { action: 'bay', lineKey, hours, category, stage, bay, categoryChanged: category !== fromCategory, planId: String(chip.planId || ''), bookingId: String(chip.bookingId || '') };
   }
+  // r820 (F458): Craig 2 Nov 08:23 "im trying to save hours on 13109751 - wont save". The slide-out built its hour rows
+  // from the job card lines only and never read detail.line_adjustments, so every line that already had a saved adjustment
+  // was sent with no adjustment id and version 0: the server refused it as "changed in another session", and the boxes
+  // showed job card hours instead of the saved hours (Bullbar 1 h, saved 4 h). Merge the adjustment onto its line:
+  // its id, version and saved hours win; the line keeps its own station (the server checks the job card line's station).
+  function mergeLineAdjustments(map, adjustments) {
+    for (const adj of Array.isArray(adjustments) ? adjustments : []) {
+      if (!adj || adj.source_kind === 'manual') continue;
+      const lineKey = String(adj.line_key || '');
+      const key = lineKey.replace(/^(source|manual):/, '');
+      const record = key ? map.get(key) : null;
+      if (!record) continue;
+      record.adjustmentId = String(adj.adjustment_id || '');
+      record.adjustmentVersion = Number(adj.version || 0);
+      if (adj.active !== false && adj.estimated_hours != null && adj.estimated_hours !== '' && Number.isFinite(Number(adj.estimated_hours))) {
+        record.hours = Number(adj.estimated_hours);
+      }
+      if (!record.lineKey) record.lineKey = lineKey;
+    }
+    return map;
+  }
   const api = { VERSION, slimWorkPage, chipMovePlan };
+  // r820: not enumerable, so the panel's exported surface (VERSION, slimWorkPage, chipMovePlan) stays as pinned.
+  Object.defineProperty(api, 'mergeLineAdjustments', { value: mergeLineAdjustments, enumerable: false });
   if (typeof module === 'object' && module.exports) module.exports = api;
   const VLT = root?.PDC_VEHICLE_LOCATIONS_TABLE;
   if (!root || !root.document || !VLT || typeof VLT.setDrawerOpener !== 'function' || root.PDC_VEHICLE_SLIDEOUT) {
@@ -328,6 +351,7 @@
         completedAt: line.completed_at || line.completedAt || prev.completedAt || '',
       });
     }
+    mergeLineAdjustments(map, detail?.line_adjustments); // r820 (F458)
     const bookings = Array.isArray(detail?.bookings) ? detail.bookings : [];
     return { lines: map, bookings };
   }
